@@ -583,7 +583,11 @@ def produce_nogoods(file_names, args, config):
     time_extract = time.time() - t
 
     # convert the nogoods
-    convert_ng_file(ng_name, converted_ng_name,  **config)
+    convert_ng_file(ng_name, converted_ng_name,
+                    max_deg=args.max_deg, 
+                    max_lit_count=args.max_lit_count,
+                    nogoods_wanted=args.nogoods_wanted,
+                    **config)
 
     logging.info("time to extract: {}".format(time_extract))
 
