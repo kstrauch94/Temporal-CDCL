@@ -31,7 +31,9 @@ The second option is to use the consume_nogoods.py program. A file containing th
 
 Sample call:
 
+```
 python consume_nogoods.py --files basic.lp --instance test-instances/blocks-11.lp --nogoods conv_ng.lp 
+```
 
 Pddl instances are supported in the same way as in the produce_nogoods.py program.
 
