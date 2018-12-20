@@ -5,14 +5,17 @@ To produce nogoods use produce_nogoods.py. To run it needs some files(encoding, 
 Sample call:
 
 ```
-python produce_nogoods.py --files basic.lp --instance test-instances/blocks-11.lp --config test_config --nogoods-limit 10
+python produce_nogoods.py --files encodings/basic.lp --instance test-instances/blocks-11.lp --config test_config --nogoods-limit 10
 ```
+
+Note that test_config does not have the .py suffix.
+
 Additionally, pddl instances can be used instead of regular asp instances with the --pddl-instance option. The program will try to find the domain file in the same folder of the instance or in the parent folder. A domain can also be manually given with the --pddl-domain option.
 
 Sample call:
 
 ```
-python produce_nogoods.py --files basic.lp --pddl-instance path/to/pddl/instance.pddl --config test_config --nogoods-limit 10
+python produce_nogoods.py --files encodings/basic.lp --pddl-instance path/to/pddl/instance.pddl --config test_config --nogoods-limit 10
 ```
 
 For more option use --help
@@ -32,7 +35,7 @@ The second option is to use the consume_nogoods.py program. A file containing th
 Sample call:
 
 ```
-python consume_nogoods.py --files basic.lp --instance test-instances/blocks-11.lp --nogoods conv_ng.lp 
+python consume_nogoods.py --files encodings/basic.lp --instance test-instances/blocks-11.lp --nogoods conv_ng.lp 
 ```
 
 Pddl instances are supported in the same way as in the produce_nogoods.py program.
