@@ -376,7 +376,10 @@ def call_clingo(file_names, options):
 
     #logging.info("Models: {}".format(re.findall(models_re, output)))
 
-def convert_ng_file(ng_name, converted_ng_name, 
+def convert_ng_file(ng_name, converted_ng_name,
+                    max_deg=10,
+                    max_lit_count=50,
+                    nogoods_wanted=100,
                     minimal=False, 
                     sortby=["degree", "literal_count"], 
                     validate_files=None, 
@@ -398,9 +401,9 @@ def convert_ng_file(ng_name, converted_ng_name,
         lines = f.readlines()
 
 
-    total_nogoogds = len(lines)
-    logging.info("\ntotal lines in the no good file: {}\n".format(total_nogoogds))
-    if total_nogoogds == 0:
+    total_nogoods = len(lines)
+    logging.info("\ntotal lines in the no good file: {}\n".format(total_nogoods))
+    if total_nogoods == 0:
         logging.info("no nogoods learned...")
         return 0
 
@@ -424,17 +427,29 @@ def convert_ng_file(ng_name, converted_ng_name,
         # line is the raw text of the nogood, line num is the order it appears in the file
         ng = Nogood(line, line_num)
 
+        # ignore nogoods of higher degree or literal count
+        if ng.degree > max_deg or ng.literal_count > max_lit_count:
+            continue
+
         t = time.time()
         ng.generalize()
         time_generalize += time.time() - t
 
         nogoods.append(ng)
 
+        if len(nogoods) >= nogoods_wanted:
+            break
+
     if sortby is not None:
         nogoods.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
 
 
+    total_nogoods = len(nogoods)
+
+    logging.info("Total nogoods after processing: {}".format(total_nogoods))
+
     if validate:
+        logging.info("Starting validation...")
         for ng in nogoods:
 
             # this part is the normal validation as patrick does it
@@ -474,6 +489,8 @@ def convert_ng_file(ng_name, converted_ng_name,
                 logging.info("Instance validation: {}".format(instance_val))
                 logging.info("constraint: {}".format(str(ng)))
 
+        logging.info("Finishing validation")
+
     # if not validating use all of them
     else:
         converted_lines = nogoods
@@ -488,8 +505,8 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("Finished converting!\n")
 
     if validate:
-        logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoogds))
-        logging.info("Validated {} of {} nogoods withing the instance".format(amount_instance_validated, total_nogoogds))
+        logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoods))
+        logging.info("Validated {} of {} nogoods withing the instance".format(amount_instance_validated, total_nogoods))
 
     logging.info("time to generelize: {}".format(time_generalize))
     if validate:
@@ -543,7 +560,7 @@ def plasp_translate(instance, domain, filename):
     os.remove("output.sas")
 
 
-def produce_nogoods(file_names, nogoods_limit, extraction_time, config):
+def produce_nogoods(file_names, args, config):
 
     logging.info("Starting nogood production...")
 
@@ -555,8 +572,8 @@ def produce_nogoods(file_names, nogoods_limit, extraction_time, config):
                         "--lemma-out-dom=output", 
                         "--heuristic=domain", 
                         "--dom-mod=1,16",
-                        "--lemma-out-max={}".format(nogoods_limit),
-                        "--time-limit={}".format(extraction_time),
+                        "--lemma-out-max={}".format(args.nogoods_limit),
+                        "--time-limit={}".format(args.max_extraction_time),
                         "--quiet=2",
                         "1"]
 
@@ -566,7 +583,7 @@ def produce_nogoods(file_names, nogoods_limit, extraction_time, config):
     time_extract = time.time() - t
 
     # convert the nogoods
-    convert_ng_file(ng_name, converted_ng_name, **config)
+    convert_ng_file(ng_name, converted_ng_name,  **config)
 
     logging.info("time to extract: {}".format(time_extract))
 
@@ -604,9 +621,14 @@ if __name__ == "__main__":
 
     parser.add_argument("--config", help="File with a CONFIG dictionary where the configuration of the nogood is stored.")
 
-    parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing")
+    parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100", default=100, type=int)
 
-    parser.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds.")
+    parser.add_argument("--nogoods-wanted", help="Nogoods will be processed will stop after this amount. Default = 100", default=100, type=int)
+
+    parser.add_argument("--max-deg", help="Processing will ignore nogoods with higher degree. Default = 10", default=10, type=int)
+    parser.add_argument("--max-lit-count", help="Processing will ignore nogoods with higher literal count. Default = 50", default=50, type=int)
+
+    parser.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
     parser.add_argument("--logtofile", help="log to a file")
 
@@ -650,8 +672,7 @@ if __name__ == "__main__":
 
 
     # maybe pass the nogoods directly instead of file?
-    converted_nogoods = produce_nogoods(files, args.nogoods_limit,
-                                        args.max_extraction_time, config)
+    converted_nogoods = produce_nogoods(files, args, config)
 
     if args.consume:
         times = consume_nogoods.run_tests(files, converted_nogoods, args.scaling)
