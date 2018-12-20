@@ -384,7 +384,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                     validate_instance_files=None):
 
     # sortby should be a list of the int attributes in the nogood:
-    # lbd, ordering, degree, raw_literal_count
+    # lbd, ordering, degree, literal_count
 
     converted_lines = []
     amount_validated = 0
