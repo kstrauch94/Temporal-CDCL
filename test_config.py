@@ -11,6 +11,6 @@ VALIDATE_FILES = "validate_files" # if file is given it will validate using this
 CONFIG = {  MINIMAL : False,
             SORTBY : ["degree", "literal_count"],
             REVERSE_SORT : False,
-            #VALIDATE_FILES : ["state_prover.lp"]
-            VALIDATE_FILES : ["state_prover-new-rules.lp"]
+            VALIDATE_FILES : ["validation-encoding/state_prover.lp"]
+            #VALIDATE_FILES : ["state_prover-new-rules.lp"]
 }
