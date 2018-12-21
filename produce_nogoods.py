@@ -274,9 +274,9 @@ hypothesisConstraint(s(T-degree)) {}
             f.write(program)
 
         try:
-            output = subprocess.check_output(call)
+            output = subprocess.check_output(call).decode("utf-8")
         except subprocess.CalledProcessError as e:
-            output = e.output
+            output = e.output.decode("utf-8")
 
         logging.debug(output)
 
@@ -305,9 +305,9 @@ hypothesisConstraint(s(T-degree)) {}
             f.write(program)
 
         try:
-            output = subprocess.check_output(call)
+            output = subprocess.check_output(call).decode("utf-8")
         except subprocess.CalledProcessError as e:
-            output = e.output
+            output = e.output.decode("utf-8")
 
         logging.debug(output)
 
@@ -366,9 +366,9 @@ def call_clingo(file_names, options):
     logging.info("calling: " + " ".join(call))
 
     try:
-        output = subprocess.check_output(call)
+        output = subprocess.check_output(call).decode("utf-8")
     except subprocess.CalledProcessError as e:
-        output = e.output
+        output = e.output.decode("utf-8")
 
     logging.info("call has finished\n")
 
@@ -546,12 +546,12 @@ def plasp_translate(instance, domain, filename):
 
     fd_call = FD_CALL + [domain, instance]
 
-    output = subprocess.check_output(fd_call)
+    output = subprocess.check_output(fd_call).decode("utf-8")
     #print(output)
 
     plasp_call = ["plasp", "translate", "output.sas"]
 
-    output = subprocess.check_output(plasp_call)
+    output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
         f.write(output)
 
@@ -573,9 +573,10 @@ def produce_nogoods(file_names, args, config):
                         "--heuristic=domain", 
                         "--dom-mod=1,16",
                         "--lemma-out-max={}".format(args.nogoods_limit),
+                        "--solve-limit={}".format(3*int(args.nogoods_limit)),
                         "--time-limit={}".format(args.max_extraction_time),
                         "--quiet=2",
-                        "1"]
+                        "0"]
 
     # call clingo to extract nogoods
     t = time.time()
@@ -595,7 +596,7 @@ def produce_nogoods(file_names, args, config):
 
     return converted_ng_name
 
-def setup_logging(logtofile):
+def setup_logging(no_stream_output=False, logtofile=None):
 
     rootLogger = logging.getLogger()
     rootLogger.setLevel(logging.INFO)
@@ -607,9 +608,10 @@ def setup_logging(logtofile):
         fileHandler.setFormatter(formatter)
         rootLogger.addHandler(fileHandler)
 
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(formatter)
-    rootLogger.addHandler(consoleHandler)
+    if not no_stream_output:
+        consoleHandler = logging.StreamHandler()
+        consoleHandler.setFormatter(formatter)
+        rootLogger.addHandler(consoleHandler)
 
 
 if __name__ == "__main__":
@@ -640,10 +642,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
 
+    parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
+
 
     args = parser.parse_args()
 
-    setup_logging(args.logtofile)
+    setup_logging(args.no_stream_output, args.logtofile)
 
     files = args.files
     instance = args.instance
