@@ -10,8 +10,8 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
 
 % No action can be done at time 0
-#external external(occurs(A,s(0))) : action(A).
-:-  occurs(A,s(0)), not external(occurs(A,s(0))), action(A).
+%#external external(occurs(A,s(0))) : action(A).
+%:-  occurs(A,s(0)), not external(occurs(A,s(0))), action(A).
 
 % generate (a SAT problem)
 { occurs(A,T) : action(A) }  :- time(T).
