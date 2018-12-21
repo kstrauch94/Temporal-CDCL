@@ -455,7 +455,7 @@ def convert_ng_file(ng_name, converted_ng_name,
             # this part is the normal validation as patrick does it
             t = time.time()
             ng.validate_self(validate_files)
-            time_validate = time.time() - t
+            time_validate += time.time() - t
 
             logging.debug("validated: {}".format(ng.validated))
 
@@ -475,7 +475,7 @@ def convert_ng_file(ng_name, converted_ng_name,
             # this part is validating within the instance
             t = time.time()
             instance_val = ng.validate_instance(validate_instance_files)
-            time_validate_instance = time.time() - t
+            time_validate_instance += time.time() - t
             
             if not instance_val:
                 logging.info("Result of instance val: {}".format(instance_val))
