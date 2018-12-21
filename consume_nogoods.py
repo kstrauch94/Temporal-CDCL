@@ -55,12 +55,12 @@ def plasp_translate(instance, domain, filename):
     FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
     FD_CALL = FD_CALL + [domain, instance]
 
-    output = subprocess.check_output(FD_CALL)
+    output = subprocess.check_output(FD_CALL).decode("utf-8")
     #print(output)
 
     plasp_call = ["plasp", "translate", "output.sas"]
 
-    output = subprocess.check_output(plasp_call)
+    output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
         f.write(output)
 
@@ -79,9 +79,9 @@ def call_clingo(file_names, options):
     logging.debug("calling: " + " ".join(call))
 
     try:
-        output = subprocess.check_output(call)
+        output = subprocess.check_output(call).decode("utf-8")
     except subprocess.CalledProcessError as e:
-        output = e.output
+        output = e.output.decode("utf-8")
 
     logging.debug("call has finished\n")
 
