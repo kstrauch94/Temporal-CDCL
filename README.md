@@ -24,7 +24,7 @@ The nogoods will be saved into a file called __conv_ng.lp__
 
 ## Validating nogoods
 
-To validate nogoods set the value of VALIDATE in __test_config.py__ to a file that can be used to validate them. E.g __validation-encoding/state_prover.lp__ when using basic.lp as the encoding.
+To validate nogoods use the option --validate-files. The value of the option must be a file(s) that can be used to validate them. E.g __validation-encoding/state_prover.lp__ when using basic.lp as the encoding.
 
 # Consuming nogoods
 
