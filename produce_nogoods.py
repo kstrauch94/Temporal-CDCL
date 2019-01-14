@@ -384,6 +384,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                     sortby=["degree", "literal_count"], 
                     validate_files=None, 
                     reverse_sort=False,
+                    validate_instance=False,
                     validate_instance_files=None):
 
     # sortby should be a list of the int attributes in the nogood:
@@ -392,6 +393,9 @@ def convert_ng_file(ng_name, converted_ng_name,
     converted_lines = []
     amount_validated = 0
     amount_instance_validated = 0
+
+    failed_to_validate = []
+    prev_check = 0
 
     # just so that we dont check multiple times
     validate = validate_files is not None
@@ -470,8 +474,17 @@ def convert_ng_file(ng_name, converted_ng_name,
             else:
                 logging.info("not validated: {}".format(ng.to_constraint()))
                 logging.info("number: {}".format(ng.ordering))
+                failed_to_validate.append(ng.to_rule())
+                if "prev_" in ng.to_rule():
+                    prev_check += 1
+        print("failed vals {}, prev_ in fails {}".format(len(failed_to_validate), prev_check))
 
-            
+        logging.info("Finishing validation")
+
+    if validate_instance:
+        logging.info("Starting instance validation...")
+        for ng in nogoods:
+
             # this part is validating within the instance
             t = time.time()
             instance_val = ng.validate_instance(validate_instance_files)
@@ -479,17 +492,20 @@ def convert_ng_file(ng_name, converted_ng_name,
             
             if not instance_val:
                 logging.info("Result of instance val: {}".format(instance_val))
+                logging.info("constraint: {}".format(ng.to_constraint()))
                 logging.info("number: {}".format(ng.ordering))
             else:
                 amount_instance_validated += 1
 
-            if instance_val != ng.validated:
-                logging.info("validations do not match")
-                logging.info("Normal validation: {}".format(ng.validated))
-                logging.info("Instance validation: {}".format(instance_val))
-                logging.info("constraint: {}".format(str(ng)))
+        logging.info("Finishing instance validation")
 
-        logging.info("Finishing validation")
+    # if we validate with both methods check if they have the same result
+    if (validate_instance and validate) and instance_val != ng.validated:
+        logging.info("validations do not match")
+        logging.info("Normal validation: {}".format(ng.validated))
+        logging.info("Instance validation: {}".format(instance_val))
+        logging.info("constraint: {}".format(str(ng)))
+
 
     # if not validating use all of them
     else:
@@ -502,15 +518,22 @@ def convert_ng_file(ng_name, converted_ng_name,
 
             f.write(str(line))
 
+    # write failed validations to a file
+    with open("failed_to_validate.log", "w") as f:
+        for l in failed_to_validate:
+            f.write(str(l))
+
     logging.info("Finished converting!\n")
 
     if validate:
         logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoods))
-        logging.info("Validated {} of {} nogoods withing the instance".format(amount_instance_validated, total_nogoods))
+    if validate_instance:
+        logging.info("Validated {} of {} nogoods within the instance".format(amount_instance_validated, total_nogoods))
 
     logging.info("time to generelize: {}".format(time_generalize))
     if validate:
         logging.info("time to validate: {}".format(time_validate))
+    if validate_instance:
         logging.info("time to validate within instance: {}".format(time_validate_instance))
         
     return 1
@@ -576,6 +599,7 @@ def produce_nogoods(file_names, args, config):
                         "--solve-limit={}".format(3*int(args.nogoods_limit)),
                         "--time-limit={}".format(args.max_extraction_time),
                         "--quiet=2",
+                        "--stats",
                         "0"]
 
     # call clingo to extract nogoods
@@ -626,6 +650,8 @@ if __name__ == "__main__":
     parser.add_argument("--trans-name", help="name of the translated file")
 
     parser.add_argument("--config", help="File with a CONFIG dictionary where the configuration of the nogood is stored.")
+    parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
+    parser.add_argument("--validate-instance", action="store_true", help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided.")
 
     parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100", default=100, type=int)
 
@@ -650,12 +676,14 @@ if __name__ == "__main__":
     setup_logging(args.no_stream_output, args.logtofile)
 
     files = args.files
-    instance = args.instance
 
     config = {}
     if args.config is not None:
         config_file = __import__(args.config)
         config = config_file.CONFIG
+
+    config["validate_files"] = args.validate_files
+    config["validate_instance"] = args.validate_instance
 
     if args.pddl_instance is not None:
         if args.trans_name is not None:
@@ -666,17 +694,17 @@ if __name__ == "__main__":
         plasp_translate(args.pddl_instance, args.pddl_domain, trans_name)
 
         instance = trans_name
+        files.append(instance)
 
-    if args.instance is not None:
+    elif args.instance is not None:
         instance = args.instance
-
-    files.append(instance)
+        files.append(instance)
 
     if config["validate_files"] is not None:
         # last value in files should be instance
         config["validate_files"] += [instance]
 
-        config["validate_instance_files"] = files
+    config["validate_instance_files"] = files
 
 
     # maybe pass the nogoods directly instead of file?
