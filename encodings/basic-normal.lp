@@ -11,12 +11,9 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 % set initial state
 holds(X,V,s(0)) :- initialState(X,V).
 
-% No action can be done at time 0
-:-  occurs(A,s(0)), action(A).
-
 % generate (a SAT problem)
 {     holds(X,V,T) } :- contains(X,V), time(T).
-{ occurs(A,T) : action(A) }  :- time(T).
+{ occurs(A,s(T)) : action(A) }  :- time(s(T)), T > 0.
 
 % at most one action
 :- 2{occurs(A,T) : action(A)}, time(T).
@@ -31,8 +28,10 @@ holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 holds(X,V,s(T-1)) :- occurs(A,s(T)), precondition(A,X,V), time(s(T)), time(s(T-1)).
 
 % inertia
-:- holds(X,V,s(T)), not holds(X,V,s(T-1)), 
-   not occurs(A,s(T)) : postcondition(A,_,X,V) ; time(s(T)), time(s(T-1)).
+%:- holds(X,V,s(T)), not holds(X,V,s(T-1)), 
+%   not occurs(A,s(T)) : postcondition(A,_,X,V) ; time(s(T)), time(s(T-1)).
+
+holds(X,V,s(T)) :- holds(X,V,s(T-1)), not occurs(A,s(T)) : postcondition(A,_,X,V2), V != V2 ; time(s(T)), T>0.
 
 % existence and uniqueness of value
 :- not 1 { holds(X,V,T) } 1, variable(X), time(T).
