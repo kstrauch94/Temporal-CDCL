@@ -10,7 +10,7 @@
 %in some body of the set of rules of the input.
 
 
-#const maxtime = 50.
+#const maxtime = 6.
 time(s(0..maxtime)).
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
@@ -28,11 +28,9 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 #external external(holds(X,V,s(0))) : initialState(X,V).
 :- not holds(X,V,s(0)), not external(holds(X,V,s(0))), initialState(X,V).
 
-holds(X,V,s(0)) :- initialState(X,V).
-
 % No action can be done at time 0
-%#external external(occurs(A,s(0))) : action(A).
-%:-  occurs(A,s(0)), not external(occurs(A,s(0))), action(A).
+#external external(occurs(A,s(0))) : action(A).
+:-  occurs(A,s(0)), not external(occurs(A,s(0))), action(A).
 
 % generate (a SAT problem)
 {     holds(X,V,T) } :- contains(X,V), time(T).
@@ -53,11 +51,15 @@ holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 % preconditions
 %:- occurs(A,s(T)), precondition(A,X,V), not holds(X,V,s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
 
+%:- occurs(A,s(T)), precondition(A,X,V), not prev_holds(X,V,s(T)).
+
 prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
 
 % inertia
-:- holds(X,V,s(T)), not holds(X,V,s(T-1)), 
-   not occurs(A,s(T)) : postcondition(A,_,X,V) ; not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
+:- holds(X,V,s(T)), not prev_holds(X,V,s(T)), 
+   not occurs(A,s(T)) : postcondition(A,_,X,V) ; T>0, time(s(T)).
+
+%holds(X,V,s(T)) :- prev_holds(X,V,s(T)), not occurs(A,s(T)) : postcondition(A,_,X,V2), V2 != V; T>0.
 
 % existence and uniqueness of value
 :- not 1 { holds(X,V,T) } 1, variable(X), time(T).
@@ -66,11 +68,9 @@ prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
 :- 2 #sum { 1,X,V: holds(X,V,T), contains(G,X,V) }, mutex(G), time(T).
 
 % Check goal conditions
-% use external formalism to make goal true
-% for now we set the goal for the last time step
 
 % goal must hold at the last time point
 #external external(holds(X,V,s(maxtime))) : goal(X,V).
 :- not holds(X,V,s(maxtime)), not external(holds(X,V,s(maxtime))), goal(X,V).
 
-%holds(X,V,s(maxtime)) :- goal(X,V).
+
