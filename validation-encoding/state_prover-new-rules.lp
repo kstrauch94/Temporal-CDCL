@@ -25,16 +25,19 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
 % effects
 :- occurs(A,T), postcondition(A,_,X,V), not holds(X,V,T).
+%holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 
 % preconditions
-%:- occurs(A,s(T)), precondition(A,X,V), not holds(X,V,s(T-1)), time(s(T)), time(s(T-1)).
+:- occurs(A,s(T)), precondition(A,X,V), not prev_holds(X,V,s(T)).
 
-prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
+%prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
 
 
 % inertia
 :- holds(X,V,s(T)), not holds(X,V,s(T-1)), 
-   not occurs(A,s(T)) : postcondition(A,_,X,V)  ; time(s(T)), time(s(T-1)).
+   not occurs(A,s(T)) : postcondition(A,_,X,V)  ; not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
+
+%holds(X,V,s(T)) :- prev_holds(X,V,s(T)), not occurs(A,s(T)) : postcondition(A,_,X,V2), V2 != V; T>0.
 
 % existence and uniqueness of value
 :- not 1 { holds(X,V,T) } 1, variable(X), time(T).
