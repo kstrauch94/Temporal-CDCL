@@ -49,8 +49,6 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 
 % preconditions
-%:- occurs(A,s(T)), precondition(A,X,V), not holds(X,V,s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
-
 %:- occurs(A,s(T)), precondition(A,X,V), not prev_holds(X,V,s(T)).
 
 prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
