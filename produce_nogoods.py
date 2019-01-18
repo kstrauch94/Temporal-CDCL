@@ -53,6 +53,7 @@ class Nogood:
         self.lbd = int(re.search(lbd_re, nogood_str).group(1))
 
         self.process_literals()
+        self.process_prev()
 
         self.raw_literal_count = len(self.literals)
 
@@ -66,6 +67,8 @@ class Nogood:
         self.validated = None
 
     def process_literals(self):
+        # this takes the raw nogood string and splits the atoms
+        # into singular ones
 
         pre_literals = self.raw.replace(":-", "").replace(".","").strip()
         # regex from 
@@ -84,30 +87,26 @@ class Nogood:
             else:
                 self.literals.append(lit)
 
-    def sanitize_literals(self):
-        old_lit = self.literals[:]
-        new_lit = []
 
-        candidate = ""
-        while old_lit != []:
-            if candidate != "":
-                candidate += ", " + old_lit[0]
-            else:
-                candidate += old_lit[0]
+    def process_prev(self):
 
-            old_lit.remove(old_lit[0])
+        for idx, atom in enumerate(self.literals, start=0):
+            if "prev_" in atom:
+                new_atom = atom.replace("prev_", "")
 
-            if candidate.count("(") != candidate.count(")"):
-                continue
-            else:
-                new_lit.append(candidate)
-                candidate = ""
+                time_match = int(re.search(time_re, new_atom).group(1))
 
-        self.literals = new_lit
+                new_atom = new_atom.replace("s({})".format(time_match), "s({})".format(time_match-1))
+
+                self.literals[idx] = new_atom
+
+                new_dom_lit = "not external(next(s({}),s({})))".format(time_match-1, time_match)
+                if new_dom_lit not in self.domain_literals:
+                    self.domain_literals.append(new_dom_lit)
 
     def process_time(self):
 
-        matches = re.findall(time_re, self.raw)
+        matches = re.findall(time_re, ", ".join(self.literals))
         matches = [int(m) for m in matches]
 
         self.max_time = max(matches)
