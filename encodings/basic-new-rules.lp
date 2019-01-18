@@ -15,6 +15,9 @@ time(s(0..maxtime)).
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
+first(s(0)).
+last(s(maxtime)).
+
 
 % Define initial state
 % Define initialstate as external
@@ -37,7 +40,7 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 { occurs(A,T) : action(A) }  :- time(T).
 
 
-{ prev_holds(X,V,s(T)) } :- contains(X,V), time(s(T)), T > 0.
+{ prev_holds(X,V,T) } :- contains(X,V), time(T), not first(T).
 :- prev_holds(X,V,s(T)), not holds(X,V,s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
 :- not prev_holds(X,V,s(T)), holds(X,V,s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
 
@@ -49,15 +52,15 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 
 % preconditions
-%:- occurs(A,s(T)), precondition(A,X,V), not prev_holds(X,V,s(T)).
+%:- occurs(A,T), precondition(A,X,V), not prev_holds(X,V,T).
 
-prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
+prev_holds(X,V,T) :- occurs(A,T), precondition(A,X,V).
 
 % inertia
-:- holds(X,V,s(T)), not prev_holds(X,V,s(T)), 
-   not occurs(A,s(T)) : postcondition(A,_,X,V) ; T>0, time(s(T)).
+:- holds(X,V,T), not prev_holds(X,V,T), 
+   not occurs(A,T) : postcondition(A,_,X,V) ; time(T), not first(T).
 
-%holds(X,V,s(T)) :- prev_holds(X,V,s(T)), not occurs(A,s(T)) : postcondition(A,_,X,V2), V2 != V; T>0.
+%holds(X,V,T) :- prev_holds(X,V,T), not occurs(A,T) : postcondition(A,_,X,V2), V2 != V; not first(T).
 
 % existence and uniqueness of value
 :- not 1 { holds(X,V,T) } 1, variable(X), time(T).
@@ -68,7 +71,7 @@ prev_holds(X,V,s(T)) :- occurs(A,s(T)), precondition(A,X,V).
 % Check goal conditions
 
 % goal must hold at the last time point
-#external external(holds(X,V,s(maxtime))) : goal(X,V).
-:- not holds(X,V,s(maxtime)), not external(holds(X,V,s(maxtime))), goal(X,V).
+#external external(holds(X,V,T)) : goal(X,V), last(T).
+:- not holds(X,V,T), not external(holds(X,V,T)), goal(X,V), last(T).
 
 
