@@ -1,3 +1,9 @@
+time(s(S)) :- max_steps(S),     0 < S.
+time(s(T)) :- time(s(S)), T = S-1, 1 < S.
+
+first(s(0)).
+last(s(T)) :- time(s(T)), not time(s(T+1)).
+
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
@@ -14,23 +20,20 @@ num_cols(Y) :- col(Y), not col(YY), YY = Y+1.
 
 
 % set initial state
-#external external(goal(X,Y,s(0))) : goal_on(X,Y).
-:- not goal(X,Y,s(0)), not external(goal(X,Y,s(0))), goal_on(X,Y).
+#external external(goal(X,Y,T)) : goal_on(X,Y), first(T).
+:- not goal(X,Y,T), not external(goal(X,Y,T)), goal_on(X,Y), first(T).
 
 % set initial state
-#external external(reach(X,Y,s(0))) : init_on(X,Y).
-:- not reach(X,Y,s(0)), not external(reach(X,Y,s(0))), init_on(X,Y).
+#external external(reach(X,Y,T)) : init_on(X,Y), first(T).
+:- not reach(X,Y,T), not external(reach(X,Y,T)), init_on(X,Y), first(T).
 
 % set initial state
-#external external(conn(X,Y,D,s(0))) : connect(X,Y,D).
-:- not conn(X,Y,D,s(0)), not external(conn(X,Y,D,s(0))), connect(X,Y,D).
+#external external(conn(X,Y,D,T)) : connect(X,Y,D), first(T).
+:- not conn(X,Y,D,T), not external(conn(X,Y,D,T)), connect(X,Y,D), first(T).
 
-{goal(X,Y,s(0))}   :- goal_on(X,Y).
-{reach(X,Y,s(0))}  :- init_on(X,Y).
-{conn(X,Y,D,s(0))} :- connect(X,Y,D).
-
-time(s(S)) :- max_steps(S),     0 < S.
-time(s(T)) :- time(s(S)), T = S-1, 1 < S.
+{goal(X,Y,T)}   :- goal_on(X,Y), first(T).
+{reach(X,Y,T)}  :- init_on(X,Y), first(T).
+{conn(X,Y,D,T)} :- connect(X,Y,D), first(T).
 
 %%  Direct neighbors
 
@@ -92,10 +95,6 @@ reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,
 
 :- neg_goal(s(T)), time(s(T)), not time(s(T+1)).
 
-%% Project output
-% #hide.
-%#show push/3.
-
 
 { prev_neg_goal(s(T)) } :- time(s(T)), T > 0.
 :- prev_neg_goal(s(T)), not neg_goal(s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
@@ -113,3 +112,18 @@ domain_conn(X,Y,D) :- field(X,Y), dir(D).
 { prev_reach(X,Y,s(T)) } :- field(X,Y), time(s(T)), T > 0.
 :- prev_reach(X,Y,s(T)), not reach(X,Y,s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
 :- not prev_reach(X,Y,s(T)), reach(X,Y,s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
+
+#show goal/3.
+#show reach/3.
+#show conn/4.
+#show neg_goal/1.
+#show occurs/2.
+
+#show rrpush/1.
+#show ccpush/1.
+#show orpush/2.
+#show ocpush/2.
+#show rpush/2.
+#show cpush/2.
+#show push/3.
+#show shift/5.
