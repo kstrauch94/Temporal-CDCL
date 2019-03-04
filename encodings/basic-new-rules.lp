@@ -10,7 +10,7 @@
 %in some body of the set of rules of the input.
 
 
-#const maxtime = 6.
+#const maxtime = 50.
 time(s(0..maxtime)).
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
@@ -48,13 +48,12 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 :- 2{occurs(A,T) : action(A)}, time(T).
 
 % effects
-%:- occurs(A,T), postcondition(A,_,X,V), not holds(X,V,T).
-holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
+:- occurs(A,T), postcondition(A,_,X,V), not holds(X,V,T).
+%holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 
 % preconditions
-%:- occurs(A,T), precondition(A,X,V), not prev_holds(X,V,T).
-
-prev_holds(X,V,T) :- occurs(A,T), precondition(A,X,V).
+:- occurs(A,T), precondition(A,X,V), not prev_holds(X,V,T).
+%prev_holds(X,V,T) :- occurs(A,T), precondition(A,X,V).
 
 % inertia
 :- holds(X,V,T), not prev_holds(X,V,T), 
@@ -75,3 +74,8 @@ prev_holds(X,V,T) :- occurs(A,T), precondition(A,X,V).
 :- not holds(X,V,T), not external(holds(X,V,T)), goal(X,V), last(T).
 
 
+#show holds/3.
+#show occurs/2.
+#show external/1.
+#show next/2.
+%#show prev_holds/3.
