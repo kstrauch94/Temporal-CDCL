@@ -53,7 +53,8 @@ class Nogood:
         self.lbd = int(re.search(lbd_re, nogood_str).group(1))
 
         self.process_literals()
-        self.process_prev()
+        #self.process_prev()
+        self.process_domain_literals()
 
         self.raw_literal_count = len(self.literals)
 
@@ -65,6 +66,7 @@ class Nogood:
         self.minimized = None
 
         self.validated = None
+        self.instance_validated = None
 
     def process_literals(self):
         # this takes the raw nogood string and splits the atoms
@@ -104,9 +106,22 @@ class Nogood:
                 if new_dom_lit not in self.domain_literals:
                     self.domain_literals.append(new_dom_lit)
 
+    def process_domain_literals(self):
+        # here we create "next" literals out of the not external literals
+        # as a form of handling the domain of the time 
+
+        for idx, dl in enumerate(self.domain_literals, start=0):
+            if "not external(" in dl:
+                # delete the not external and the last parenthesis )
+                new_dl = dl.replace("not external(", "")[:-1]
+
+                self.domain_literals.append(new_dl)
+
+
     def process_time(self):
 
         matches = re.findall(time_re, ", ".join(self.literals))
+        matches += re.findall(time_re, ", ".join(self.domain_literals))
         matches = [int(m) for m in matches]
 
         self.max_time = max(matches)
@@ -145,7 +160,12 @@ class Nogood:
         self.domain_literals = self._generalize(self.domain_literals)
 
         # add time atoms
-        self.domain_literals += ["time(s(T))", "time(s(T-{}))".format(self.dif_to_min)]
+        #self.domain_literals += ["time(s(T))", "time(s(T-{}))".format(self.dif_to_min)]
+
+        #self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
+
+        if self.dif_to_min == 0:
+            self.domain_literals += ["time(s(T))"]
 
     def minimize(self, files):
         t = time.time()
@@ -313,10 +333,10 @@ hypothesisConstraint(s(T-degree)) {}
         os.remove(temp_validate)
 
         if UNSAT in output:
-            return True
+            self.instance_validated = True
 
         else:
-            return False
+            self.instance_validated = False
 
     def validate_self(self, files):
 
@@ -426,6 +446,9 @@ def convert_ng_file(ng_name, converted_ng_name,
     # finally minimize if wanted
 
     nogoods = []
+    # this set will contain the string of nogoods. 
+    #We will test if a nogood is unique with this
+    nogood_strings = set()
     for line_num, line in enumerate(lines):
         # line is the raw text of the nogood, line num is the order it appears in the file
         ng = Nogood(line, line_num)
@@ -438,7 +461,10 @@ def convert_ng_file(ng_name, converted_ng_name,
         ng.generalize()
         time_generalize += time.time() - t
 
-        nogoods.append(ng)
+        # if nogood has not been seen before, add it to list
+        if ng.to_constraint() not in nogood_strings:
+            nogoods.append(ng)
+            nogood_strings.add(ng.to_constraint())
 
         if len(nogoods) >= nogoods_wanted:
             break
@@ -486,24 +512,26 @@ def convert_ng_file(ng_name, converted_ng_name,
 
             # this part is validating within the instance
             t = time.time()
-            instance_val = ng.validate_instance(validate_instance_files)
+            ng.validate_instance(validate_instance_files)
             time_validate_instance += time.time() - t
             
-            if not instance_val:
-                logging.info("Result of instance val: {}".format(instance_val))
+            if not ng.instance_validated:
+                logging.info("Result of instance val: {}".format(ng.instance_validated))
                 logging.info("constraint: {}".format(ng.to_constraint()))
                 logging.info("number: {}".format(ng.ordering))
             else:
                 amount_instance_validated += 1
 
+            # if we validate with both methods check if they have the same result
+            if (validate_instance and validate):
+                if ng.instance_validated != ng.validated:
+                    logging.info("validations do not match")
+                    logging.info("Normal validation: {}".format(ng.validated))
+                    logging.info("Instance validation: {}".format(ng.instance_validated))
+                    logging.info("constraint: {}".format(str(ng)))
+
         logging.info("Finishing instance validation")
 
-    # if we validate with both methods check if they have the same result
-    if (validate_instance and validate) and instance_val != ng.validated:
-        logging.info("validations do not match")
-        logging.info("Normal validation: {}".format(ng.validated))
-        logging.info("Instance validation: {}".format(instance_val))
-        logging.info("constraint: {}".format(str(ng)))
 
 
     # if not validating use all of them
@@ -511,11 +539,13 @@ def convert_ng_file(ng_name, converted_ng_name,
         converted_lines = nogoods
 
     # write generelized nogoods into a file
+    lines_set = set()
     with open(converted_ng_name, "w") as f:
         for conv_line in converted_lines:
             line = conv_line.to_constraint()
-
-            f.write(str(line))
+            if line not in lines_set:
+                f.write(str(line))
+                lines_set.add(line)
 
     # write failed validations to a file
     with open("failed_to_validate.log", "w") as f:
