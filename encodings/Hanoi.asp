@@ -12,6 +12,9 @@
 % goal, which is true iff the goal state is reached at time t
 % steps(T), which is the number of time steps T, required to reach the goal (provided part of Input data)
 
+first(s(0)).
+last(s(T)) :- time(s(T)), not time(s(T+1)).
+
 time(s(T)) :- timestep(T).
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
@@ -19,23 +22,23 @@ next(s(T-1), s(T)) :- time(s(T)), T>0.
 peg(1..4).
 on_domain(N,M) :- disk(N), disk(M), N < M, not peg(M).
 
-{ prev_on(s(T),N,M) } :- on_domain(N,M), time(s(T)), T > 0.
-:- prev_on(s(T),N,M), not on(s(T-1),N,M), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
-:- not prev_on(s(T),N,M), on(s(T-1),N,M), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
+{ prev_on(T,N,M) } :- on_domain(N,M), time(T), not first(T).
+:- prev_on(T,N,M), not on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
+:- not prev_on(T,N,M), on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_move(s(T),N) } :- disk(N), time(s(T)), T > 0.
-:- prev_move(s(T),N), not move(s(T-1),N), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
-:- not prev_move(s(T),N), move(s(T-1),N), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
+{ prev_move(T,N) } :- disk(N), time(T), not first(T).
+:- prev_move(T,N), not move(TM1,N), not external(next(TM1, T)), next(TM1, T).
+:- not prev_move(T,N), move(TM1,N), not external(next(TM1, T)), next(TM1, T).
 
 % Read in data
 %on(s(0),N1,N) :- on0(N,N1).
 %onG(K,N1,N) :- ongoal(N,N1), steps(K).
 
 % set initial state
-#external external(on(s(0),N1,N)) : on0(N,N1).
-:- not on(s(0),N1,N), not external(on(s(0),N1,N)), on0(N,N1).
+#external external(on(T,N1,N)) : on0(N,N1), first(T).
+:- not on(T,N1,N), not external(on(T,N1,N)), on0(N,N1), first(T).
 
-{on(s(0),N1,N)} :- on0(N,N1).
+{on(T,N1,N)} :- on0(N,N1), first(T).
 
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
@@ -45,7 +48,7 @@ on_domain(N,M) :- disk(N), disk(M), N < M, not peg(M).
 % Specify a valid move (only for T < t)
 % pick a disk to move
 
-{ occurs(some_action,s(T)) } :- time(s(T)), T>0.
+{ occurs(some_action,T) } :- time(T), not first(T).
 1 { move(T,N) : disk(N) } 1 :- occurs(some_action,T).
 
 % pick a disk onto which to move
@@ -65,18 +68,23 @@ on_domain(N,M) :- disk(N), disk(M), N < M, not peg(M).
 
 % Specify effects of a move
 on(T,N1,N) :- move(T,N), where(T,N1).
-on(s(T),N,N1) :- time(s(T)), T>0,
-              prev_on(s(T),N,N1), not move(s(T),N1).
+on(T,N,N1) :- not first(T),
+              prev_on(T,N,N1), not move(T,N1).
 
 
 % Goal description
-:- not on(s(T),N,N1), ongoal(N1,N), steps(T).
-:- on(s(T),N,N1), not ongoal(N1,N), steps(T).
+%:- not on(s(T),N,N1), ongoal(N1,N), steps(T).
+%:- on(s(T),N,N1), not ongoal(N1,N), steps(T).
 
 % goal must hold at the last time point
-%#external external(on(s(T),N1,N)) : ongoal(N,N1), steps(T).
-%:- not on(s(T),N1,N), not external(on(s(T),N1,N)), ongoal(N,N1), steps(T).
+#external external(on(T,N1,N)) : ongoal(N,N1), last(T).
+:- not on(T,N1,N), not external(on(T,N1,N)), ongoal(N,N1), last(T).
 
 % Solution
 %#show put(M,N,T) : move(T,N), where(T,M).
 
+#show external/1.
+#show on/3.
+#show occurs/2.
+#show move/2.
+#show where/2.
