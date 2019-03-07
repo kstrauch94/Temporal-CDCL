@@ -684,8 +684,6 @@ if __name__ == "__main__":
     parser.add_argument("--pddl-domain", help="pddl domain", default=None)
     parser.add_argument("--trans-name", help="name of the translated file")
 
-    parser.add_argument("--config", help="File with a CONFIG dictionary where the configuration of the nogood is stored.")
-
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--minimize", action="store_true", help="Minimize nogoods. Requires validation encoding.")
@@ -718,10 +716,7 @@ if __name__ == "__main__":
     files = args.files
 
     config = {}
-    if args.config is not None:
-        config_file = __import__(args.config)
-        config = config_file.CONFIG
-
+    
     config["validate_files"] = args.validate_files
     config["validate_instance"] = args.validate_instance
     config["sortby"] = args.sortby
