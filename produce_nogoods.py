@@ -162,7 +162,7 @@ class Nogood:
         # add time atoms
         #self.domain_literals += ["time(s(T))", "time(s(T-{}))".format(self.dif_to_min)]
 
-        #self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
+        self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
 
         if self.dif_to_min == 0:
             self.domain_literals += ["time(s(T))"]
@@ -507,8 +507,10 @@ def convert_ng_file(ng_name, converted_ng_name,
         logging.info("Finishing validation")
 
     if validate_instance:
+        percent_validated = 0.1
+
         logging.info("Starting instance validation...")
-        for ng in nogoods:
+        for i, ng in enumerate(nogoods):
 
             # this part is validating within the instance
             t = time.time()
@@ -529,6 +531,10 @@ def convert_ng_file(ng_name, converted_ng_name,
                     logging.info("Normal validation: {}".format(ng.validated))
                     logging.info("Instance validation: {}".format(ng.instance_validated))
                     logging.info("constraint: {}".format(str(ng)))
+
+            if float(i) / float(total_nogoods) >= percent_validated:
+                logging.info("Validated {}% of total nogoods".format(percent_validated*100))
+                percent_validated += 0.1
 
         logging.info("Finishing instance validation")
 
@@ -638,9 +644,9 @@ def produce_nogoods(file_names, args, config):
 
     # convert the nogoods
     convert_ng_file(ng_name, converted_ng_name,
-                    max_deg=args.max_deg, 
-                    max_lit_count=args.max_lit_count,
-                    nogoods_wanted=args.nogoods_wanted,
+                    #max_deg=args.max_deg, 
+                    #max_lit_count=args.max_lit_count,
+                    #nogoods_wanted=args.nogoods_wanted,
                     **config)
 
     logging.info("time to extract: {}".format(time_extract))
@@ -679,6 +685,11 @@ if __name__ == "__main__":
     parser.add_argument("--trans-name", help="name of the translated file")
 
     parser.add_argument("--config", help="File with a CONFIG dictionary where the configuration of the nogood is stored.")
+
+    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
+    parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
+    parser.add_argument("--minimize", action="store_true", help="Minimize nogoods. Requires validation encoding.")
+
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
     parser.add_argument("--validate-instance", action="store_true", help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided.")
 
@@ -713,6 +724,13 @@ if __name__ == "__main__":
 
     config["validate_files"] = args.validate_files
     config["validate_instance"] = args.validate_instance
+    config["sortby"] = args.sortby
+    config["reverse_sort"] = args.reverse_sort
+    config["minimal"] = args.minimize
+
+    config["max_deg"] = args.max_deg
+    config["max_lit_count"] = args.max_lit_count
+    config["nogoods_wanted"] = args.nogoods_wanted
 
     if args.pddl_instance is not None:
         if args.trans_name is not None:
