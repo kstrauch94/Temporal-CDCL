@@ -701,8 +701,8 @@ if __name__ == "__main__":
     parser.add_argument("--logtofile", help="log to a file")
 
     parser.add_argument("--consume", action="store_true", help="consume the generated nogoods based on the given scaling.")
-
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
+    parser.add_argument("--consume-time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
     parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
 
@@ -751,5 +751,5 @@ if __name__ == "__main__":
     converted_nogoods = produce_nogoods(files, args, config)
 
     if args.consume:
-        times = consume_nogoods.run_tests(files, converted_nogoods, args.scaling)
+        times = consume_nogoods.run_tests(files, converted_nogoods, args.scaling, args.consume_time_limit)
         logging.info(times)
