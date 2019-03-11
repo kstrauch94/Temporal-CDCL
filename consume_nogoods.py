@@ -52,7 +52,6 @@ def plasp_translate(instance, domain, filename):
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
 
-    FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
     FD_CALL = FD_CALL + [domain, instance]
 
     output = subprocess.check_output(FD_CALL).decode("utf-8")
@@ -92,7 +91,8 @@ def parse_call_results(output):
     # return a dict with the results
 
     res = {"time" : 0,
-           "solving" : 0
+           "solving" : 0,
+           "success": None
            }
 
     try:
@@ -103,6 +103,17 @@ def parse_call_results(output):
         res["solving"] = float(re.search(match_time_solve, output).group(1))
     except AttributeError:
         pass
+
+    try:
+        if re.search(r"UNSATISFIABLE", output) is not None:
+            res["success"] = "UNSAT"
+            logging.info(output)
+        elif re.search(r"SATISFIABLE", output) is not None:
+            res["success"] = "SAT"
+        elif re.search(r"UNKNOWN", output) is not None:
+            res["success"] = "UNKNOWN"
+    except AttributeError:
+        pass    
 
     return res
 
@@ -118,12 +129,12 @@ def write_nogood_partial(nogoods, filename="nogood.temp"):
     with open(filename, "w") as f:
         f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling):
+def run_tests(files, nogood_file, scaling, time_limit=0):
 
     logging.info("Starting nogood consumption...")
 
     noogood_temp_name = "nogood.temp"
-    options = []
+    options = ["--time-limit={}".format(time_limit)]
 
     scaling = scaling.split(",")
     scaling_start = int(scaling[0])
@@ -141,6 +152,7 @@ def run_tests(files, nogood_file, scaling):
     logging.info("base run")
     output = call_clingo(files, options)
     times[0] = parse_call_results(output)
+    logging.info("Results: {}".format(str(times[0])))
 
     # runs with scaling
     for i in range(scaling_count):
@@ -154,6 +166,7 @@ def run_tests(files, nogood_file, scaling):
 
         output = call_clingo(files + [noogood_temp_name], options)
         times[nogood_current] = parse_call_results(output)
+        logging.info("Results: {}".format(str(times[nogood_current])))
 
         if nogood_current == total_nogoods:
             break
@@ -175,6 +188,7 @@ if __name__ == "__main__":
     parser.add_argument("--files", metavar='f', nargs='+', help="Files to run clingo on")
     parser.add_argument("--nogoods", help="File holding the processed nogoods")
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
+    parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
     parser.add_argument("--pddl-instance", help="pddl instance")
     parser.add_argument("--pddl-domain", help="pddl domain")
@@ -197,4 +211,4 @@ if __name__ == "__main__":
 
         files.append(trans_name)
 
-    logging.info(run_tests(files, args.nogoods, args.scaling))
+    logging.info(run_tests(files, args.nogoods, args.scaling, args.time_limit))
