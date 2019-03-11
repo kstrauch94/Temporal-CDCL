@@ -456,7 +456,7 @@ def convert_ng_file(ng_name, converted_ng_name,
         # ignore nogoods of higher degree or literal count
         if max_deg >= 0 and ng.degree > max_deg:
             continue
-        if if max_lit_count > 0 and ng.literal_count > max_lit_count:
+        if max_lit_count > 0 and ng.literal_count > max_lit_count:
             continue
 
         t = time.time()
