@@ -454,7 +454,9 @@ def convert_ng_file(ng_name, converted_ng_name,
         ng = Nogood(line, line_num)
 
         # ignore nogoods of higher degree or literal count
-        if ng.degree > max_deg or ng.literal_count > max_lit_count:
+        if max_deg >= 0 and ng.degree > max_deg:
+            continue
+        if if max_lit_count > 0 and ng.literal_count > max_lit_count:
             continue
 
         t = time.time()
@@ -538,10 +540,9 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         logging.info("Finishing instance validation")
 
-
-
-    # if not validating use all of them
-    else:
+    # if not validating(instance validating does not populate converted lines)
+    # use all of them
+    if converted_lines == []:
         converted_lines = nogoods
 
     # write generelized nogoods into a file
@@ -644,9 +645,6 @@ def produce_nogoods(file_names, args, config):
 
     # convert the nogoods
     convert_ng_file(ng_name, converted_ng_name,
-                    #max_deg=args.max_deg, 
-                    #max_lit_count=args.max_lit_count,
-                    #nogoods_wanted=args.nogoods_wanted,
                     **config)
 
     logging.info("time to extract: {}".format(time_extract))
@@ -695,14 +693,14 @@ if __name__ == "__main__":
 
     parser.add_argument("--nogoods-wanted", help="Nogoods will be processed will stop after this amount. Default = 100", default=100, type=int)
 
-    parser.add_argument("--max-deg", help="Processing will ignore nogoods with higher degree. Default = 10", default=10, type=int)
-    parser.add_argument("--max-lit-count", help="Processing will ignore nogoods with higher literal count. Default = 50", default=50, type=int)
+    parser.add_argument("--max-deg", help="Processing will ignore nogoods with higher degree. Default = 10. A negative number means no limit.", default=10, type=int)
+    parser.add_argument("--max-lit-count", help="Processing will ignore nogoods with higher literal count. Default = 50. 0 or a negative number means no limit.", default=50, type=int)
 
     parser.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
     parser.add_argument("--logtofile", help="log to a file")
 
-    parser.add_argument("--consume", action="store_true", help="consume the generated nogoods based on the given scaling")
+    parser.add_argument("--consume", action="store_true", help="consume the generated nogoods based on the given scaling.")
 
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
 
@@ -716,7 +714,7 @@ if __name__ == "__main__":
     files = args.files
 
     config = {}
-    
+
     config["validate_files"] = args.validate_files
     config["validate_instance"] = args.validate_instance
     config["sortby"] = args.sortby
