@@ -1,5 +1,11 @@
 max_steps(degree).
 
+time(s(S)) :- max_steps(S),     0 < S.
+time(s(T)) :- time(s(S)), T = S-1, 1 < S.
+
+first(s(0)).
+last(s(T)) :- time(s(T)), not time(s(T+1)).
+
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
@@ -14,13 +20,18 @@ col(Y) :- field(X,Y).
 num_rows(X) :- row(X), not row(XX), XX = X+1.
 num_cols(Y) :- col(Y), not col(YY), YY = Y+1.
 
+reachable(X,Y) :- init_on(X,Y).
+reachable(XX,YY) :- reachable(X,Y), dneighbor(D,X,Y,XX,YY), connect(X,Y,D).
 
-1{goal(X,Y,s(0))}1   :- field(X,Y). % set goal to some field
-1{reach(X,Y,s(0))}1  :- field(X,Y). % set init to some field
-conn(X,Y,D,s(0)) :- connect(X,Y,D).
+% since the goal is not relevant for state validation nothing was changed for it
+1{goal(X,Y,T)}1   :- goal_on(X,Y), first(T).
 
-time(s(S)) :- max_steps(S),     0 < S.
-time(s(T)) :- time(s(S)), T = S-1, 1 < S.
+% the initial reach is chosen from any point reachable from the first state
+% to avoid starting in impossible states
+1{reach(X,Y,T)}1  :- reachable(X,Y), first(T).
+
+% connections are kept the same since we only care about validating on this specific instances no matter the starting point
+{conn(X,Y,D,T)} :- connect(X,Y,D), first(T).
 
 %%  Direct neighbors
 
@@ -77,15 +88,6 @@ goal(X,Y,T) :- prev_goal(XX,YY,T), shift(XX,YY,X,Y,T).
 
 reach(X,Y,T) :- prev_reach(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
-
-%%  Goal must be reached
-
-:- neg_goal(s(T)), time(s(T)), not time(s(T+1)).
-
-%% Project output
-% #hide.
-%#show push/3.
-
 
 { prev_neg_goal(s(T)) } :- time(s(T)), T > 0.
 :- prev_neg_goal(s(T)), not neg_goal(s(T-1)), not external(next(s(T-1), s(T))), next(s(T-1), s(T)).
