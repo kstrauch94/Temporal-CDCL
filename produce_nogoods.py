@@ -676,7 +676,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--files', metavar='f', nargs='+', help="Files to run clingo on not including instance")
-    parser.add_argument('--instance', metavar='i', help="Instance file")
+    parser.add_argument('--instance', metavar='i', help="Instance file. If file has a .pddl extension it will be treated as a pddl instance.")
 
     parser.add_argument("--pddl-instance", help="pddl instance")
     parser.add_argument("--pddl-domain", help="pddl domain", default=None)
@@ -724,6 +724,11 @@ if __name__ == "__main__":
     config["max_deg"] = args.max_deg
     config["max_lit_count"] = args.max_lit_count
     config["nogoods_wanted"] = args.nogoods_wanted
+
+    if args.instance.endswith(".pddl"):
+        args.pddl_instance = args.instance
+
+        args.instance = None
 
     if args.pddl_instance is not None:
         if args.trans_name is not None:
