@@ -108,10 +108,6 @@ goal(X,Y,T) :- prev_goal(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- prev_reach(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
 
-%%  Goal must be reached
-
-%:- neg_goal(T), last(T).
-
 
 { prev_neg_goal(T) } :- time(T), not first(T).
 :- prev_neg_goal(T), not neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
