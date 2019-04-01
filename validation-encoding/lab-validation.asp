@@ -1,12 +1,10 @@
-time(s(S)) :- max_steps(S),     0 < S.
-time(s(T)) :- time(s(S)), T = S-1, 1 < S.
+time(s(1..degree+1)).
 
 first(s(0)).
 last(s(T)) :- time(s(T)), not time(s(T+1)).
 
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
-
 
 dir(e). dir(w). dir(n). dir(s).
 inverse(e,w). inverse(w,e).
@@ -34,39 +32,18 @@ neighbor(e,X,Y, X, 1) :- field(X,Y), num_cols(Y).
 neighbor(w,X,1, X, Y) :- field(X,Y), num_cols(Y).
 
 
-% set initial state
-#external external(goal(X,Y,T)) : goal_on(X,Y), first(T).
-:- not goal(X,Y,T), not external(goal(X,Y,T)), goal_on(X,Y), first(T).
-
-% set initial state
-#external external(reach_init(X,Y,T)) : init_on(X,Y), first(T).
-:- not reach_init(X,Y,T), not external(reach_init(X,Y,T)), init_on(X,Y), first(T).
-
 domain_conn(X,Y,D) :- field(X,Y), dir(D).
 
-% set initial state
-#external external(conn(X,Y,D,T)) : connect(X,Y,D), first(T).
-:- not conn(X,Y,D,T), not external(conn(X,Y,D,T)), connect(X,Y,D), first(T).
-
-% conn not in init state is false
-#external false_external(conn(X,Y,D,T)) : not connect(X,Y,D), domain_conn(X,Y,D), first(T).
-:- conn(X,Y,D,T), not false_external(conn(X,Y,D,T)), not connect(X,Y,D), domain_conn(X,Y,D), first(T).
-
-%reach is expanded on a later rule so we can't set upper limit to 1
 1 {goal(X,Y,T) : field(X,Y)} 1  :-  first(T).
 1 {reach_init(X,Y,T): field(X,Y)} 1  :- first(T).
 reach(X,Y,T) :- reach_init(X,Y,T).
 
-{conn(X,Y,D,T) : domain_conn(X,Y,D)} :-  first(T).
+%{conn(X,Y,D,T) : field(X,Y), dir(D)} :-  first(T).
 
 %{goal(X,Y,T)}   :- goal_on(X,Y), first(T).
-%{reach_init(X,Y,T)}  :- init_on(X,Y), first(T).
+%{reach(X,Y,T)}  :- init_on(X,Y), first(T).
 %{conn(X,Y,D,T)} :- connect(X,Y,D), first(T).
-
-% set goal
-#external external(neg_goal(T)) : last(T).
-:- neg_goal(T), not external(neg_goal(T)), last(T).
-
+conn(X,Y,D,T) :- connect(X,Y,D), first(T).
 
 %%  Select a row or column to push
 
@@ -108,9 +85,6 @@ goal(X,Y,T) :- prev_goal(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- prev_reach(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
 
-%%  Goal must be reached
-
-%:- neg_goal(T), last(T).
 
 
 { prev_neg_goal(T) } :- time(T), not first(T).
@@ -128,3 +102,11 @@ reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,
 { prev_reach(X,Y,T) } :- field(X,Y), time(T), not first(T).
 :- prev_reach(X,Y,T), not reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
 :- not prev_reach(X,Y,T), reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+
+%% uncomment to test
+% and run this encoding with asp-planning-benchmarks/Labyrinth/0045-labyrinth-11-0.asp 
+% clingo validation-encoding/lab-validation.asp asp-planning-benchmarks/Labyrinth/0045-labyrinth-11-0.asp 
+
+%#const degree=0.
+%hypothesisConstraint(s(T-degree)) :- shift(2,10,2,1,s(T)), prev_goal(1,2,s(T)), not prev_reach(10,2,s(T)), not prev_reach(2,2,s(T)), not prev_reach(1,2,s(T)), not conn(1,2,w,s(T)), not prev_reach(1,1,s(T)), not prev_conn(1,2,e,s(T)), not prev_reach(1,3,s(T)), not prev_conn(1,2,s,s(T)), not prev_conn(2,1,s,s(T)), not shift(2,1,2,10,s(T)), T-0 > 0, time(s(T)).
+%:- not hypothesisConstraint(s(1)).
