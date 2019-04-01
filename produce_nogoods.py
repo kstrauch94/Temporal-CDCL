@@ -18,6 +18,8 @@ models_re = r"Models       : ([0-9]+)"
 
 lbd_re = r"lbd = ([0-9]+)"
 
+error_re = r"error\(([0-9]+)\)"
+
 UNSAT = "UNSATISFIABLE"
 
 FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
@@ -67,6 +69,7 @@ class Nogood:
 
         self.validated = None
         self.instance_validated = None
+        self.instance_val_error_time = "-1"
 
     def process_literals(self):
         # this takes the raw nogood string and splits the atoms
@@ -162,6 +165,7 @@ class Nogood:
         # add time atoms
         #self.domain_literals += ["time(s(T))", "time(s(T-{}))".format(self.dif_to_min)]
 
+        # minimum timepoint in the rule is 1
         self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
 
         if self.dif_to_min == 0:
@@ -287,6 +291,7 @@ class Nogood:
 
         program = """#const degree={}.
 hypothesisConstraint(s(T-degree)) {}
+:- not hypothesisConstraint(s(1)).
 """.format(self.degree, self.to_constraint_any(literals))
 
         with open(temp_validate, "w") as f:
@@ -311,14 +316,15 @@ hypothesisConstraint(s(T-degree)) {}
 
         temp_validate = "temp_validate_inst.lp"
 
-        call = ["clingo", "--quiet=2", temp_validate] + files
+        call = ["clingo", "--quiet=1", temp_validate] + files
 
         logging.debug("calling : {}".format(call))
 
-        program = """error {}
+        program = """error(T) {}
+error :- error(_).
 :- not error.
 #project error/0.
-#show error/0.""".format(self.to_constraint())
+#show error/1.""".format(self.to_constraint())
 
         with open(temp_validate, "w") as f:
             f.write(program)
@@ -337,6 +343,7 @@ hypothesisConstraint(s(T-degree)) {}
 
         else:
             self.instance_validated = False
+            self.instance_val_error_time = str(re.findall(error_re, output))
 
     def validate_self(self, files):
 
@@ -395,6 +402,27 @@ def call_clingo(file_names, options):
 
     #logging.info("Models: {}".format(re.findall(models_re, output)))
 
+def validate_instance_all(files):
+    # files argument contains the encoding, instance and the file containing all nogoods to be proven
+    # + the program that searches for counterexamples
+
+    call = ["clingo", "--quiet=1"] + files
+
+    logging.debug("calling : {}".format(call))
+
+    try:
+        output = subprocess.check_output(call).decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        output = e.output.decode("utf-8")
+
+    logging.debug(output)
+
+    if UNSAT in output:
+        return True
+
+    else:
+        return False
+
 def convert_ng_file(ng_name, converted_ng_name,
                     max_deg=10,
                     max_lit_count=50,
@@ -403,7 +431,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                     sortby=["degree", "literal_count"], 
                     validate_files=None, 
                     reverse_sort=False,
-                    validate_instance=False,
+                    validate_instance="none",
                     validate_instance_files=None):
 
     # sortby should be a list of the int attributes in the nogood:
@@ -508,35 +536,58 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         logging.info("Finishing validation")
 
-    if validate_instance:
-        percent_validated = 0.1
+    if validate_instance != "none":
 
         logging.info("Starting instance validation...")
-        for i, ng in enumerate(nogoods):
 
-            # this part is validating within the instance
+        # validate nogoods one at a time
+        if validate_instance == "single":
+            percent_validated = 0.1
+
+            for i, ng in enumerate(nogoods):
+
+                # this part is validating within the instance
+                t = time.time()
+                ng.validate_instance(validate_instance_files)
+                time_validate_instance += time.time() - t
+                
+                if not ng.instance_validated:
+                    logging.info("Result of instance val: {}".format(ng.instance_validated))
+                    logging.info("constraint: {}".format(ng.to_constraint()))
+                    logging.info("number: {}".format(ng.ordering))
+                    logging.info("error times: {}".format(ng.instance_val_error_time))
+                else:
+                    amount_instance_validated += 1
+
+                # if we validate with both methods check if they have the same result
+                if (validate_instance and validate):
+                    if ng.instance_validated != ng.validated:
+                        logging.info("validations do not match")
+                        logging.info("Normal validation: {}".format(ng.validated))
+                        logging.info("Instance validation: {}".format(ng.instance_validated))
+                        logging.info("constraint: {}".format(str(ng)))
+
+                if float(i) / float(total_nogoods) >= percent_validated:
+                    logging.info("Validated {}% of total nogoods".format(percent_validated*100))
+                    percent_validated += 0.1
+        # validate nogoods all at the same time
+        elif validate_instance == "all":
+            #write all nogoods in a file as a rule:
+            # add the rule as in the nogoods class instance val
+
+            val_file_all = "validate_instance_all.lp"
+
+            with open(val_file_all, "w") as f:
+                for ng in nogoods:
+                    f.write(str(ng.to_rule()))
+                f.write("\nerror :- error(_).\n")
+                f.write(":- not error.\n")
+                f.write("#project error/0.\n")
+                f.write("#show error/1.\n")
+
             t = time.time()
-            ng.validate_instance(validate_instance_files)
+            validate_instance_all(validate_instance_files + [val_file_all])
             time_validate_instance += time.time() - t
-            
-            if not ng.instance_validated:
-                logging.info("Result of instance val: {}".format(ng.instance_validated))
-                logging.info("constraint: {}".format(ng.to_constraint()))
-                logging.info("number: {}".format(ng.ordering))
-            else:
-                amount_instance_validated += 1
-
-            # if we validate with both methods check if they have the same result
-            if (validate_instance and validate):
-                if ng.instance_validated != ng.validated:
-                    logging.info("validations do not match")
-                    logging.info("Normal validation: {}".format(ng.validated))
-                    logging.info("Instance validation: {}".format(ng.instance_validated))
-                    logging.info("constraint: {}".format(str(ng)))
-
-            if float(i) / float(total_nogoods) >= percent_validated:
-                logging.info("Validated {}% of total nogoods".format(percent_validated*100))
-                percent_validated += 0.1
 
         logging.info("Finishing instance validation")
 
@@ -563,15 +614,17 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     if validate:
         logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoods))
-    if validate_instance:
+    if validate_instance == "single":
         logging.info("Validated {} of {} nogoods within the instance".format(amount_instance_validated, total_nogoods))
+    if validate_instance == "all":
+        logging.info("Validation of all nogoods returned {}".format(all_val_result))
 
     logging.info("time to generelize: {}".format(time_generalize))
     if validate:
         logging.info("time to validate: {}".format(time_validate))
-    if validate_instance:
+    if validate_instance == "single" or validate_instance == "all":
         logging.info("time to validate within instance: {}".format(time_validate_instance))
-        
+      
     return 1
 
 
@@ -687,7 +740,7 @@ if __name__ == "__main__":
     parser.add_argument("--minimize", action="store_true", help="Minimize nogoods. Requires validation encoding.")
 
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
-    parser.add_argument("--validate-instance", action="store_true", help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided.")
+    parser.add_argument("--validate-instance", default="none", choices=["none", "single", "all"], help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided. Single validates every constraint by itself. all validates all constraints together")
 
     parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100", default=100, type=int)
 
