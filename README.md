@@ -8,12 +8,12 @@ Sample call:
 python produce_nogoods.py --files encodings/basic.lp --instance test-instances/blocks-11.lp --nogoods-limit 10
 ```
 
-Additionally, pddl instances can be used instead of regular asp instances with the --pddl-instance option. The program will try to find the domain file in the same folder of the instance or in the parent folder. A domain can also be manually given with the --pddl-domain option.
+Additionally, pddl instances can be used instead of regular asp instances with the --pddl-instance option(if the instance has a .pddl extension the --instance options treats the instance as pddl). The program will try to find the domain file in the same folder of the instance or in the parent folder. A domain can also be manually given with the --pddl-domain option.
 
 Sample call:
 
 ```
-python produce_nogoods.py --files encodings/basic.lp --pddl-instance path/to/pddl/instance.pddl --config test_config --nogoods-limit 10
+python produce_nogoods.py --files encodings/basic.lp --pddl-instance path/to/pddl/instance.pddl --nogoods-limit 10
 ```
 
 For more options such as maximum extraction time use --help
@@ -40,7 +40,7 @@ Pddl instances are supported in the same way as in the produce_nogoods.py progra
 
 ## Scaling
 
-The nogoods are consumed based on a set scaling given with the --scaling option. The input has 3 values separated by a comma. The first value is that starting amount of nogoods. The second value is the increase factor. The third value is how many iterations to perform.
+The nogoods are consumed based on a set scaling given with the --scaling option. The input has 3 values separated by a comma. The first value is the starting amount of nogoods. The second value is the increase factor. The third value is how many iterations to perform.
 
-For example, a scaling of 8,2,5 will start by using 8 nogoods. The noogods used will be doubled after every iteration and there will be a total of 5 iterations. So, there will be 5 clingo calls where 8, 16, 32, 64 and 128 nogoods are consumed.
+For example, a scaling of 8,2,5 will start by using 8 nogoods. The noogods used will be doubled after every iteration and there will be a total of 5 iterations. So, there will be 5 clingo calls where 8, 16, 32, 64 and 128 nogoods are consumed. Consuming nogoods will always run a baseline call with 0 nogoods added.
 
