@@ -9,7 +9,7 @@
 %
 %
 
-time(s(1..degree)).
+time(s(1..degree+1)).
 
 first(s(0)).
 second(s(1)).
@@ -21,10 +21,17 @@ next(s(T-1), s(T)) :- time(s(T)), T>0.
 % from here on we will use S and not T for time because of the truck T
 
 
+fuel_domain(T,F) :- fuel(T,F).
+fuel_domain(T,F-D) :- fuel_domain(T,F), fuelcost(D,_,_), F>=D.
+%fuel_domain(T,F) :- truck(T), fuel(T,F2), F = 1..F2.
 
-1 {at(P,L,S) : location(L)} 1 :- package(P), first(S).
-1 {at(T,L,S) : location(L)} 1 :- truck(T), first(S).
-fuel(T,F,S) :- fuel(T,F), first(S).
+at_domain(O,L) :- truck(O), location(L).
+at_domain(O,L) :- package(O), location(L).
+
+1 {at(P,L,S) : at_domain(P,L)} 1 :- package(P), first(S).
+1 {at(T,L,S) : at_domain(T,L)} 1 :- truck(T), first(S).
+
+1 {fuel(T,F,S) : fuel_domain(T,F)} 1 :- truck(T), first(S).
 
 truck(T) :- fuel(T,_).
 package(P) :- at(P,L), not truck(P).
@@ -101,16 +108,10 @@ preconditions_d( T,L1,L2,S ) :- time(S), prev_at( T,L1,S ), prev_fuel( T, Fuelpr
 :- prev_done(S), not done(SM1), not external(next(SM1,S)), next(SM1,S).
 :- not prev_done(S), done(SM1), not external(next(SM1,S)), next(SM1,S).
 
-
-fuel_domain(T,F) :- fuel(T,F).
-fuel_domain(T,F-D) :- fuel_domain(T,F), fuelcost(D,_,_), F>=D.
-%fuel_domain(T,F) :- truck(T), fuel(T,F2), F = 1..F2.
 {prev_fuel(T,F,S)} :- fuel_domain(T,F), time(S), not first(S).
 :- prev_fuel(T,F,S), not fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
 :- not prev_fuel(T,F,S), fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
 
-at_domain(O,L) :- truck(O), location(L).
-at_domain(O,L) :- package(O), location(L).
 {prev_at(O,L,S)} :- at_domain(O,L), time(S), not first(S).
 :- prev_at(O,L,S), not at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
 :- not prev_at(O,L,S), at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
@@ -120,14 +121,10 @@ in_domain(P,T) :- package(P), truck(T).
 :- prev_in(P,T,S), not in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
 :- not prev_in(P,T,S), in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
 
-% Gringo directives to show / hide particular literals
-%#hide.
-%#show unload/4.
-%#show load/4.
-%#show drive/4.
-%#show at/2.
-%#show at/3.
-%#show occurs/2.
+% uncomment to test validation
+% and run with asp-planning-benchmarks/Nomistery/0033-nomystery-32-0.asp 
+% clingo validation-encoding/nomistery-validation.lp asp-planning-benchmarks/Nomistery/0033-nomystery-32-0.asp
 
-
-:- not hypothesisConstraint(s(0)).
+%#const degree=2.
+%hypothesisConstraint(s(T-degree)) :- fuel(t0,32,s(T)), fuel(t0,31,s(T)), not prev_fuel(t0,31,s(T-2)), not external(next(s(T-2),s(T-1))), not external(next(s(T-1),s(T))), next(s(T-2),s(T-1)), next(s(T-1),s(T)), T-2 > 0.
+%:- not hypothesisConstraint(s(1)).

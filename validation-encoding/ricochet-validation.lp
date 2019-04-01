@@ -20,7 +20,7 @@ dir(D) :- dir(D,_).
 
 robot(R) :- pos(R,_,_). 
 
-time(s(1..degree)).
+time(s(1..degree+1)).
 
 first(s(0)).
 last(s(T)) :- time(s(T)), not time(s(T+1)).
@@ -80,18 +80,10 @@ pos_dom(R,O,IJ) :- robot(R), domO(O), dim(IJ).
 :- prev_go(R,D,O,T), not go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
 :- not prev_go(R,D,O,T), go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
 
+%% uncomment to test
+% and run this encoding with asp-planning-benchmarks/RicochetRobots/007-ricochetrobot-17-0.asp
+% clingo validation-encoding/ricochet-validation.lp asp-planning-benchmarks/RicochetRobots/007-ricochetrobot-17-0.asp 
 
-:- not hypothesisConstraint(s(0)).
-
-%#show external/1.
-%#show pos/4.
-%#show occurs/2.
-%#show selectRobot/2.
-%#show selectDir/3.
-%#show go/4.
-%#show go_/3.
-%#show go/3.
-%#show sameLine/5.
-%#show blocked/5.
-%#show reachable/5.
-%#show selectDir/2.
+%#const degree=3.
+%hypothesisConstraint(s(T-degree)) :- go(green,north,s(T)), not reachable(green,south,-1,4,s(T-3)), reachable(green,south,-1,2,s(T-3)), not go_(green,-1,s(T-2)), not go_(green,-1,s(T-1)), not reachable(green,north,-1,3,s(T)), not reachable(green,north,-1,2,s(T)), not external(next(s(T-3),s(T-2))), not external(next(s(T-2),s(T-1))), not external(next(s(T-1),s(T))), next(s(T-3),s(T-2)), next(s(T-2),s(T-1)), next(s(T-1),s(T)), T-3 > 0.
+%:- not hypothesisConstraint(s(1)).

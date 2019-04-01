@@ -15,24 +15,18 @@
 first(s(0)).
 last(s(T)) :- time(s(T)), not time(s(T+1)).
 
-time(s(1..degree)).
+time(s(0..degree+1)).
 
 next(s(T-1), s(T)) :- time(s(T)), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 peg(1..4).
-on_domain(N,M) :- disk(N), disk(M), N < M, not peg(M).
-
-{ prev_on(T,N,M) } :- on_domain(N,M), time(T), not first(T).
-:- prev_on(T,N,M), not on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
-:- not prev_on(T,N,M), on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
-
-{ prev_move(T,N) } :- disk(N), time(T), not first(T).
-:- prev_move(T,N), not move(TM1,N), not external(next(TM1, T)), next(TM1, T).
-:- not prev_move(T,N), move(TM1,N), not external(next(TM1, T)), next(TM1, T).
+realdisk(N) :- disk(N), not peg(N).
+% M is on N
+on_domain(N,M) :- disk(N), realdisk(M), N < M.
 
 % for each non peg, choose a position
-1{on(T,N,M)}1 :- on_domain(N,M), not peg(M), first(T).
+1{on(T,N,M) : on_domain(N,M)} 1 :- realdisk(M), first(T).
 
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
@@ -66,5 +60,20 @@ on(T,N,N1) :- not first(T),
               prev_on(T,N,N1), not move(T,N1).
 
 
-:- not hypothesisConstraint(s(0)).
+{ prev_on(T,N,M) } :- on_domain(N,M), time(T), not first(T).
+:- prev_on(T,N,M), not on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
+:- not prev_on(T,N,M), on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
+
+{ prev_move(T,N) } :- disk(N), time(T), not first(T).
+:- prev_move(T,N), not move(TM1,N), not external(next(TM1, T)), next(TM1, T).
+:- not prev_move(T,N), move(TM1,N), not external(next(TM1, T)), next(TM1, T).
+
+
+%% uncomment to test
+% and run this encoding with test-instances/hanoitest.asp
+% clingo validation-encoding/hanoi-validation.lp test-instances/hanoitest.asp 
+
+%#const degree=3.
+%hypothesisConstraint(s(T-degree)) :- move(s(T),8), prev_on(s(T-2),6,10), prev_on(s(T-3),8,9), on(s(T-2),3,5), prev_on(s(T-1),2,6), prev_on(s(T-2),8,9), not on(s(T),2,6), occurs(some_action,s(T-1)), not prev_on(s(T-3),3,5), not external(next(s(T-2),s(T-1))), not external(next(s(T-3),s(T-2))), not external(next(s(T-1),s(T))), next(s(T-2),s(T-1)), next(s(T-3),s(T-2)), next(s(T-1),s(T)), T-3 > 0.
+%:- not hypothesisConstraint(s(1)).
 
