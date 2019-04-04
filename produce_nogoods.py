@@ -12,6 +12,9 @@ import consume_nogoods
 
 time_re = r"s\(([0-9]+)\)"
 
+END_STR = "asdasdasd"
+time_no_s_re = r"([0-9]+)\)*{end_str}".format(end_str=END_STR)
+
 answer_re = r"Answer: [0-9]+\n(.*)\n"
 
 models_re = r"Models       : ([0-9]+)"
@@ -94,6 +97,8 @@ class Nogood:
 
 
     def process_prev(self):
+        # since we are not using this function it wasnt updated to the new time format
+        # Ill leave the function here in case we need it in the future
 
         for idx, atom in enumerate(self.literals, start=0):
             if "prev_" in atom:
@@ -122,9 +127,11 @@ class Nogood:
 
 
     def process_time(self):
+        # finding the max doesnt take into account the first value of the external(next(T1,T2))
+        # because that value will never be the max anyway
 
-        matches = re.findall(time_re, ", ".join(self.literals))
-        matches += re.findall(time_re, ", ".join(self.domain_literals))
+        matches = re.findall(time_no_s_re, END_STR.join(self.literals)+END_STR)
+        matches += re.findall(time_no_s_re, END_STR.join(self.domain_literals)+END_STR)
         matches = [int(m) for m in matches]
 
         self.max_time = max(matches)
@@ -144,17 +151,21 @@ class Nogood:
         if len(literals) == 0:
             return []
 
-        split_str = "-.-.-"
+        gen_literals = []
 
-        generalized = split_str.join(literals)
-        generalized = generalized.replace("s({})".format(self.max_time), "s(T)")        
-        # +1 to include the number
-        # since the i will be the number to subtract to the time
-        for i in range(1, self.dif_to_min+1):
-            generalized = generalized.replace("s({})".format(self.max_time-i), "s(T-{})".format(i))
-        
-        # careful here, maybe there is an extra empty item at the end
-        return generalized.split(split_str)
+        for lit in literals:
+            time = int(re.search(r"([0-9]+)\)*{end}".format(end=END_STR), lit + END_STR).group(1))
+
+            new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"T-{dif}\1{end}".format(dif=self.max_time - time, end=END_STR), lit + END_STR)
+
+            if "external(next(" in lit or "next(" in lit:
+                new_lit = re.sub(r"next\({t},".format(t=time-1), r"next(T-{dif},".format(dif=self.max_time - time + 1), new_lit)
+
+
+            gen_literals.append(new_lit.replace(END_STR, ""))
+
+        # there is an extra empty item at the end, so we delete it
+        return gen_literals
 
     def generalize(self):
 
@@ -162,14 +173,11 @@ class Nogood:
 
         self.domain_literals = self._generalize(self.domain_literals)
 
-        # add time atoms
-        #self.domain_literals += ["time(s(T))", "time(s(T-{}))".format(self.dif_to_min)]
+        if self.dif_to_min == 0:
+            self.domain_literals += ["time(T)"]
 
         # minimum timepoint in the rule is 1
         self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
-
-        if self.dif_to_min == 0:
-            self.domain_literals += ["time(s(T))"]
 
     def minimize(self, files):
         t = time.time()
@@ -290,8 +298,8 @@ class Nogood:
 
 
         program = """#const degree={}.
-hypothesisConstraint(s(T-degree)) {}
-:- not hypothesisConstraint(s(1)).
+hypothesisConstraint(T-degree) {}
+:- not hypothesisConstraint(1).
 """.format(self.degree, self.to_constraint_any(literals))
 
         with open(temp_validate, "w") as f:
@@ -509,7 +517,9 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     if validate:
         logging.info("Starting validation...")
-        for ng in nogoods:
+        percent_validated = 0.1
+
+        for i, ng in enumerate(nogoods):
 
             # this part is the normal validation as patrick does it
             t = time.time()
@@ -530,9 +540,15 @@ def convert_ng_file(ng_name, converted_ng_name,
                 logging.info("not validated: {}".format(ng.to_constraint()))
                 logging.info("number: {}".format(ng.ordering))
                 failed_to_validate.append(ng.to_rule())
-                if "prev_" in ng.to_rule():
+                if "\'" in ng.to_rule():
                     prev_check += 1
-        print("failed vals {}, prev_ in fails {}".format(len(failed_to_validate), prev_check))
+
+            if float(i) / float(total_nogoods) >= percent_validated:
+                logging.info("Validated {}% of total nogoods".format(percent_validated*100))
+                percent_validated += 0.1
+
+
+        print("failed vals {}, prev(\') in fails {}".format(len(failed_to_validate), prev_check))
 
         logging.info("Finishing validation")
 
@@ -570,6 +586,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                 if float(i) / float(total_nogoods) >= percent_validated:
                     logging.info("Validated {}% of total nogoods".format(percent_validated*100))
                     percent_validated += 0.1
+                    
         # validate nogoods all at the same time
         elif validate_instance == "all":
             #write all nogoods in a file as a rule:
