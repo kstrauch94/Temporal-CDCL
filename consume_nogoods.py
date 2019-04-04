@@ -129,7 +129,7 @@ def write_nogood_partial(nogoods, filename="nogood.temp"):
     with open(filename, "w") as f:
         f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, time_limit=0):
+def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
 
     logging.info("Starting nogood consumption...")
 
@@ -160,6 +160,10 @@ def run_tests(files, nogood_file, scaling, time_limit=0):
             logging.info("Finishing early. Trying to use {} nogoods but only {} are available.".format(nogood_current, total_nogoods))
             break
 
+        # if this run has a current scaling higher than the max, break
+        if max_scaling <= 0 and nogood_current > max_scaling:
+            break
+
         logging.info("Current scaling: {}".format(nogood_current))
 
         write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
@@ -173,9 +177,16 @@ def run_tests(files, nogood_file, scaling, time_limit=0):
 
         nogood_current = int(nogood_current*(scaling_factor))
 
+        # if we are using max scaling, the current amount of nogoods exceeds the scaling and its not the last iteration
+        if max_scaling <= 0 and nogood_current >= max_scaling and i < scaling_count-1:
+            logging.info("Doing a final run with {}(max scaling) nogoods as the current scaling ({}) is now higher.".format(max_scaling, nogood_current))
+            nogood_current = max_scaling
+
         if nogood_current > total_nogoods and i < scaling_count-1:
-            logging.info("Doing run with {}(max) nogoods as there are not enough for next the scaling: {}".format(total_nogoods, nogood_current))
+            logging.info("Doing a final run with {}(max) nogoods as there are not enough for next the scaling: {}".format(total_nogoods, nogood_current))
             nogood_current = total_nogoods
+
+
 
     os.remove(noogood_temp_name)
 
@@ -188,6 +199,8 @@ if __name__ == "__main__":
     parser.add_argument("--files", metavar='f', nargs='+', help="Files to run clingo on")
     parser.add_argument("--nogoods", help="File holding the processed nogoods")
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
+    parser.add_argument("--max-scaling", help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling.", default=2048)
+
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
     parser.add_argument("--pddl-instance", help="pddl instance")
@@ -211,4 +224,4 @@ if __name__ == "__main__":
 
         files.append(trans_name)
 
-    logging.info(run_tests(files, args.nogoods, args.scaling, args.time_limit))
+    logging.info(run_tests(files, args.nogoods, args.scaling, args.max_scaling, args.time_limit))
