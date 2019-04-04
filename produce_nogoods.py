@@ -828,3 +828,6 @@ if __name__ == "__main__":
     if args.consume:
         times = consume_nogoods.run_tests(files, converted_nogoods, args.scaling, args.consume_time_limit)
         logging.info(times)
+
+    if args.pddl_instance is not None:
+        os.remove(trans_name)
