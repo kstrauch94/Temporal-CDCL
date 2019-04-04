@@ -5,12 +5,12 @@
 % http://www.cs.uni-potsdam.de/wv/pdfformat/gekaknsc11a.pdf 
 %
 % 
-time(s(T)) :- step(T).
+time(T) :- step(T).
 
-first(s(0)).
-last(s(T)) :- time(s(T)), not time(s(T+1)).
+first(0).
+last(T) :- time(T), not time(T+1).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 
@@ -112,9 +112,9 @@ atgoal( S,Ti ) :- pushtogoal( P,S,Ppos,From,To,Dir,Ti ),
 % 
 % 
 % INERTIA  >>>>>
-clear( L,Ti ) :- prev_clear( L,Ti ), not del( clear( L ),Ti  ), time(Ti).
-atgoal( S,Ti ) :- prev_atgoal( S,Ti ), not del( atgoal( S ),Ti ), stone( S ), time(Ti).
-at( T,L,Ti ) :- prev_at( T,L,Ti ), not del( at( T,L ) ,Ti  ), time(Ti).
+clear( L,Ti ) :- clear'( L,Ti ), not del( clear( L ),Ti  ), time(Ti).
+atgoal( S,Ti ) :- atgoal'( S,Ti ), not del( atgoal( S ),Ti ), stone( S ), time(Ti).
+at( T,L,Ti ) :- at'( T,L,Ti ), not del( at( T,L ) ,Ti  ), time(Ti).
 % <<<<<  INERTIA
 % 
 
@@ -124,15 +124,15 @@ at( T,L,Ti ) :- prev_at( T,L,Ti ), not del( at( T,L ) ,Ti  ), time(Ti).
 
 % push-to-nongoal/6, preconditions
  :- pushtonongoal( P,S,Ppos,From,To,Dir,Ti ), not preconditions_png( P,S,Ppos,From,To,Dir,Ti ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To, time(Ti).
-preconditions_png( P,S,Ppos,From,To,Dir,Ti ) :- prev_at( P,Ppos,Ti ), prev_at( S,From,Ti ), prev_clear( To,Ti ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To, time(Ti).
+preconditions_png( P,S,Ppos,From,To,Dir,Ti ) :- at'( P,Ppos,Ti ), at'( S,From,Ti ), clear'( To,Ti ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To, time(Ti).
 
 % move/4, preconditions
  :- move( P,From,To,Dir,Ti ), not preconditions_m( P,From,To,Dir,Ti ), movedir( From,To,Dir ), player( P ), From != To, time(Ti).
-preconditions_m( P,From,To,Dir,Ti ) :- prev_at( P,From,Ti ), prev_clear( To,Ti ), movedir( From,To,Dir ), movedir( From,To,Dir ), player( P ), From != To, time(Ti).
+preconditions_m( P,From,To,Dir,Ti ) :- at'( P,From,Ti ), clear'( To,Ti ), movedir( From,To,Dir ), movedir( From,To,Dir ), player( P ), From != To, time(Ti).
 
 % push-to-goal/6, preconditions
  :- pushtogoal( P,S,Ppos,From,To,Dir,Ti ), not preconditions_pg( P,S,Ppos,From,To,Dir,Ti ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To, time(Ti).
-preconditions_pg( P,S,Ppos,From,To,Dir,Ti ) :- prev_at( P,Ppos,Ti ), prev_at( S,From,Ti ), prev_clear( To,Ti ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To, time(Ti).
+preconditions_pg( P,S,Ppos,From,To,Dir,Ti ) :- at'( P,Ppos,Ti ), at'( S,From,Ti ), clear'( To,Ti ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To, time(Ti).
 
 % <<<<<  PRECONDITIONS HOLD
 % 
@@ -147,15 +147,15 @@ preconditions_pg( P,S,Ppos,From,To,Dir,Ti ) :- prev_at( P,Ppos,Ti ), prev_at( S,
 
 %:- not goalreached(T), last(T).
 
-{prev_clear(L,T)} :- loc(L), time(T), not first(T).
-:- prev_clear(L,T), not clear(L,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not prev_clear(L,T), clear(L,TM1), not external(next(TM1,T)), next(TM1,T).
+{clear'(L,T)} :- loc(L), time(T), not first(T).
+:- clear'(L,T), not clear(L,TM1), not external(next(TM1,T)), next(TM1,T).
+:- not clear'(L,T), clear(L,TM1), not external(next(TM1,T)), next(TM1,T).
 
-{prev_at(PS,L,T)} :- at_domain(PS,L), time(T), not first(T).
-:- prev_at(PS,L,T), not at(PS,L,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not prev_at(PS,L,T), at(PS,L,TM1), not external(next(TM1,T)), next(TM1,T).
+{at'(PS,L,T)} :- at_domain(PS,L), time(T), not first(T).
+:- at'(PS,L,T), not at(PS,L,TM1), not external(next(TM1,T)), next(TM1,T).
+:- not at'(PS,L,T), at(PS,L,TM1), not external(next(TM1,T)), next(TM1,T).
 
-{prev_atgoal(S,T)} :- stone(S), time(T), not first(T).
-:- prev_atgoal(S,T), not atgoal(S,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not prev_atgoal(S,T), atgoal(S,TM1), not external(next(TM1,T)), next(TM1,T).
+{atgoal'(S,T)} :- stone(S), time(T), not first(T).
+:- atgoal'(S,T), not atgoal(S,TM1), not external(next(TM1,T)), next(TM1,T).
+:- not atgoal'(S,T), atgoal(S,TM1), not external(next(TM1,T)), next(TM1,T).
 

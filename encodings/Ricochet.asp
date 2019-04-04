@@ -20,14 +20,13 @@ dir(D) :- dir(D,_).
 
 robot(R) :- pos(R,_,_).
 
-%step(1..X) :- length(X).
-time(s(1)).
-time(s(X+1)) :- time(s(X)), length(L), X < L. 
+time(1).
+time(X+1) :- time(X), length(L), X < L. 
 
-first(s(0)).
-last(s(T)) :- time(s(T)), not time(s(T+1)).
+first(0).
+last(T) :- time(T), not time(T+1).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 % set initial state
@@ -66,18 +65,18 @@ go(R,D,O,T) :- selectRobot(R,T), selectDir(D,O,T), time(T).
 go_(R,O,T)   :- go(R,_,O,T), time(T).
 go(R,D,T) :- go(R,D,_,T), time(T).
 
-sameLine(R,D,O,RR,T)  :- go(R,D,O,T), prev_pos(R,-O,L,T), prev_pos(RR,-O,L,T), R != RR, time(T).
-blocked(R,D,O,I+DI,T) :- go(R,D,O,T), prev_pos(R,-O,L,T), not conn(D,L,I), dl(D,DI), dim(I), dim(I+DI), time(T).
-blocked(R,D,O,L,T)    :- sameLine(R,D,O,RR,T), prev_pos(RR,O,L,T), time(T).
+sameLine(R,D,O,RR,T)  :- go(R,D,O,T), pos'(R,-O,L,T), pos'(RR,-O,L,T), R != RR, time(T).
+blocked(R,D,O,I+DI,T) :- go(R,D,O,T), pos'(R,-O,L,T), not conn(D,L,I), dl(D,DI), dim(I), dim(I+DI), time(T).
+blocked(R,D,O,L,T)    :- sameLine(R,D,O,RR,T), pos'(RR,O,L,T), time(T).
 
-reachable(R,D,O,I,   T) :- go(R,D,O,T), prev_pos(R,O,I,T), time(T).
+reachable(R,D,O,I,   T) :- go(R,D,O,T), pos'(R,O,I,T), time(T).
 reachable(R,D,O,I+DI,T) :- reachable(R,D,O,I,T), not blocked(R,D,O,I+DI,T), dl(D,DI), dim(I+DI), time(T).
 
-:- go(R,D,O,T), prev_pos(R,O,I,T), blocked(R,D,O,I+DI,T), dl(D,DI), time(T).
-:- go(R,D,O,T), prev_go(R,DD,O,T), time(T).
+:- go(R,D,O,T), pos'(R,O,I,T), blocked(R,D,O,I+DI,T), dl(D,DI), time(T).
+:- go(R,D,O,T), go'(R,DD,O,T), time(T).
 
 pos(R,O,I,T) :- reachable(R,D,O,I,T), not reachable(R,D,O,I+DI,T), dl(D,DI), time(T).
-pos(R,O,I,T) :- prev_pos(R,O,I,T), not go_(R,O,T), time(T).
+pos(R,O,I,T) :- pos'(R,O,I,T), not go_(R,O,T), time(T).
 
 selectDir(O,T) :- selectDir(D,O,T), time(T).
 
@@ -90,11 +89,11 @@ selectDir(O,T) :- selectDir(D,O,T), time(T).
 domO(1).domO(-1).
 
 pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
-{ prev_pos(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), not first(T).
-:- prev_pos(R,O,IJ,T), not pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_pos(R,O,IJ,T), pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
+{ pos'(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), not first(T).
+:- pos'(R,O,IJ,T), not pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not pos'(R,O,IJ,T), pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
 
 go_domain(R,D,O) :- robot(R), dir(D,O).
-{ prev_go(R,D,O,T) } :- go_domain(R,D,O), time(T), not first(T).
-:- prev_go(R,D,O,T), not go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_go(R,D,O,T), go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
+{ go'(R,D,O,T) } :- go_domain(R,D,O), time(T), not first(T).
+:- go'(R,D,O,T), not go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not go'(R,D,O,T), go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).

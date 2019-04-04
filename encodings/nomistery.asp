@@ -9,13 +9,13 @@
 %
 %
 
-time(s(T)) :- step(T).
+time(T) :- step(T).
 
-first(s(0)).
-second(s(1)).
-last(s(T)) :- time(s(T)), not time(s(T+1)).
+first(0).
+second(1).
+last(T) :- time(T), not time(T+1).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 % from here on we will use S and not T for time because of the truck T
@@ -64,7 +64,7 @@ action(drive(T,L1,L2)) :- fuelcost( Fueldelta,L1,L2 ) , truck( T ).
 { occurs(A,S) : action(A) } <= 1 :- time(S). % :- step(S), 0 < S.
 
 done(S) :- occurs(A,S), time(S).
-:- done(S), not prev_done(S), not first(S), not second(S), time(S).
+:- done(S), not done'(S), not first(S), not second(S), time(S).
 
 unload( P,T,L,S )  :- occurs(unload(P,T,L),S), time(S).
 load( P,T,L,S )    :- occurs(load(P,T,L),S), time(S).
@@ -82,14 +82,14 @@ in( P,T,S ) :- load( P,T,L,S ), time(S).
 % drive/4, effects
 del( at( T,L1 ), S ) :- drive( T,L1,L2,S ), time(S).
 at( T,L2,S ) :- drive( T,L1,L2,S), time(S).
-del( fuel( T,Fuelpre ),S ) :- drive( T,L1,L2,S ), prev_fuel(T, Fuelpre,S), time(S).
-fuel( T,Fuelpre - Fueldelta,S ) :- drive( T,L1,L2,S ), fuelcost(Fueldelta,L1,L2), prev_fuel(T,Fuelpre,S), Fuelpre >= Fueldelta, time(S).
+del( fuel( T,Fuelpre ),S ) :- drive( T,L1,L2,S ), fuel'(T, Fuelpre,S), time(S).
+fuel( T,Fuelpre - Fueldelta,S ) :- drive( T,L1,L2,S ), fuelcost(Fueldelta,L1,L2), fuel'(T,Fuelpre,S), Fuelpre >= Fueldelta, time(S).
 % <<<<<  EFFECTS APPLY
 %
 % INERTIA  >>>>>
-at( O,L,S ) :- prev_at( O,L,S ), not del( at( O,L ),S  ), time(S).
-in( P,T,S ) :- prev_in( P,T,S ), not del( in( P,T ),S  ), time(S).
-fuel( T,Level,S ) :- prev_fuel( T,Level,S ), not del( fuel( T,Level) ,S ), truck( T ), time(S).
+at( O,L,S ) :- at'( O,L,S ), not del( at( O,L ),S  ), time(S).
+in( P,T,S ) :- in'( P,T,S ), not del( in( P,T ),S  ), time(S).
+fuel( T,Level,S ) :- fuel'( T,Level,S ), not del( fuel( T,Level) ,S ), truck( T ), time(S).
 % <<<<<  INERTIA
 %
 
@@ -99,43 +99,33 @@ fuel( T,Level,S ) :- prev_fuel( T,Level,S ), not del( fuel( T,Level) ,S ), truck
 
 % unload/4, preconditions
  :- unload( P,T,L,S ), not preconditions_u( P,T,L,S ), time(S).
-preconditions_u( P,T,L,S ) :- time(S), prev_at( T,L,S ), prev_in( P,T,S ), package( P ), truck( T ).
+preconditions_u( P,T,L,S ) :- time(S), at'( T,L,S ), in'( P,T,S ), package( P ), truck( T ).
 
 % load/4, preconditions
  :- load( P,T,L,S ), not preconditions_l( P,T,L,S ), time(S).
-preconditions_l( P,T,L,S ) :- time(S), prev_at( T,L,S ), prev_at( P,L,S ).
+preconditions_l( P,T,L,S ) :- time(S), at'( T,L,S ), at'( P,L,S ).
 
 % drive/5, preconditions
  :- drive( T,L1,L2,S ), not preconditions_d( T,L1,L2,S ), time(S).
-preconditions_d( T,L1,L2,S ) :- time(S), prev_at( T,L1,S ), prev_fuel( T, Fuelpre, S), fuelcost(Fueldelta,L1,L2), Fuelpre >= Fueldelta.
+preconditions_d( T,L1,L2,S ) :- time(S), at'( T,L1,S ), fuel'( T, Fuelpre, S), fuelcost(Fueldelta,L1,L2), Fuelpre >= Fueldelta.
 % <<<<<  PRECONDITIONS HOLD
 %
 
-% GOAL CHECK
-%:- goal(P,L), not at(P,L,S), step(S), not step(S+1).
-%:- goal(P,L), step(S), not step(S+1), not at(P,L,S).
 
-% goalreached :- step(S),  N = #count{ P,L : at(P,L,S) , goal(P,L) }, N = #count{ P1,L1 : goal(P1,L1) }.
-% :- not goalreached.
+{done'(S)} :- time(S), not first(S).
+:- done'(S), not done(SM1), not external(next(SM1,S)), next(SM1,S).
+:- not done'(S), done(SM1), not external(next(SM1,S)), next(SM1,S).
 
+{fuel'(T,F,S)} :- fuel_domain(T,F), time(S), not first(S).
+:- fuel'(T,F,S), not fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
+:- not fuel'(T,F,S), fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
 
-{prev_done(S)} :- time(S), not first(S).
-:- prev_done(S), not done(SM1), not external(next(SM1,S)), next(SM1,S).
-:- not prev_done(S), done(SM1), not external(next(SM1,S)), next(SM1,S).
-
-{prev_fuel(T,F,S)} :- fuel_domain(T,F), time(S), not first(S).
-:- prev_fuel(T,F,S), not fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
-:- not prev_fuel(T,F,S), fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
-
-
-{prev_at(O,L,S)} :- at_domain(O,L), time(S), not first(S).
-:- prev_at(O,L,S), not at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
-:- not prev_at(O,L,S), at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
+{at'(O,L,S)} :- at_domain(O,L), time(S), not first(S).
+:- at'(O,L,S), not at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
+:- not at'(O,L,S), at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
 
 in_domain(P,T) :- package(P), truck(T).
-{prev_in(P,T,S)} :- in_domain(P,T), time(S), not first(S).
-:- prev_in(P,T,S), not in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
-:- not prev_in(P,T,S), in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
+{in'(P,T,S)} :- in_domain(P,T), time(S), not first(S).
+:- in'(P,T,S), not in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
+:- not in'(P,T,S), in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
 
-% Gringo directives to show / hide particular literals
-%#hide.

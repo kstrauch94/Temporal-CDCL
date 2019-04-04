@@ -1,10 +1,10 @@
-time(s(S)) :- max_steps(S),     0 < S.
-time(s(T)) :- time(s(S)), T = S-1, 1 < S.
+time(S) :- max_steps(S),     0 < S.
+time(T) :- time(S), T = S-1, 1 < S.
 
-first(s(0)).
-last(s(T)) :- time(s(T)), not time(s(T+1)).
+first(0).
+last(T) :- time(T), not time(T+1).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 
@@ -73,8 +73,8 @@ reach(X,Y,T) :- reach_init(X,Y,T).
 neg_goal(T) :- goal(X,Y,T), not reach(X,Y,T).
 
 { occurs(some_action,T) } :- time(T).
-rrpush(T)   :- prev_neg_goal(T), not ccpush(T), occurs(some_action,T).
-ccpush(T)   :- prev_neg_goal(T), not rrpush(T), occurs(some_action,T).
+rrpush(T)   :- neg_goal'(T), not ccpush(T), occurs(some_action,T).
+ccpush(T)   :- neg_goal'(T), not rrpush(T), occurs(some_action,T).
 
 orpush(X,T) :- row(X), row(XX), rpush(XX,T), X != XX.
 ocpush(Y,T) :- col(Y), col(YY), cpush(YY,T), Y != YY.
@@ -97,30 +97,30 @@ shift( X, Y,X,Y,T) :- time(T), field(X,Y), not push(X,e,T), not push(X,w,T), not
 
 %%  Move connections around
 
-conn(X,Y,D,T) :- prev_conn(XX,YY,D,T), dir(D), shift(XX,YY,X,Y,T).
+conn(X,Y,D,T) :- conn'(XX,YY,D,T), dir(D), shift(XX,YY,X,Y,T).
 
 %%  Location of goal after pushing
 
-goal(X,Y,T) :- prev_goal(XX,YY,T), shift(XX,YY,X,Y,T).
+goal(X,Y,T) :- goal'(XX,YY,T), shift(XX,YY,X,Y,T).
 
 %%  Locations reachable from new position
 
-reach(X,Y,T) :- prev_reach(XX,YY,T), shift(XX,YY,X,Y,T).
+reach(X,Y,T) :- reach'(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
 
 
-{ prev_neg_goal(T) } :- time(T), not first(T).
-:- prev_neg_goal(T), not neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_neg_goal(T), neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
+{ neg_goal'(T) } :- time(T), not first(T).
+:- neg_goal'(T), not neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
+:- not neg_goal'(T), neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_conn(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), not first(T).
-:- prev_conn(X,Y,D,T), not conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_conn(X,Y,D,T), conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
+{ conn'(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), not first(T).
+:- conn'(X,Y,D,T), not conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not conn'(X,Y,D,T), conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_goal(X,Y,T) } :- field(X,Y), time(T), not first(T).
-:- prev_goal(X,Y,T), not goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_goal(X,Y,T), goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+{ goal'(X,Y,T) } :- field(X,Y), time(T), not first(T).
+:- goal'(X,Y,T), not goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not goal'(X,Y,T), goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_reach(X,Y,T) } :- field(X,Y), time(T), not first(T).
-:- prev_reach(X,Y,T), not reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_reach(X,Y,T), reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+{ reach'(X,Y,T) } :- field(X,Y), time(T), not first(T).
+:- reach'(X,Y,T), not reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not reach'(X,Y,T), reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).

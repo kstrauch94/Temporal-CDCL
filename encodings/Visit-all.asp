@@ -1,10 +1,10 @@
-time(s(T)) :- step(T).
-max(T) :- time(s(T)), not time(s(T+1)).
+time(T) :- step(T).
+max(T) :- time(T), not time(T+1).
 
-first(s(0)).
-last(s(T)) :- max(T).
+first(0).
+last(T) :- max(T).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 
@@ -30,19 +30,19 @@ atother(N,T) :- connected(C,N), C != N, time(T), atrobot(O,T), O != N, occurs(so
 
 %1 <= { atrobot( Nextpos,T ) : connected( Curpos,Nextpos ), Curpos != Nextpos } <= 1 :- T=t.
 
-move(C,N,T) :- prev_atrobot(C,T), atrobot(N,T), connected(C,N), C != N, time(T).
+move(C,N,T) :- atrobot'(C,T), atrobot(N,T), connected(C,N), C != N, time(T).
 done(T)     :- move(C,N,T), time(T).
 
 :- time(T), not done(T), occurs(some_action,T).
 
-visited(X,T) :- prev_visited(X,T), time(T).
+visited(X,T) :- visited'(X,T), time(T).
 visited(X,T) :- atrobot(X,T), time(T).
 
 
-{ prev_atrobot(X,T) } :- loc(X), time(T), not first(T).
-:- prev_atrobot(X,T), not atrobot(X,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_atrobot(X,T), atrobot(X,TM1), not external(next(TM1, T)), next(TM1, T).
+{ atrobot'(X,T) } :- loc(X), time(T), not first(T).
+:- atrobot'(X,T), not atrobot(X,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not atrobot'(X,T), atrobot(X,TM1), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_visited(X,T) } :- loc(X), time(T), not first(T).
-:- prev_visited(X,T), not visited(X,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not prev_visited(X,T), visited(X,TM1), not external(next(TM1, T)), next(TM1, T).
+{ visited'(X,T) } :- loc(X), time(T), not first(T).
+:- visited'(X,T), not visited(X,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not visited'(X,T), visited(X,TM1), not external(next(TM1, T)), next(TM1, T).

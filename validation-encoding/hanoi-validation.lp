@@ -12,12 +12,12 @@
 % goal, which is true iff the goal state is reached at time t
 % steps(T), which is the number of time steps T, required to reach the goal (provided part of Input data)
 
-first(s(0)).
-last(s(T)) :- time(s(T)), not time(s(T+1)).
+time(0..degree+1).
 
-time(s(0..degree+1)).
+first(0).
+last(T) :- time(T), not time(T+1).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+next(T-1, T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
 
 peg(1..4).
@@ -26,54 +26,45 @@ realdisk(N) :- disk(N), not peg(N).
 on_domain(N,M) :- disk(N), realdisk(M), N < M.
 
 % for each non peg, choose a position
-1{on(T,N,M) : on_domain(N,M)} 1 :- realdisk(M), first(T).
+1{on(N,M,T) : on_domain(N,M)} 1 :- realdisk(M), first(T).
 
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
 
-:- time(T), on(T,N1,N), N1>=N.
+:- time(T), on(N1,N,T), N1>=N.
 
 % Specify a valid move (only for T < t)
 % pick a disk to move
 
 { occurs(some_action,T) } :- time(T), not first(T).
-1 { move(T,N) : disk(N) } 1 :- occurs(some_action,T).
+1 { move(N,T) : disk(N) } 1 :- occurs(some_action,T).
 
 % pick a disk onto which to move
-1 { where(T,N) : disk(N) }1 :- occurs(some_action,T).
+1 { where(N,T) : disk(N) }1 :- occurs(some_action,T).
 
 % pegs cannot be moved
-:- move(T,N), N < 5.
+:- move(N,T), N < 5.
 
 % only top disk can be moved
-:- prev_on(T,N,N1), move(T,N).
+:- on'(N,N1,T), move(N,T).
 
 % a disk can be placed on top only.
-:- prev_on(T,N,N1), where(T,N).
+:- on'(N,N1,T), where(N,T).
 
 % no disk is moved in two consecutive moves
-:- move(T,N), prev_move(T,N).
+:- move(N,T), move'(N,T).
 
 % Specify effects of a move
-on(T,N1,N) :- move(T,N), where(T,N1).
-on(T,N,N1) :- not first(T),
-              prev_on(T,N,N1), not move(T,N1).
+on(N1,N,T) :- move(N,T), where(N1,T).
+on(N,N1,T) :- not first(T),
+              on'(N,N1,T), not move(N1,T).
 
+{ on'(N,M,T) } :- on_domain(N,M), time(T), not first(T).
+:- on'(N,M,T), not on(N,M,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not on'(N,M,T), on(N,M,TM1), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_on(T,N,M) } :- on_domain(N,M), time(T), not first(T).
-:- prev_on(T,N,M), not on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
-:- not prev_on(T,N,M), on(TM1,N,M), not external(next(TM1, T)), next(TM1, T).
+{ move'(N,T) } :- disk(N), time(T), not first(T).
+:- move'(N,T), not move(N,TM1), not external(next(TM1, T)), next(TM1, T).
+:- not move'(N,T), move(N,TM1), not external(next(TM1, T)), next(TM1, T).
 
-{ prev_move(T,N) } :- disk(N), time(T), not first(T).
-:- prev_move(T,N), not move(TM1,N), not external(next(TM1, T)), next(TM1, T).
-:- not prev_move(T,N), move(TM1,N), not external(next(TM1, T)), next(TM1, T).
-
-
-%% uncomment to test
-% and run this encoding with test-instances/hanoitest.asp
-% clingo validation-encoding/hanoi-validation.lp test-instances/hanoitest.asp 
-
-%#const degree=3.
-%hypothesisConstraint(s(T-degree)) :- move(s(T),8), prev_on(s(T-2),6,10), prev_on(s(T-3),8,9), on(s(T-2),3,5), prev_on(s(T-1),2,6), prev_on(s(T-2),8,9), not on(s(T),2,6), occurs(some_action,s(T-1)), not prev_on(s(T-3),3,5), not external(next(s(T-2),s(T-1))), not external(next(s(T-3),s(T-2))), not external(next(s(T-1),s(T))), next(s(T-2),s(T-1)), next(s(T-3),s(T-2)), next(s(T-1),s(T)), T-3 > 0.
-%:- not hypothesisConstraint(s(1)).
 
