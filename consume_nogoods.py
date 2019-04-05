@@ -86,13 +86,14 @@ def call_clingo(file_names, options):
 
     return output
 
-def parse_call_results(output):
+def parse_call_results(output, base_time=None):
     # here i will parse the results of ONE call
     # return a dict with the results
 
     res = {"time" : 0,
            "solving" : 0,
-           "success": None
+           "success": None,
+           "percent": None
            }
 
     try:
@@ -114,6 +115,9 @@ def parse_call_results(output):
             res["success"] = "UNKNOWN"
     except AttributeError:
         pass    
+
+    if base_time is not None:
+        res["percent"] = res["time"] / float(base_time)
 
     return res
 
@@ -169,7 +173,7 @@ def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
         write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
 
         output = call_clingo(files + [noogood_temp_name], options)
-        times[nogood_current] = parse_call_results(output)
+        times[nogood_current] = parse_call_results(output, times[0]["time"])
         logging.info("Results: {}".format(str(times[nogood_current])))
 
         if nogood_current == total_nogoods:
