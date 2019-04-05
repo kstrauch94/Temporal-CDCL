@@ -11,13 +11,13 @@
 
 
 #const maxtime = 35.
-time(s(0..maxtime)).
-next(s(T-1), s(T)) :- time(s(T)), T>0.
+time(0..maxtime).
+
+first(0).
+last(maxtime).
+
+next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
-
-first(s(0)).
-last(s(maxtime)).
-
 
 % Define initial state
 % Define initialstate as external
@@ -28,8 +28,8 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
 
 % set initial state
-#external external(holds(X,V,s(0))) : initialState(X,V).
-:- not holds(X,V,s(0)), not external(holds(X,V,s(0))), initialState(X,V).
+#external external(holds(X,V,T)) : initialState(X,V), first(T).
+:- not holds(X,V,T), not external(holds(X,V,T)), initialState(X,V), first(T).
 
 % Check goal conditions
 
@@ -38,8 +38,8 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 :- not holds(X,V,T), not external(holds(X,V,T)), goal(X,V), last(T).
 
 % No action can be done at time 0
-#external external(occurs(A,s(0))) : action(A).
-:-  occurs(A,s(0)), not external(occurs(A,s(0))), action(A).
+#external external(occurs(A,T)) : action(A), first(T).
+:-  occurs(A,T), not external(occurs(A,T)), action(A), first(T).
 
 % generate (a SAT problem)
 {     holds(X,V,T) } :- contains(X,V), time(T).
@@ -53,14 +53,14 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 holds(X,V,T) :- occurs(A,T), postcondition(A,_,X,V).
 
 % preconditions
-%:- occurs(A,T), precondition(A,X,V), not prev_holds(X,V,T).
-prev_holds(X,V,T) :- occurs(A,T), precondition(A,X,V).
+%:- occurs(A,T), precondition(A,X,V), not holds'(X,V,T).
+holds'(X,V,T) :- occurs(A,T), precondition(A,X,V).
 
 % inertia
-%:- holds(X,V,T), not prev_holds(X,V,T), 
+%:- holds(X,V,T), not holds'(X,V,T), 
 %   not occurs(A,T) : postcondition(A,_,X,V) ; time(T), not first(T).
 
-holds(X,V,T) :- prev_holds(X,V,T), not occurs(A,T) : postcondition(A,_,X,V2), V2 != V; not first(T).
+holds(X,V,T) :- holds'(X,V,T), not occurs(A,T) : postcondition(A,_,X,V2), V2 != V; not first(T).
 
 % existence and uniqueness of value
 :- not 1 { holds(X,V,T) } 1, variable(X), time(T).
@@ -69,6 +69,6 @@ holds(X,V,T) :- prev_holds(X,V,T), not occurs(A,T) : postcondition(A,_,X,V2), V2
 :- 2 #sum { 1,X,V: holds(X,V,T), contains(G,X,V) }, mutex(G), time(T).
 
 
-{ prev_holds(X,V,T) } :- contains(X,V), time(T), not first(T).
-:- prev_holds(X,V,T), not holds(X,V,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not prev_holds(X,V,T), holds(X,V,TM1), not external(next(TM1,T)), next(TM1,T).
+{ holds'(X,V,T) } :- contains(X,V), time(T), not first(T).
+:- holds'(X,V,T), not holds(X,V,TM1), not external(next(TM1,T)), next(TM1,T).
+:- not holds'(X,V,T), holds(X,V,TM1), not external(next(TM1,T)), next(TM1,T).
