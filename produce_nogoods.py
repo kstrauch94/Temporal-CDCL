@@ -9,6 +9,7 @@ import operator
 import logging
 import time
 import consume_nogoods
+from collections import Counter
 
 time_re = r"s\(([0-9]+)\)"
 
@@ -144,7 +145,7 @@ class Nogood:
 
     @property
     def literal_count(self):
-        return len(self.get_nogood())
+        return len(self.literals)
 
     def _generalize(self, literals):
 
@@ -431,6 +432,36 @@ def validate_instance_all(files):
     else:
         return False
 
+def extract_stats(nogoods):
+
+    total_nogoods = len(nogoods)
+
+    degree = Counter()
+    lbd = Counter()
+    size = Counter()
+
+    degree_total = 0
+    lbd_total = 0
+    size_total = 0
+
+    for ng in nogoods:
+        degree[ng.degree] += 1
+        lbd[ng.lbd] += 1
+        size[ng.literal_count] += 1
+
+        degree_total += ng.degree
+        lbd_total += ng.lbd
+        size_total += ng.literal_count
+
+
+
+
+    return {"degree": degree, "lbd": lbd, "size": size,
+            "degree mean": float(degree_total)/total_nogoods,
+            "lbd mean": float(lbd_total)/total_nogoods,
+            "size mean": float(size_total)/total_nogoods}
+
+
 def convert_ng_file(ng_name, converted_ng_name,
                     max_deg=10,
                     max_lit_count=50,
@@ -461,33 +492,37 @@ def convert_ng_file(ng_name, converted_ng_name,
 
 
     total_nogoods = len(lines)
-    logging.info("\ntotal lines in the no good file: {}\n".format(total_nogoods))
+    logging.info("total lines in the no good file: {}\n".format(total_nogoods))
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
         return 0
-
 
     time_generalize = 0
     time_validate = 0
     time_validate_instance = 0
 
-
     logging.info("converting...")
+    
+    unprocessed_ng = []
+    for line_num, line in enumerate(lines):
+        # line is the raw text of the nogood, line num is the order it appears in the file
+        unprocessed_ng.append(Nogood(line, line_num))
 
+    if sortby is not None:
+        unprocessed_ng.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
 
-    # use patricks flowchart
-    # first read nogoods and generalize them
-    # then sort them
-    # later, validate
-    # finally minimize if wanted
+    # extract some stats about some nogood properties
+    stats = extract_stats(unprocessed_ng)
+
+    for key, val in stats.items():
+        #if "mean" in key:
+        logging.info("{} {}".format(key, val))
 
     nogoods = []
     # this set will contain the string of nogoods. 
     #We will test if a nogood is unique with this
     nogood_strings = set()
-    for line_num, line in enumerate(lines):
-        # line is the raw text of the nogood, line num is the order it appears in the file
-        ng = Nogood(line, line_num)
+    for ng in unprocessed_ng:
 
         # ignore nogoods of higher degree or literal count
         if max_deg >= 0 and ng.degree > max_deg:
@@ -506,10 +541,6 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         if len(nogoods) >= nogoods_wanted:
             break
-
-    if sortby is not None:
-        nogoods.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
-
 
     total_nogoods = len(nogoods)
 
@@ -699,13 +730,14 @@ def produce_nogoods(file_names, args, config):
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                         "--lemma-out={}".format(ng_name),
                         "--lemma-out-dom=output", 
-                        "--heuristic=domain", 
+                        "--heuristic=Domain", 
                         "--dom-mod=1,16",
                         "--lemma-out-max={}".format(args.nogoods_limit),
                         "--solve-limit={}".format(3*int(args.nogoods_limit)),
                         "--time-limit={}".format(args.max_extraction_time),
                         "--quiet=2",
                         "--stats",
+                        "--loops=no", "--reverse-arcs=0", "--otfs=0",
                         "0"]
 
     # call clingo to extract nogoods
