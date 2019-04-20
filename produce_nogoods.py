@@ -467,7 +467,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                     max_lit_count=50,
                     nogoods_wanted=100,
                     minimal=False, 
-                    sortby=["degree", "literal_count"], 
+                    sortby=["literal_count"], 
                     validate_files=None, 
                     reverse_sort=False,
                     validate_instance="none",
@@ -510,6 +510,14 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     if sortby is not None:
         unprocessed_ng.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
+
+#    # write sorted unprocessed nogoods
+#    with open("sorted_ng.txt", "w") as f:
+#        for conv_line in unprocessed_ng:
+#            line = conv_line.to_constraint()
+#            f.write(str(line))
+
+
 
     # extract some stats about some nogood properties
     stats = extract_stats(unprocessed_ng)
