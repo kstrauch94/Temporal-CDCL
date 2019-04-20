@@ -86,6 +86,13 @@ def call_clingo(file_names, options):
 
     return output
 
+def eval_re(regex, text, group, default):
+
+    try:
+        return re.search(regex, text).group(group)
+    except AttributeError:
+        return default
+
 def parse_call_results(output, base_time=None):
     # here i will parse the results of ONE call
     # return a dict with the results
@@ -96,14 +103,9 @@ def parse_call_results(output, base_time=None):
            "percent": None
            }
 
-    try:
-        res["time"] = float(re.search(match_time, output).group(1))
-    except AttributeError:
-        pass
-    try:
-        res["solving"] = float(re.search(match_time_solve, output).group(1))
-    except AttributeError:
-        pass
+    res["time"] = eval_re(match_time, output, 1, res["time"])
+
+    res["solving"] = eval_re(match_time_solve, output, 1, res["solving"])
 
     try:
         if re.search(r"UNSATISFIABLE", output) is not None:
