@@ -463,6 +463,7 @@ def extract_stats(nogoods):
 
 
 def convert_ng_file(ng_name, converted_ng_name,
+                    generalize=True,
                     max_deg=10,
                     max_lit_count=50,
                     nogoods_wanted=100,
@@ -520,167 +521,170 @@ def convert_ng_file(ng_name, converted_ng_name,
 
 
     # extract some stats about some nogood properties
+    t = time.time()
     stats = extract_stats(unprocessed_ng)
+    time_extract_stats = time.time() - t
 
     for key, val in stats.items():
         #if "mean" in key:
         logging.info("{} {}".format(key, val))
 
-    nogoods = []
-    # this set will contain the string of nogoods. 
-    #We will test if a nogood is unique with this
-    nogood_strings = set()
-    for ng in unprocessed_ng:
 
-        # ignore nogoods of higher degree or literal count
-        if max_deg >= 0 and ng.degree > max_deg:
-            continue
-        if max_lit_count > 0 and ng.literal_count > max_lit_count:
-            continue
+    if generalize:    
 
+        nogoods = []
+        # this set will contain the string of nogoods. 
+        #We will test if a nogood is unique with this
+        nogood_strings = set()
         t = time.time()
-        ng.generalize()
-        time_generalize += time.time() - t
+        for ng in unprocessed_ng:
 
-        # if nogood has not been seen before, add it to list
-        if ng.to_constraint() not in nogood_strings:
-            nogoods.append(ng)
-            nogood_strings.add(ng.to_constraint())
+            # ignore nogoods of higher degree or literal count
+            if max_deg >= 0 and ng.degree > max_deg:
+                continue
+            if max_lit_count > 0 and ng.literal_count > max_lit_count:
+                continue
 
-        if len(nogoods) >= nogoods_wanted:
-            break
+            ng.generalize()
 
-    total_nogoods = len(nogoods)
+            # if nogood has not been seen before, add it to list
+            if ng.to_constraint() not in nogood_strings:
+                nogoods.append(ng)
+                nogood_strings.add(ng.to_constraint())
 
-    logging.info("Total nogoods after processing: {}".format(total_nogoods))
+            if len(nogoods) >= nogoods_wanted:
+                break
 
-    if validate:
-        logging.info("Starting validation...")
-        percent_validated = 0.1
+        time_generalize = time.time() - t
 
-        for i, ng in enumerate(nogoods):
+        total_nogoods = len(nogoods)
 
-            # this part is the normal validation as patrick does it
-            t = time.time()
-            ng.validate_self(validate_files)
-            time_validate += time.time() - t
+        logging.info("Total nogoods after processing: {}".format(total_nogoods))
 
-            logging.debug("validated: {}".format(ng.validated))
-
-            if ng.validated:
-                if minimal:
-                    #ng.minimize(validate_files)
-                    ng.minimize_optimized(validate_files)
-
-                converted_lines.append(ng)
-                amount_validated += 1
-
-            else:
-                logging.info("not validated: {}".format(ng.to_constraint()))
-                logging.info("number: {}".format(ng.ordering))
-                failed_to_validate.append(ng.to_rule())
-                if "\'" in ng.to_rule():
-                    prev_check += 1
-
-            if float(i) / float(total_nogoods) >= percent_validated:
-                logging.info("Validated {}% of total nogoods".format(percent_validated*100))
-                percent_validated += 0.1
-
-
-        print("failed vals {}, prev(\') in fails {}".format(len(failed_to_validate), prev_check))
-
-        logging.info("Finishing validation")
-
-    if validate_instance != "none":
-
-        logging.info("Starting instance validation...")
-
-        # validate nogoods one at a time
-        if validate_instance == "single":
+        if validate:
+            logging.info("Starting validation...")
             percent_validated = 0.1
 
             for i, ng in enumerate(nogoods):
 
-                # this part is validating within the instance
+                # this part is the normal validation as patrick does it
                 t = time.time()
-                ng.validate_instance(validate_instance_files)
-                time_validate_instance += time.time() - t
-                
-                if not ng.instance_validated:
-                    logging.info("Result of instance val: {}".format(ng.instance_validated))
-                    logging.info("constraint: {}".format(ng.to_constraint()))
-                    logging.info("number: {}".format(ng.ordering))
-                    logging.info("error times: {}".format(ng.instance_val_error_time))
-                else:
-                    amount_instance_validated += 1
+                ng.validate_self(validate_files)
+                time_validate += time.time() - t
 
-                # if we validate with both methods check if they have the same result
-                if (validate_instance and validate):
-                    if ng.instance_validated != ng.validated:
-                        logging.info("validations do not match")
-                        logging.info("Normal validation: {}".format(ng.validated))
-                        logging.info("Instance validation: {}".format(ng.instance_validated))
-                        logging.info("constraint: {}".format(str(ng)))
+                logging.debug("validated: {}".format(ng.validated))
+
+                if ng.validated:
+                    if minimal:
+                        #ng.minimize(validate_files)
+                        ng.minimize_optimized(validate_files)
+
+                    converted_lines.append(ng)
+                    amount_validated += 1
+
+                else:
+                    logging.info("not validated: {}".format(ng.to_constraint()))
+                    logging.info("number: {}".format(ng.ordering))
+                    failed_to_validate.append(ng.to_rule())
+                    if "\'" in ng.to_rule():
+                        prev_check += 1
 
                 if float(i) / float(total_nogoods) >= percent_validated:
                     logging.info("Validated {}% of total nogoods".format(percent_validated*100))
                     percent_validated += 0.1
+
+
+            print("failed vals {}, prev(\') in fails {}".format(len(failed_to_validate), prev_check))
+
+            logging.info("Finishing validation")
+
+        if validate_instance != "none":
+
+            logging.info("Starting instance validation...")
+
+            # validate nogoods one at a time
+            if validate_instance == "single":
+                percent_validated = 0.1
+
+                for i, ng in enumerate(nogoods):
+
+                    # this part is validating within the instance
+                    t = time.time()
+                    ng.validate_instance(validate_instance_files)
+                    time_validate_instance += time.time() - t
                     
-        # validate nogoods all at the same time
-        elif validate_instance == "all":
-            #write all nogoods in a file as a rule:
-            # add the rule as in the nogoods class instance val
+                    if not ng.instance_validated:
+                        logging.info("Result of instance val: {}".format(ng.instance_validated))
+                        logging.info("constraint: {}".format(ng.to_constraint()))
+                        logging.info("number: {}".format(ng.ordering))
+                        logging.info("error times: {}".format(ng.instance_val_error_time))
+                    else:
+                        amount_instance_validated += 1
 
-            val_file_all = "validate_instance_all.lp"
+                    # if we validate with both methods check if they have the same result
+                    if (validate_instance and validate):
+                        if ng.instance_validated != ng.validated:
+                            logging.info("validations do not match")
+                            logging.info("Normal validation: {}".format(ng.validated))
+                            logging.info("Instance validation: {}".format(ng.instance_validated))
+                            logging.info("constraint: {}".format(str(ng)))
 
-            with open(val_file_all, "w") as f:
-                for ng in nogoods:
-                    f.write(str(ng.to_rule()))
-                f.write("\nerror :- error(_).\n")
-                f.write(":- not error.\n")
-                f.write("#project error/0.\n")
-                f.write("#show error/1.\n")
+                    if float(i) / float(total_nogoods) >= percent_validated:
+                        logging.info("Validated {}% of total nogoods".format(percent_validated*100))
+                        percent_validated += 0.1
+                        
+            # validate nogoods all at the same time
+            elif validate_instance == "all":
+                #write all nogoods in a file as a rule:
+                # add the rule as in the nogoods class instance val
 
-            t = time.time()
-            validate_instance_all(validate_instance_files + [val_file_all])
-            time_validate_instance += time.time() - t
+                val_file_all = "validate_instance_all.lp"
 
-        logging.info("Finishing instance validation")
+                with open(val_file_all, "w") as f:
+                    for ng in nogoods:
+                        f.write(str(ng.to_rule()))
+                    f.write("\nerror :- error(_).\n")
+                    f.write(":- not error.\n")
+                    f.write("#project error/0.\n")
+                    f.write("#show error/1.\n")
 
-    # if not validating(instance validating does not populate converted lines)
-    # use all of them
-    if converted_lines == []:
-        converted_lines = nogoods
+                t = time.time()
+                validate_instance_all(validate_instance_files + [val_file_all])
+                time_validate_instance += time.time() - t
 
-    # write generelized nogoods into a file
-    lines_set = set()
-    with open(converted_ng_name, "w") as f:
-        for conv_line in converted_lines:
-            line = conv_line.to_constraint()
-            if line not in lines_set:
-                f.write(str(line))
-                lines_set.add(line)
+            logging.info("Finishing instance validation")
 
-    # write failed validations to a file
-    with open("failed_to_validate.log", "w") as f:
-        for l in failed_to_validate:
-            f.write(str(l))
+        # if not validating(instance validating does not populate converted lines)
+        # use all of them
+        if converted_lines == []:
+            converted_lines = nogoods
 
-    logging.info("Finished converting!\n")
+        # write generelized nogoods into a file
+        lines_set = set()
+        with open(converted_ng_name, "w") as f:
+            for conv_line in converted_lines:
+                line = conv_line.to_constraint()
+                if line not in lines_set:
+                    f.write(str(line))
+                    lines_set.add(line)
 
-    if validate:
-        logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoods))
-    if validate_instance == "single":
-        logging.info("Validated {} of {} nogoods within the instance".format(amount_instance_validated, total_nogoods))
-    if validate_instance == "all":
-        logging.info("Validation of all nogoods returned {}".format(all_val_result))
+        logging.info("Finished converting!\n")
 
-    logging.info("time to generalize: {}".format(time_generalize))
-    if validate:
-        logging.info("time to validate: {}".format(time_validate))
-    if validate_instance == "single" or validate_instance == "all":
-        logging.info("time to validate within instance: {}".format(time_validate_instance))
-      
+        if validate:
+            logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoods))
+        if validate_instance == "single":
+            logging.info("Validated {} of {} nogoods within the instance".format(amount_instance_validated, total_nogoods))
+        if validate_instance == "all":
+            logging.info("Validation of all nogoods returned {}".format(all_val_result))
+
+        logging.info("time to generalize: {}".format(time_generalize))
+        if validate:
+            logging.info("time to validate: {}".format(time_validate))
+        if validate_instance == "single" or validate_instance == "all":
+            logging.info("time to validate within instance: {}".format(time_validate_instance))
+          
+    logging.info("time to extract stats: {}".format(time_extract_stats))
+
     return 1
 
 
@@ -753,12 +757,14 @@ def produce_nogoods(file_names, args, config):
     call_clingo(file_names, NG_RECORDING_OPTIONS)
     time_extract = time.time() - t
 
+    t = time.time()
     # convert the nogoods
     convert_ng_file(ng_name, converted_ng_name,
                     **config)
+    time_conversion = time.time() - t
 
     logging.info("time to extract: {}".format(time_extract))
-
+    logging.info("time to do conversion jobs: {}".format(time_conversion))
     #os.remove(ng_name)
 
     return converted_ng_name
@@ -792,6 +798,7 @@ if __name__ == "__main__":
     parser.add_argument("--pddl-domain", help="pddl domain", default=None)
     parser.add_argument("--trans-name", help="name of the translated file")
 
+    parser.add_argument("--generalize", action="store_true", help="Generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--minimize", action="store_true", help="Minimize nogoods. Requires validation encoding.")
@@ -825,6 +832,7 @@ if __name__ == "__main__":
 
     config = {}
 
+    config["generalize"] = args.generalize
     config["validate_files"] = args.validate_files
     config["validate_instance"] = args.validate_instance
     config["sortby"] = args.sortby
