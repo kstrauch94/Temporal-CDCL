@@ -675,7 +675,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     if validate_instance == "all":
         logging.info("Validation of all nogoods returned {}".format(all_val_result))
 
-    logging.info("time to generelize: {}".format(time_generalize))
+    logging.info("time to generalize: {}".format(time_generalize))
     if validate:
         logging.info("time to validate: {}".format(time_validate))
     if validate_instance == "single" or validate_instance == "all":
