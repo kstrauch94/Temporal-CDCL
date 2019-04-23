@@ -119,7 +119,7 @@ class Nogood:
         # here we create "next" literals out of the not external literals
         # as a form of handling the domain of the time 
 
-        for idx, dl in enumerate(self.domain_literals, start=0):
+        for dl in self.domain_literals:
             if "not external(" in dl:
                 # delete the not external and the last parenthesis )
                 new_dl = dl.replace("not external(", "")[:-1]
@@ -488,15 +488,8 @@ def convert_ng_file(ng_name, converted_ng_name,
     validate = validate_files is not None
 
     # read nogoods
-    with open(ng_name, "r") as f:
-        lines = f.readlines()
-
-
-    total_nogoods = len(lines)
-    logging.info("total lines in the no good file: {}\n".format(total_nogoods))
-    if total_nogoods == 0:
-        logging.info("no nogoods learned...")
-        return 0
+    
+    total_nogoods = 0
 
     time_generalize = 0
     time_validate = 0
@@ -504,13 +497,26 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     logging.info("converting...")
     
+    t = time.time()
     unprocessed_ng = []
-    for line_num, line in enumerate(lines):
-        # line is the raw text of the nogood, line num is the order it appears in the file
-        unprocessed_ng.append(Nogood(line, line_num))
+    with open(ng_name, "r") as f:
+        for line_num, line in enumerate(f):
+            # line is the raw text of the nogood, line num is the order it appears in the file
+            unprocessed_ng.append(Nogood(line, line_num))
+    time_init_nogood = time.time() - t
 
+    total_nogoods = len(unprocessed_ng)
+
+    t = time.time()
     if sortby is not None:
         unprocessed_ng.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
+
+    time_sorting_nogoods = time.time() - t    
+
+    logging.info("total lines in the no good file: {}\n".format(total_nogoods))
+    if total_nogoods == 0:
+        logging.info("no nogoods learned...")
+        return 0
 
 #    # write sorted unprocessed nogoods
 #    with open("sorted_ng.txt", "w") as f:
@@ -525,10 +531,11 @@ def convert_ng_file(ng_name, converted_ng_name,
     stats = extract_stats(unprocessed_ng)
     time_extract_stats = time.time() - t
 
+    t = time.time()
     for key, val in stats.items():
         #if "mean" in key:
         logging.info("{} {}".format(key, val))
-
+    time_logging_stats = time.time() - t
 
     if generalize:    
 
@@ -684,6 +691,10 @@ def convert_ng_file(ng_name, converted_ng_name,
             logging.info("time to validate within instance: {}".format(time_validate_instance))
           
     logging.info("time to extract stats: {}".format(time_extract_stats))
+    logging.info("time to log stats: {}".format(time_logging_stats))
+
+    logging.info("time initializing nogoods: {}".format(time_init_nogood))
+    logging.info("time sorting nogoods: {}".format(time_sorting_nogoods))
 
     return 1
 
