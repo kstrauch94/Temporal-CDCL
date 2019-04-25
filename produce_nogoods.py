@@ -396,9 +396,10 @@ def get_sort_value(object, attributes):
 
     return val
 
-def call_clingo(file_names, options):
+def call_clingo(file_names, time_limit, options):
 
-    CLINGO = ["clingo"] + file_names
+    CLINGO = ["./runsolver", "-W", "{}".format(time_limit), \
+              "-w", "runsolver.watcher", "clingo"] + file_names
 
     call = CLINGO + options
 
@@ -763,7 +764,6 @@ def produce_nogoods(file_names, args, config):
                         "--dom-mod=1,16",
                         "--lemma-out-max={}".format(args.nogoods_limit),
                         "--solve-limit={}".format(3*int(args.nogoods_limit)),
-                        "--time-limit={}".format(args.max_extraction_time),
                         "--quiet=2",
                         "--stats",
                         "--loops=no", "--reverse-arcs=0", "--otfs=0",
@@ -771,7 +771,7 @@ def produce_nogoods(file_names, args, config):
 
     # call clingo to extract nogoods
     t = time.time()
-    call_clingo(file_names, NG_RECORDING_OPTIONS)
+    call_clingo(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS)
     time_extract = time.time() - t
 
     t = time.time()
