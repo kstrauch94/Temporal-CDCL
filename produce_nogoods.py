@@ -399,7 +399,8 @@ def get_sort_value(object, attributes):
 def call_clingo(file_names, time_limit, options):
 
     CLINGO = ["./runsolver", "-W", "{}".format(time_limit), \
-              "-w", "runsolver.watcher", "clingo"] + file_names
+              "-w", "runsolver.watcher", "-d", "20", 
+              "clingo"] + file_names
 
     call = CLINGO + options
 
@@ -468,7 +469,7 @@ def extract_stats(nogoods):
 
 
 def convert_ng_file(ng_name, converted_ng_name,
-                    generalize=True,
+                    no_generalization=False,
                     max_deg=10,
                     max_lit_count=50,
                     nogoods_wanted=100,
@@ -544,7 +545,7 @@ def convert_ng_file(ng_name, converted_ng_name,
         logging.info("{} {}".format(key, val))
     time_logging_stats = time.time() - t
 
-    if generalize:    
+    if no_generalization == False:    
 
         nogoods = []
         # this set will contain the string of nogoods. 
@@ -761,7 +762,7 @@ def produce_nogoods(file_names, args, config):
                         "--lemma-out={}".format(ng_name),
                         "--lemma-out-dom=output", 
                         "--heuristic=Domain", 
-                        "--dom-mod=1,16",
+                        "--dom-mod=level,show",
                         "--lemma-out-max={}".format(args.nogoods_limit),
                         "--solve-limit={}".format(3*int(args.nogoods_limit)),
                         "--quiet=2",
@@ -815,7 +816,7 @@ if __name__ == "__main__":
     parser.add_argument("--pddl-domain", help="pddl domain", default=None)
     parser.add_argument("--trans-name", help="name of the translated file")
 
-    parser.add_argument("--generalize", action="store_true", help="Generalize the learned nogoods")
+    parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--minimize", action="store_true", help="Minimize nogoods. Requires validation encoding.")
@@ -849,7 +850,7 @@ if __name__ == "__main__":
 
     config = {}
 
-    config["generalize"] = args.generalize
+    config["no_generalization"] = args.no_generalization
     config["validate_files"] = args.validate_files
     config["validate_instance"] = args.validate_instance
     config["sortby"] = args.sortby
