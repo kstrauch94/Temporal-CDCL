@@ -56,7 +56,11 @@ class Nogood:
         
         self.ordering = ordering
 
-        self.lbd = int(re.search(lbd_re, nogood_str).group(1))
+        try:
+            self.lbd = int(re.search(lbd_re, nogood_str).group(1))
+        except AttributeError as e:
+            logging.info("ERROR IN LBD: {}".format(nogood_str))
+            raise AttributeError            
 
         self.process_literals()
         #self.process_prev()
@@ -494,6 +498,8 @@ def convert_ng_file(ng_name, converted_ng_name,
     time_generalize = 0
     time_validate = 0
     time_validate_instance = 0
+
+    time.sleep(5)
 
     logging.info("converting...")
     
