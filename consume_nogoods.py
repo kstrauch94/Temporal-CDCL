@@ -68,10 +68,11 @@ def plasp_translate(instance, domain, filename):
     os.remove("output.sas")
 
 
-def call_clingo(file_names, options):
+def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
-    CLINGO = ["clingo"] + file_names
+    CLINGO = ["runsolver", "-W".format(time_limit), \
+              "-w", "runsolver.watcher", "clingo"] + file_names
 
     call = CLINGO + options
 
@@ -140,7 +141,7 @@ def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
     logging.info("Starting nogood consumption...")
 
     noogood_temp_name = "nogood.temp"
-    options = ["--time-limit={}".format(time_limit)]
+    options = []
 
     scaling = scaling.split(",")
     scaling_start = int(scaling[0])
@@ -156,7 +157,7 @@ def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
 
     # do a base run
     logging.info("base run")
-    output = call_clingo(files, options)
+    output = call_clingo(files, time_limit, options)
     times[0] = parse_call_results(output)
     logging.info("Results: {}".format(str(times[0])))
 
@@ -174,7 +175,7 @@ def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
 
         write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
 
-        output = call_clingo(files + [noogood_temp_name], options)
+        output = call_clingo(files + [noogood_temp_name], time_limit, options)
         times[nogood_current] = parse_call_results(output, times[0]["time"])
         logging.info("Results: {}".format(str(times[nogood_current])))
 
