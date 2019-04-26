@@ -794,9 +794,12 @@ def produce_nogoods(file_names, args, config):
             stat_name = "lbd"
 
         scaling_by_val = []
+        total_count = 0 # keep track of cumulative count of prev values
         for i in range(args.nogoods_wanted_by_count + 1):
             if i in stats[stat_name]:
-                scaling_by_val.append(stats[stat_name][i])
+                count = int(stats[stat_name][i])
+                scaling_by_val.append(count + total_count)
+                total_count += count
 
     else:
         scaling_by_val = None
@@ -906,10 +909,16 @@ if __name__ == "__main__":
 
     converted_nogoods, scaling_by_val = produce_nogoods(files, args, config)
     if scaling_by_val is not None:
-        args.scaling = scaling_by_val
+        scaling = scaling_by_val
+        scaling_type = "by_value"
+    else:
+        scaling = args.scaling
+        scaling_type = "by_factor"
+
+    logging.info("scaling: {}".format(scaling))
 
     if args.consume:
-        times = consume_nogoods.run_tests(files, converted_nogoods, args.scaling, args.consume_time_limit)
+        times = consume_nogoods.consume(files, converted_nogoods, scaling, time_limit=args.consume_time_limit, scaling_type=scaling_type)
         logging.info(times)
 
     if args.pddl_instance is not None:

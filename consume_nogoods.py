@@ -71,7 +71,7 @@ def plasp_translate(instance, domain, filename):
 def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
-    CLINGO = ["runsolver", "-W".format(time_limit), \
+    CLINGO = ["./runsolver", "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "clingo"] + file_names
 
     call = CLINGO + options
@@ -104,9 +104,9 @@ def parse_call_results(output, base_time=None):
            "percent": None
            }
 
-    res["time"] = eval_re(match_time, output, 1, res["time"])
+    res["time"] = float(eval_re(match_time, output, 1, res["time"]))
 
-    res["solving"] = eval_re(match_time_solve, output, 1, res["solving"])
+    res["solving"] = float(eval_re(match_time_solve, output, 1, res["solving"]))
 
     try:
         if re.search(r"UNSATISFIABLE", output) is not None:
@@ -136,24 +136,17 @@ def write_nogood_partial(nogoods, filename="nogood.temp"):
     with open(filename, "w") as f:
         f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
+def run_tests(files, nogood_file, scaling, max_scaling=0, time_limit=0):
 
     logging.info("Starting nogood consumption...")
 
     noogood_temp_name = "nogood.temp"
     options = []
 
-    scaling = scaling.split(",")
-    scaling_start = int(scaling[0])
-    scaling_factor = float(scaling[1])
-    scaling_count = int(scaling[2])
-
     times = {}
 
     nogoods = read_nogoods(nogood_file)
     total_nogoods = len(nogoods)
-
-    nogood_current = scaling_start
 
     # do a base run
     logging.info("base run")
@@ -162,13 +155,14 @@ def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
     logging.info("Results: {}".format(str(times[0])))
 
     # runs with scaling
-    for i in range(scaling_count):
+    for nogood_current in scaling:
         if nogood_current > total_nogoods:
             logging.info("Finishing early. Trying to use {} nogoods but only {} are available.".format(nogood_current, total_nogoods))
             break
 
         # if this run has a current scaling higher than the max, break
-        if max_scaling <= 0 and nogood_current > max_scaling:
+        if max_scaling > 0 and nogood_current > max_scaling:
+            logging.info("Finishing early. Current scaling of {} is higher than max scaling: {}".format(nogood_current, max_scaling))
             break
 
         logging.info("Current scaling: {}".format(nogood_current))
@@ -176,28 +170,46 @@ def run_tests(files, nogood_file, scaling, max_scaling, time_limit=0):
         write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
-        times[nogood_current] = parse_call_results(output, times[0]["time"])
+        times[nogood_current] = parse_call_results(output, base_time=times[0]["time"])
         logging.info("Results: {}".format(str(times[nogood_current])))
-
-        if nogood_current == total_nogoods:
-            break
-
-        nogood_current = int(nogood_current*(scaling_factor))
-
-        # if we are using max scaling, the current amount of nogoods exceeds the scaling and its not the last iteration
-        if max_scaling <= 0 and nogood_current >= max_scaling and i < scaling_count-1:
-            logging.info("Doing a final run with {}(max scaling) nogoods as the current scaling ({}) is now higher.".format(max_scaling, nogood_current))
-            nogood_current = max_scaling
-
-        if nogood_current > total_nogoods and i < scaling_count-1:
-            logging.info("Doing a final run with {}(max) nogoods as there are not enough for next the scaling: {}".format(total_nogoods, nogood_current))
-            nogood_current = total_nogoods
-
-
 
     os.remove(noogood_temp_name)
 
     return times
+
+def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_type="by_factor"):
+    # scaling type can be "by_value" or "by_factor"
+    # by_value means just passing a list with amount of nogoods, those amounts will be used in the runs
+    # by factor means passing 3 argument, start amount, scaling factor and total runs
+    # a scaling by factor of 8,2,5 means doing 5 runs starting at 8 increasing by a factor of 2
+    # so: 8,16,32,64,128
+    # a base run is always done
+
+    if scaling_type == "by_factor":
+        scaling_split = scaling.split(",")
+
+        if len(scaling_split) != 3:
+            logging.error("scaling has to contain exactly 3 values!")
+            raise ValueError
+
+        scaling_start = int(scaling_split[0])
+        scaling_factor = float(scaling_split[1])
+        scaling_count = int(scaling_split[2])
+
+        scaling = []
+        for i in range(scaling_count):
+            scaling.append(int(scaling_start * scaling_factor**i))
+
+
+    if scaling_type == "by_value":
+        if type(scaling) == str:
+            # this comes from the command line
+            scaling_split = scaling.split(",")
+            scaling = [int(s) for s in scaling_split]
+
+    logging.info("scaling: {}".format(scaling))
+
+    run_tests(files, nogood_file, scaling, max_scaling, time_limit)
 
 if __name__ == "__main__":
 
@@ -206,7 +218,9 @@ if __name__ == "__main__":
     parser.add_argument("--files", metavar='f', nargs='+', help="Files to run clingo on")
     parser.add_argument("--nogoods", help="File holding the processed nogoods")
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
-    parser.add_argument("--max-scaling", help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling.", default=2048)
+    parser.add_argument("--max-scaling", help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling. Default = 2048", default=2048)
+
+    parser.add_argument("--scaling_type", choices=["by_factor", "by_value"], help="Perform scaling by factor or by value")
 
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
