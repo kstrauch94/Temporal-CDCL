@@ -395,9 +395,18 @@ def call_clingo(file_names, time_limit, options):
 
 def validate_instance_all(files):
     # files argument is a list containing the encoding, instance and the file containing all nogoods to be proven
-    # + the program that searches for counterexamples
 
-    call = ["clingo", "--quiet=1"] + files
+    val_file_all = "validate_instance_all.lp"
+
+    with open(val_file_all, "w") as f:
+        for ng in nogoods:
+            f.write(str(ng.to_rule()))
+        f.write("\nerror :- error(_).\n")
+        f.write(":- not error.\n")
+        f.write("#project error/0.\n")
+        f.write("#show error/1.\n")
+
+    call = ["clingo", "--quiet=1", val_file_all] + files
 
     logging.debug("calling : {}".format(call))
 
@@ -407,6 +416,8 @@ def validate_instance_all(files):
         output = e.output.decode("utf-8")
 
     logging.debug(output)
+
+    os.remove(val_file_all)
 
     if UNSAT in output:
         return True
@@ -466,6 +477,36 @@ def scaling_by_value(stats, count, sortby):
 
     return scaling_by_val, total_count
 
+def read_nogood_file(ng_file, max_deg, max_lit_count):
+    unprocessed_ng = []
+
+    with open(ng_file, "r") as f:
+        for line_num, line in enumerate(f):
+            # line is the raw text of the nogood, line num is the order it appears in the file
+            nogood = Nogood(line, line_num)
+            # ignore nogoods of higher degree or literal count
+            if max_deg >= 0 and nogood.degree > max_deg:
+                continue
+            if max_lit_count > 0 and nogood.literal_count > max_lit_count:
+                continue
+
+            unprocessed_ng.append(nogood)
+
+    return unprocessed_ng
+
+def generalize_nogoods(ng_list, nogoods_wanted):
+
+        nogoods = []
+        for ng in ng_list:
+
+            ng.generalize()
+            nogoods.append(ng)
+
+            if len(nogoods) >= nogoods_wanted:
+                break
+
+        return nogoods
+
 def convert_ng_file(ng_name, converted_ng_name,
                     no_generalization=False,
                     max_deg=10,
@@ -505,32 +546,22 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("converting...")
     
     t = time.time()
-    unprocessed_ng = []
-    with open(ng_name, "r") as f:
-        for line_num, line in enumerate(f):
-            # line is the raw text of the nogood, line num is the order it appears in the file
-            nogood = Nogood(line, line_num)
-            # ignore nogoods of higher degree or literal count
-            if max_deg >= 0 and nogood.degree > max_deg:
-                continue
-            if max_lit_count > 0 and nogood.literal_count > max_lit_count:
-                continue
 
-            unprocessed_ng.append(nogood)
+    unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count)
+    total_nogoods = len(unprocessed_ng)
+
     time_init_nogood = time.time() - t
 
-    total_nogoods = len(unprocessed_ng)
+    logging.info("total lines in the no good file: {}\n".format(total_nogoods))
+    if total_nogoods == 0:
+        logging.info("no nogoods learned...")
+        return 0
 
     t = time.time()
     if sortby is not None:
         unprocessed_ng.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
 
     time_sorting_nogoods = time.time() - t    
-
-    logging.info("total lines in the no good file: {}\n".format(total_nogoods))
-    if total_nogoods == 0:
-        logging.info("no nogoods learned...")
-        return 0
 
 #    # write sorted unprocessed nogoods
 #    with open("sorted_ng.txt", "w") as f:
@@ -556,22 +587,9 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     if no_generalization == False:    
 
-        nogoods = []
-        # this set will contain the string of nogoods. 
-        # We will test if a nogood is unique with this
-        nogood_strings = set()
         t = time.time()
-        for ng in unprocessed_ng:
 
-            ng.generalize()
-
-            # if nogood has not been seen before, add it to list
-            if ng.to_constraint() not in nogood_strings:
-                nogoods.append(ng)
-                nogood_strings.add(ng.to_constraint())
-
-            if len(nogoods) >= nogoods_wanted:
-                break
+        nogoods = generalize_nogoods(unprocessed_ng, nogoods_wanted)
 
         time_generalize = time.time() - t
 
@@ -653,19 +671,8 @@ def convert_ng_file(ng_name, converted_ng_name,
             elif validate_instance == "all":
                 #write all nogoods in a file as a rule:
                 # add the rule as in the nogoods class instance val
-
-                val_file_all = "validate_instance_all.lp"
-
-                with open(val_file_all, "w") as f:
-                    for ng in nogoods:
-                        f.write(str(ng.to_rule()))
-                    f.write("\nerror :- error(_).\n")
-                    f.write(":- not error.\n")
-                    f.write("#project error/0.\n")
-                    f.write("#show error/1.\n")
-
                 t = time.time()
-                validate_instance_all(validate_instance_files + [val_file_all])
+                validate_instance_all(validate_instance_files)
                 time_validate_instance += time.time() - t
 
             logging.info("Finishing instance validation")
