@@ -467,12 +467,35 @@ def extract_stats(nogoods):
             "lbd mean": float(lbd_total)/total_nogoods,
             "size mean": float(size_total)/total_nogoods}
 
+def scaling_by_value(stats, count, sortby):
+
+    if sortby[0] != "ordering" :
+        if args.sortby[0] == "literal_count":
+            stat_name = "size"
+        elif args.sortby[0] == "degree":
+            stat_name = "degree"
+        elif args.sortby[0] == "lbd":
+            stat_name = "lbd"
+
+        scaling_by_val = []
+        total_count = 0 # keep track of cumulative count of prev values
+        for i in range(args.nogoods_wanted_by_count + 1):
+            if i in stats[stat_name]:
+                count = int(stats[stat_name][i])
+                scaling_by_val.append(count + total_count)
+                total_count += count
+
+    else:
+        scaling_by_val = None
+
+    return scaling_by_val, total_count
 
 def convert_ng_file(ng_name, converted_ng_name,
                     no_generalization=False,
                     max_deg=10,
                     max_lit_count=50,
                     nogoods_wanted=100,
+                    nogoods_wanted_by_count=-1,
                     minimal=False, 
                     sortby=["literal_count"], 
                     validate_files=None, 
@@ -544,6 +567,10 @@ def convert_ng_file(ng_name, converted_ng_name,
         #if "mean" in key:
         logging.info("{} {}".format(key, val))
     time_logging_stats = time.time() - t
+
+    if nogoods_wanted_by_count >= 0:
+        scaling_by_val, nogoods_wanted = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
+
 
     if no_generalization == False:    
 
@@ -704,7 +731,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("time initializing nogoods: {}".format(time_init_nogood))
     logging.info("time sorting nogoods: {}".format(time_sorting_nogoods))
 
-    return total_nogoods, stats
+    return total_nogoods, scaling_by_val
 
 
 def get_parent_dir(path):
@@ -738,7 +765,6 @@ def plasp_translate(instance, domain, filename):
     fd_call = FD_CALL + [domain, instance]
 
     output = subprocess.check_output(fd_call).decode("utf-8")
-    #print(output)
 
     plasp_call = ["plasp", "translate", "output.sas"]
 
@@ -777,32 +803,13 @@ def produce_nogoods(file_names, args, config):
 
     t = time.time()
     # convert the nogoods
-    total_nogoods, stats = convert_ng_file(ng_name, converted_ng_name,
+    total_nogoods, scaling_by_val = convert_ng_file(ng_name, converted_ng_name,
                     **config)
     time_conversion = time.time() - t
 
     logging.info("time to extract: {}".format(time_extract))
     logging.info("time to do conversion jobs: {}".format(time_conversion))
     #os.remove(ng_name)
-
-    if args.sortby[0] != "ordering" and args.nogoods_wanted_by_count >= 0:
-        if args.sortby[0] == "literal_count":
-            stat_name = "size"
-        elif args.sortby[0] == "degree":
-            stat_name = "degree"
-        elif args.sortby[0] == "lbd":
-            stat_name = "lbd"
-
-        scaling_by_val = []
-        total_count = 0 # keep track of cumulative count of prev values
-        for i in range(args.nogoods_wanted_by_count + 1):
-            if i in stats[stat_name]:
-                count = int(stats[stat_name][i])
-                scaling_by_val.append(count + total_count)
-                total_count += count
-
-    else:
-        scaling_by_val = None
 
     return converted_ng_name, scaling_by_val
 
@@ -880,6 +887,7 @@ if __name__ == "__main__":
     config["max_deg"] = args.max_deg
     config["max_lit_count"] = args.max_lit_count
     config["nogoods_wanted"] = args.nogoods_wanted
+    config["nogoods_wanted_by_count"] = args.nogoods_wanted_by_count
 
     if args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
