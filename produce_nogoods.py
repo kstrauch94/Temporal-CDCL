@@ -704,7 +704,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("time initializing nogoods: {}".format(time_init_nogood))
     logging.info("time sorting nogoods: {}".format(time_sorting_nogoods))
 
-    return 1
+    return total_nogoods, stats
 
 
 def get_parent_dir(path):
@@ -777,7 +777,7 @@ def produce_nogoods(file_names, args, config):
 
     t = time.time()
     # convert the nogoods
-    convert_ng_file(ng_name, converted_ng_name,
+    total_nogoods, stats = convert_ng_file(ng_name, converted_ng_name,
                     **config)
     time_conversion = time.time() - t
 
@@ -785,7 +785,23 @@ def produce_nogoods(file_names, args, config):
     logging.info("time to do conversion jobs: {}".format(time_conversion))
     #os.remove(ng_name)
 
-    return converted_ng_name
+    if args.sortby[0] != "ordering" and args.nogoods_wanted_by_count >= 0:
+        if args.sortby[0] == "literal_count":
+            stat_name = "size"
+        elif args.sortby[0] == "degree":
+            stat_name = "degree"
+        elif args.sortby[0] == "lbd":
+            stat_name = "lbd"
+
+        scaling_by_val = []
+        for i in range(args.nogoods_wanted_by_count + 1):
+            if i in stats[stat_name]:
+                scaling_by_val.append(stats[stat_name][i])
+
+    else:
+        scaling_by_val = None
+
+    return converted_ng_name, scaling_by_val
 
 def setup_logging(no_stream_output=False, logtofile=None):
 
@@ -827,6 +843,7 @@ if __name__ == "__main__":
     parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100", default=100, type=int)
 
     parser.add_argument("--nogoods-wanted", help="Nogoods will be processed will stop after this amount. Default = 100", default=100, type=int)
+    parser.add_argument("--nogoods-wanted-by-count", help="Nogoods that have a value equal or less than the one given here in the variable given in the first position of the sortby option(does not work for ordering). This option overwrites nogoods-wanted option.", default=-1, type=int)
 
     parser.add_argument("--max-deg", help="Processing will ignore nogoods with higher degree. Default = 10. A negative number means no limit.", default=10, type=int)
     parser.add_argument("--max-lit-count", help="Processing will ignore nogoods with higher literal count. Default = 50. 0 or a negative number means no limit.", default=50, type=int)
@@ -887,9 +904,9 @@ if __name__ == "__main__":
 
     config["validate_instance_files"] = files
 
-
-    # maybe pass the nogoods directly instead of file?
-    converted_nogoods = produce_nogoods(files, args, config)
+    converted_nogoods, scaling_by_val = produce_nogoods(files, args, config)
+    if scaling_by_val is not None:
+        args.scaling = scaling_by_val
 
     if args.consume:
         times = consume_nogoods.run_tests(files, converted_nogoods, args.scaling, args.consume_time_limit)
