@@ -48,8 +48,6 @@ class Nogood:
         #nogood_str: raw string printed out by the clingo call
         #ordering: line number of the nogood (the order in which the noogood was created)
 
-        self.raw_str = nogood_str
-
         # split by a . and then get the first element and add the . 
         # do this to delete the lbd part at the end
         self.raw = nogood_str.split(".")[0] + "."
@@ -63,7 +61,6 @@ class Nogood:
             raise AttributeError            
 
         self.process_literals()
-        #self.process_prev()
         self.process_domain_literals()
 
         self.raw_literal_count = len(self.literals)
@@ -77,7 +74,10 @@ class Nogood:
 
         self.validated = None
         self.instance_validated = None
-        self.instance_val_error_time = "-1"
+
+        # time in the name refers to timepoint in the program
+        self.instance_val_error_time = "-1" 
+
 
     def process_literals(self):
         # this takes the raw nogood string and splits the atoms
@@ -100,25 +100,6 @@ class Nogood:
             else:
                 self.literals.append(lit)
 
-
-    def process_prev(self):
-        # since we are not using this function it wasnt updated to the new time format
-        # Ill leave the function here in case we need it in the future
-
-        for idx, atom in enumerate(self.literals, start=0):
-            if "prev_" in atom:
-                new_atom = atom.replace("prev_", "")
-
-                time_match = int(re.search(time_re, new_atom).group(1))
-
-                new_atom = new_atom.replace("s({})".format(time_match), "s({})".format(time_match-1))
-
-                self.literals[idx] = new_atom
-
-                new_dom_lit = "not external(next(s({}),s({})))".format(time_match-1, time_match)
-                if new_dom_lit not in self.domain_literals:
-                    self.domain_literals.append(new_dom_lit)
-
     def process_domain_literals(self):
         # here we create "next" literals out of the not external literals
         # as a form of handling the domain of the time 
@@ -129,7 +110,6 @@ class Nogood:
                 new_dl = dl.replace("not external(", "")[:-1]
 
                 self.domain_literals.append(new_dl)
-
 
     def process_time(self):
         # finding the max doesnt take into account the first value of the external(next(T1,T2))
@@ -294,7 +274,9 @@ class Nogood:
 
         return self.minimized
 
-    def _validate(self, files, literals):
+    def validate(self, files):
+
+        literals = self.get_nogood()
         temp_validate = "temp_validate.lp"
 
         call = ["clingo", "--quiet=2", temp_validate] + files
@@ -320,10 +302,10 @@ hypothesisConstraint(T-degree) {}
         os.remove(temp_validate)
 
         if UNSAT in output:
-            return True
+            self.validated = True
 
         else:
-            return False
+            self.validated = False
 
     def validate_instance(self, files):
 
@@ -357,10 +339,6 @@ error :- error(_).
         else:
             self.instance_validated = False
             self.instance_val_error_time = str(re.findall(error_re, output))
-
-    def validate_self(self, files):
-
-        self.validated = self._validate(files, self.get_nogood())
 
     def to_constraint(self):
         return ":- " +  ", ".join(self.get_nogood()) + ".\n"
@@ -415,10 +393,8 @@ def call_clingo(file_names, time_limit, options):
 
     logging.info(output)
 
-    #logging.info("Models: {}".format(re.findall(models_re, output)))
-
 def validate_instance_all(files):
-    # files argument contains the encoding, instance and the file containing all nogoods to be proven
+    # files argument is a list containing the encoding, instance and the file containing all nogoods to be proven
     # + the program that searches for counterexamples
 
     call = ["clingo", "--quiet=1"] + files
@@ -533,7 +509,14 @@ def convert_ng_file(ng_name, converted_ng_name,
     with open(ng_name, "r") as f:
         for line_num, line in enumerate(f):
             # line is the raw text of the nogood, line num is the order it appears in the file
-            unprocessed_ng.append(Nogood(line, line_num))
+            nogood = Nogood(line, line_num)
+            # ignore nogoods of higher degree or literal count
+            if max_deg >= 0 and nogood.degree > max_deg:
+                continue
+            if max_lit_count > 0 and nogood.literal_count > max_lit_count:
+                continue
+
+            unprocessed_ng.append(nogood)
     time_init_nogood = time.time() - t
 
     total_nogoods = len(unprocessed_ng)
@@ -555,8 +538,6 @@ def convert_ng_file(ng_name, converted_ng_name,
 #            line = conv_line.to_constraint()
 #            f.write(str(line))
 
-
-
     # extract some stats about some nogood properties
     t = time.time()
     stats = extract_stats(unprocessed_ng)
@@ -568,6 +549,7 @@ def convert_ng_file(ng_name, converted_ng_name,
         logging.info("{} {}".format(key, val))
     time_logging_stats = time.time() - t
 
+    # get the scaling amounts and the nogoods count we want
     if nogoods_wanted_by_count >= 0:
         scaling_by_val, nogoods_wanted = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
 
@@ -576,16 +558,10 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         nogoods = []
         # this set will contain the string of nogoods. 
-        #We will test if a nogood is unique with this
+        # We will test if a nogood is unique with this
         nogood_strings = set()
         t = time.time()
         for ng in unprocessed_ng:
-
-            # ignore nogoods of higher degree or literal count
-            if max_deg >= 0 and ng.degree > max_deg:
-                continue
-            if max_lit_count > 0 and ng.literal_count > max_lit_count:
-                continue
 
             ng.generalize()
 
@@ -611,7 +587,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
                 # this part is the normal validation as patrick does it
                 t = time.time()
-                ng.validate_self(validate_files)
+                ng.validate(validate_files)
                 time_validate += time.time() - t
 
                 logging.debug("validated: {}".format(ng.validated))
@@ -620,8 +596,6 @@ def convert_ng_file(ng_name, converted_ng_name,
                     if minimal:
                         #ng.minimize(validate_files)
                         ng.minimize_optimized(validate_files)
-
-                    converted_lines.append(ng)
                     amount_validated += 1
 
                 else:
@@ -698,17 +672,20 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         # if not validating(instance validating does not populate converted lines)
         # use all of them
-        if converted_lines == []:
-            converted_lines = nogoods
 
-        # write generelized nogoods into a file
-        lines_set = set()
-        with open(converted_ng_name, "w") as f:
-            for conv_line in converted_lines:
-                line = conv_line.to_constraint()
-                if line not in lines_set:
-                    f.write(str(line))
-                    lines_set.add(line)
+    else:
+        # if we don't generalize then nogoods is just the n first
+        # from the list (since it should be sorted in the correct order anyway)
+        nogoods = unprocessed_ng[:nogoods_wanted]
+
+    # write generelized nogoods into a file
+    lines_set = set()
+    with open(converted_ng_name, "w") as f:
+        for conv_line in nogoods:
+            line = conv_line.to_constraint()
+            if line not in lines_set:
+                f.write(str(line))
+                lines_set.add(line)
 
         logging.info("Finished converting!\n")
 
@@ -922,8 +899,6 @@ if __name__ == "__main__":
     else:
         scaling = args.scaling
         scaling_type = "by_factor"
-
-    logging.info("scaling: {}".format(scaling))
 
     if args.consume:
         times = consume_nogoods.consume(files, converted_nogoods, scaling, time_limit=args.consume_time_limit, scaling_type=scaling_type)

@@ -207,8 +207,6 @@ def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_ty
             scaling_split = scaling.split(",")
             scaling = [int(s) for s in scaling_split]
 
-    logging.info("scaling: {}".format(scaling))
-
     run_tests(files, nogood_file, scaling, max_scaling, time_limit)
 
 if __name__ == "__main__":
