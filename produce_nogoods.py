@@ -43,7 +43,7 @@ def create_folder(path):
 
 class Nogood:
 
-    def __init__(self, nogood_str, ordering):
+    def __init__(self, nogood_str, ordering, lbd=None):
 
         #nogood_str: raw string printed out by the clingo call
         #ordering: line number of the nogood (the order in which the noogood was created)
@@ -54,11 +54,14 @@ class Nogood:
         
         self.ordering = ordering
 
-        try:
-            self.lbd = int(re.search(lbd_re, nogood_str).group(1))
-        except AttributeError as e:
-            logging.info("ERROR IN LBD: {}".format(nogood_str))
-            raise AttributeError            
+        if lbd is None:
+            try:
+                self.lbd = int(re.search(lbd_re, nogood_str).group(1))
+            except AttributeError as e:
+                logging.info("ERROR IN LBD: {}".format(nogood_str))
+                raise AttributeError            
+        else:
+            self.lbd = lbd
 
         self.process_literals()
         self.process_domain_literals()
@@ -482,8 +485,16 @@ def read_nogood_file(ng_file, max_deg, max_lit_count):
 
     with open(ng_file, "r") as f:
         for line_num, line in enumerate(f):
+
+            # if no lbd is found then the file was not written fully
+            # if it it found then pass it as argument to not do this twice
+            try:
+                lbd = int(re.search(lbd_re, nogood_str).group(1))
+            except AttributeError as e:
+                continue
+
             # line is the raw text of the nogood, line num is the order it appears in the file
-            nogood = Nogood(line, line_num)
+            nogood = Nogood(line, line_num, lbd)
             # ignore nogoods of higher degree or literal count
             if max_deg >= 0 and nogood.degree > max_deg:
                 continue
@@ -685,7 +696,7 @@ def convert_ng_file(ng_name, converted_ng_name,
         # from the list (since it should be sorted in the correct order anyway)
         nogoods = unprocessed_ng[:nogoods_wanted]
 
-    # write generelized nogoods into a file
+    # write generalized nogoods into a file
     lines_set = set()
     with open(converted_ng_name, "w") as f:
         for conv_line in nogoods:
