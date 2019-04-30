@@ -594,7 +594,8 @@ def convert_ng_file(ng_name, converted_ng_name,
     # get the scaling amounts and the nogoods count we want
     if nogoods_wanted_by_count >= 0:
         scaling_by_val, nogoods_wanted = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
-
+    else:
+        scaling_by_val = None
 
     if no_generalization == False:    
 
