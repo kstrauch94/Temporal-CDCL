@@ -489,7 +489,7 @@ def read_nogood_file(ng_file, max_deg, max_lit_count):
             # if no lbd is found then the file was not written fully
             # if it it found then pass it as argument to not do this twice
             try:
-                lbd = int(re.search(lbd_re, nogood_str).group(1))
+                lbd = int(re.search(lbd_re, line).group(1))
             except AttributeError as e:
                 continue
 
