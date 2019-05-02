@@ -554,8 +554,6 @@ def convert_ng_file(ng_name, converted_ng_name,
     time_validate = 0
     time_validate_instance = 0
 
-    time.sleep(5)
-
     logging.info("converting...")
     
     t = time.time()
@@ -692,23 +690,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
             logging.info("Finishing instance validation")
 
-        # if not validating(instance validating does not populate converted lines)
-        # use all of them
-
-    else:
-        # if we don't generalize then nogoods is just the n first
-        # from the list (since it should be sorted in the correct order anyway)
-        nogoods = unprocessed_ng[:nogoods_wanted]
-
-    # write generalized nogoods into a file
-    lines_set = set()
-    with open(converted_ng_name, "w") as f:
-        for conv_line in nogoods:
-            line = conv_line.to_constraint()
-            if line not in lines_set:
-                f.write(str(line))
-                lines_set.add(line)
-
+        # log some info after finishing
         logging.info("Finished converting!\n")
 
         if validate:
@@ -723,12 +705,31 @@ def convert_ng_file(ng_name, converted_ng_name,
             logging.info("time to validate: {}".format(time_validate))
         if validate_instance == "single" or validate_instance == "all":
             logging.info("time to validate within instance: {}".format(time_validate_instance))
-          
+ 
+
+    else:
+        # if we don't generalize then nogoods is just the n first
+        # from the list (since it should be sorted in the correct order anyway)
+        nogoods = unprocessed_ng[:nogoods_wanted]
+
+    t = time.time()
+    # write generalized nogoods into a file
+    lines_set = set()
+    with open(converted_ng_name, "w") as f:
+        for conv_line in nogoods:
+            line = conv_line.to_constraint()
+            if line not in lines_set:
+                f.write(str(line))
+                lines_set.add(line)
+    
+    time_writing_file = time.time() - t
+
     logging.info("time to extract stats: {}".format(time_extract_stats))
     logging.info("time to log stats: {}".format(time_logging_stats))
 
     logging.info("time initializing nogoods: {}".format(time_init_nogood))
     logging.info("time sorting nogoods: {}".format(time_sorting_nogoods))
+    logging.info("time writing file: {}".format(time_writing_file))
 
     return total_nogoods, scaling_by_val, scaling_labels
 
