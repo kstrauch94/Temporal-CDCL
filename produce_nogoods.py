@@ -469,16 +469,18 @@ def scaling_by_value(stats, count, sortby):
 
         scaling_by_val = []
         total_count = 0 # keep track of cumulative count of prev values
+        scaling_labels = []
         for i in range(args.nogoods_wanted_by_count + 1):
             if i in stats[stat_name]:
                 count = int(stats[stat_name][i])
                 scaling_by_val.append(count + total_count)
                 total_count += count
+                scaling_labels.append(i)
 
     else:
         scaling_by_val = None
 
-    return scaling_by_val, total_count
+    return scaling_by_val, total_count, scaling_labels
 
 def read_nogood_file(ng_file, max_deg, max_lit_count):
     unprocessed_ng = []
@@ -593,9 +595,10 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     # get the scaling amounts and the nogoods count we want
     if nogoods_wanted_by_count >= 0:
-        scaling_by_val, nogoods_wanted = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
+        scaling_by_val, nogoods_wanted, scaling_labels = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
     else:
         scaling_by_val = None
+        scaling_labels = []
 
     if no_generalization == False:    
 
@@ -727,7 +730,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("time initializing nogoods: {}".format(time_init_nogood))
     logging.info("time sorting nogoods: {}".format(time_sorting_nogoods))
 
-    return total_nogoods, scaling_by_val
+    return total_nogoods, scaling_by_val, scaling_labels
 
 
 def get_parent_dir(path):
@@ -799,7 +802,7 @@ def produce_nogoods(file_names, args, config):
 
     t = time.time()
     # convert the nogoods
-    total_nogoods, scaling_by_val = convert_ng_file(ng_name, converted_ng_name,
+    total_nogoods, scaling_by_val, scaling_labels = convert_ng_file(ng_name, converted_ng_name,
                     **config)
     time_conversion = time.time() - t
 
@@ -807,7 +810,7 @@ def produce_nogoods(file_names, args, config):
     logging.info("time to do conversion jobs: {}".format(time_conversion))
     #os.remove(ng_name)
 
-    return converted_ng_name, scaling_by_val
+    return converted_ng_name, scaling_by_val, scaling_labels
 
 def setup_logging(no_stream_output=False, logtofile=None):
 
@@ -911,7 +914,7 @@ if __name__ == "__main__":
 
     config["validate_instance_files"] = files
 
-    converted_nogoods, scaling_by_val = produce_nogoods(files, args, config)
+    converted_nogoods, scaling_by_val, scaling_labels = produce_nogoods(files, args, config)
     if scaling_by_val is not None:
         scaling = scaling_by_val
         scaling_type = "by_value"
@@ -920,7 +923,7 @@ if __name__ == "__main__":
         scaling_type = "by_factor"
 
     if args.consume:
-        times = consume_nogoods.consume(files, converted_nogoods, scaling, time_limit=args.consume_time_limit, scaling_type=scaling_type)
+        times = consume_nogoods.consume(files, converted_nogoods, scaling, time_limit=args.consume_time_limit, scaling_type=scaling_type, labels=scaling_labels)
         logging.info(times)
 
     if args.pddl_instance is not None:

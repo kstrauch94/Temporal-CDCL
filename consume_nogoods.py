@@ -136,7 +136,7 @@ def write_nogood_partial(nogoods, filename="nogood.temp"):
     with open(filename, "w") as f:
         f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, max_scaling=0, time_limit=0):
+def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,):
 
     logging.info("Starting nogood consumption...")
 
@@ -151,11 +151,11 @@ def run_tests(files, nogood_file, scaling, max_scaling=0, time_limit=0):
     # do a base run
     logging.info("base run")
     output = call_clingo(files, time_limit, options)
-    times[0] = parse_call_results(output)
-    logging.info("Results: {}".format(str(times[0])))
+    times["base"] = parse_call_results(output)
+    logging.info("Results: {}".format(str(times["base"])))
 
     # runs with scaling
-    for nogood_current in scaling:
+    for nogood_current, label in zip(scaling, labels):
         if nogood_current > total_nogoods:
             logging.info("Finishing early. Trying to use {} nogoods but only {} are available.".format(nogood_current, total_nogoods))
             break
@@ -170,14 +170,14 @@ def run_tests(files, nogood_file, scaling, max_scaling=0, time_limit=0):
         write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
-        times[nogood_current] = parse_call_results(output, base_time=times[0]["time"])
+        times[label] = parse_call_results(output, base_time=times["base"]["time"])
         logging.info("Results: {}".format(str(times[nogood_current])))
 
     os.remove(noogood_temp_name)
 
     return times
 
-def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_type="by_factor"):
+def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_type="by_factor", labels=None):
     # scaling type can be "by_value" or "by_factor"
     # by_value means just passing a list with amount of nogoods, those amounts will be used in the runs
     # by factor means passing 3 argument, start amount, scaling factor and total runs
@@ -199,15 +199,19 @@ def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_ty
         scaling = []
         for i in range(scaling_count):
             scaling.append(int(scaling_start * scaling_factor**i))
-
+        
+        scaling_labels=scaling
 
     if scaling_type == "by_value":
         if type(scaling) == str:
             # this comes from the command line
             scaling_split = scaling.split(",")
             scaling = [int(s) for s in scaling_split]
+        
+        scaling_labels = labels
 
-    run_tests(files, nogood_file, scaling, max_scaling, time_limit)
+    return run_tests(files, nogood_file, scaling, scaling_labels, \
+            max_scaling=max_scaling, time_limit=time_limit)
 
 if __name__ == "__main__":
 
@@ -218,7 +222,7 @@ if __name__ == "__main__":
     parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
     parser.add_argument("--max-scaling", help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling. Default = 2048", default=2048)
 
-    parser.add_argument("--scaling_type", choices=["by_factor", "by_value"], help="Perform scaling by factor or by value")
+    parser.add_argument("--scaling-type", choices=["by_factor", "by_value"], help="Perform scaling by factor or by value")
 
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
@@ -243,4 +247,4 @@ if __name__ == "__main__":
 
         files.append(trans_name)
 
-    logging.info(run_tests(files, args.nogoods, args.scaling, args.max_scaling, args.time_limit))
+    logging.info(run_tests(files, args.nogoods, args.scaling, max_scaling=args.max_scaling, time_limit=args.time_limit, scaling_type=args.scaling_type))
