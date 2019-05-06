@@ -407,6 +407,35 @@ def call_clingo(file_names, time_limit, options):
 
     logging.info(output)
 
+def call_clingo_pipe(file_names, time_limit, options, out_file, max_lit_count=1000):
+
+    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+              "-w", "runsolver.watcher", "-d", "20", 
+              "clingo"] + file_names
+
+    call = CLINGO + options
+
+    if os.path.isfile(out_file):
+        os.remove(out_file)
+
+    logging.info("calling: " + " ".join(call))
+
+    output = ""
+    pipe = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    with open(out_file, "a") as out:
+        for line in pipe.stdout:
+            line = line.decode("utf-8")
+            if line.startswith(":-"):
+                if len(re.split(split_atom_re, line)) <= max_lit_count:
+                    out.write(line)
+            else:
+                output += line
+
+    logging.info("call has finished\n")
+
+    logging.info(output)
+
 def validate_instance_all(files):
     # files argument is a list containing the encoding, instance and the file containing all nogoods to be proven
 
@@ -782,7 +811,7 @@ def produce_nogoods(file_names, args, config):
     converted_ng_name =  "conv_ng.lp"
 
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
-                        "--lemma-out={}".format(ng_name),
+                        "--lemma-out=-",
                         "--lemma-out-dom=output", 
                         "--heuristic=Domain", 
                         "--dom-mod=level,show",
@@ -795,7 +824,7 @@ def produce_nogoods(file_names, args, config):
 
     # call clingo to extract nogoods
     t = time.time()
-    call_clingo(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS)
+    call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS, ng_name)
     time_extract = time.time() - t
 
     t = time.time()
