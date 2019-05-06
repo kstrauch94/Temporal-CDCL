@@ -33,6 +33,12 @@ lbd_re = r"lbd = ([0-9]+)"
 
 error_re = r"error\(([0-9]+)\)"
 
+# regex from 
+# https://stackoverflow.com/questions/9644784/python-splitting-on-spaces-except-between-certain-characters
+# split on commas followed by whitespace except when between ""
+# the comma at the beggining was added by me
+split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
+
 UNSAT = "UNSATISFIABLE"
 
 FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
@@ -62,7 +68,7 @@ class Nogood:
 
         # split by a . and then get the first element and add the . 
         # do this to delete the lbd part at the end
-        self.raw = nogood_str.split(".")[0] + "."
+        #self.raw = nogood_str.split(".")[0] + "."
         
         self.ordering = ordering
 
@@ -75,12 +81,8 @@ class Nogood:
         else:
             self.lbd = lbd
 
-        self.process_literals()
+        self.process_literals(nogood_str)
         self.process_domain_literals()
-
-        self.raw_literal_count = len(self.literals)
-
-        logging.debug("literal count: {}".format(self.raw_literal_count))
 
         self.process_time()
 
@@ -94,16 +96,13 @@ class Nogood:
         self.instance_val_error_time = "-1" 
 
 
-    def process_literals(self):
+    def process_literals(self, nogood_str):
         # this takes the raw nogood string and splits the atoms
         # into singular ones
 
-        pre_literals = self.raw.replace(":-", "").replace(".","").strip()
-        # regex from 
-        # https://stackoverflow.com/questions/9644784/python-splitting-on-spaces-except-between-certain-characters
-        # split on commas followed by whitespace except when between ""
-        # the comma at the beggining was added by me
-        pre_literals = re.split(r",\s+(?=[^()]*(?:\(|$))", pre_literals)
+        pre_literals = nogood_str.split(".")[0].replace(":-", "").strip()
+
+        pre_literals = re.split(split_atom_re, pre_literals)
 
         self.literals = []
         self.domain_literals = []
@@ -212,7 +211,7 @@ class Nogood:
                 needed.append(delete_candidate)
 
         self.minimized = needed
-        logging.debug("initial literals: {}\nFinal literals: {}\n".format(self.raw_literal_count, len(self.minimized)))
+        logging.debug("initial literals: {}\nFinal literals: {}\n".format(len(self.literals), len(self.minimized)))
         logging.debug("minimized: {}".format(self.minimized))
 
         logging.info("time minimize: {}".format(time.time() - t))
@@ -281,7 +280,7 @@ class Nogood:
                     unknown = test_unknown
 
         self.minimized = needed
-        logging.debug("minimized from {} to {}\n".format(self.raw_literal_count, len(self.minimized)))
+        logging.debug("minimized from {} to {}\n".format(len(self.literals), len(self.minimized)))
         logging.debug("minimized: {}".format(self.minimized))
 
         logging.debug("time minimize opt: {}".format(time.time() - t))
@@ -553,8 +552,6 @@ def convert_ng_file(ng_name, converted_ng_name,
     amount_instance_validated = 0
 
     failed_to_validate = []
-    prev_check = 0
-
     # just so that we dont check multiple times
     validate = validate_files is not None
 
@@ -645,15 +642,13 @@ def convert_ng_file(ng_name, converted_ng_name,
                     logging.info("not validated: {}".format(ng.to_constraint()))
                     logging.info("number: {}".format(ng.ordering))
                     failed_to_validate.append(ng.to_rule())
-                    if "\'" in ng.to_rule():
-                        prev_check += 1
 
                 if float(i) / float(total_nogoods) >= percent_validated:
                     logging.info("Validated {}% of total nogoods".format(percent_validated*100))
                     percent_validated += 0.1
 
 
-            print("failed vals {}, prev(\') in fails {}".format(len(failed_to_validate), prev_check))
+            print("failed vals {}".format(len(failed_to_validate)))
 
             logging.info("Finishing validation")
 
@@ -796,7 +791,7 @@ def produce_nogoods(file_names, args, config):
                         "--quiet=2",
                         "--stats",
                         "--loops=no", "--reverse-arcs=0", "--otfs=0",
-                        "0"]
+                        "1"]
 
     # call clingo to extract nogoods
     t = time.time()
