@@ -9,12 +9,24 @@ import logging
 import time
 
 
+def get_parent_dir(path):
+    # this gets the name of the parent folder
+
+    # if there is a trailing backslash then delete it
+    if path.endswith("/"):
+        path = path[:-1]
+
+    return os.path.dirname(path)
+    
 
 match_time = r"Time         : (\d+\.\d+)s"
 match_time_solve = r"Solving: (\d+\.\d+)s"
 
 FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
 
+FILE_PATH = os.path.abspath(__file__)
+
+RUNSOLVER_PATH = os.path.join(get_parent_dir(FILE_PATH), "runsolver")
 
 def setup_logging(logtofile):
 
@@ -71,7 +83,7 @@ def plasp_translate(instance, domain, filename):
 def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
-    CLINGO = ["./runsolver", "-W", "{}".format(time_limit), \
+    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "clingo"] + file_names
 
     call = CLINGO + options
@@ -171,7 +183,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,)
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
         times[label] = parse_call_results(output, base_time=times["base"]["time"])
-        logging.info("Results: {}".format(str(times[nogood_current])))
+        logging.info("Results: {}".format(str(times[label])))
 
     os.remove(noogood_temp_name)
 

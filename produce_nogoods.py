@@ -11,6 +11,15 @@ import time
 import consume_nogoods
 from collections import Counter
 
+def get_parent_dir(path):
+    # this gets the name of the parent folder
+
+    # if there is a trailing backslash then delete it
+    if path.endswith("/"):
+        path = path[:-1]
+
+    return os.path.dirname(path)
+
 time_re = r"s\(([0-9]+)\)"
 
 END_STR = "asdasdasd"
@@ -28,6 +37,9 @@ UNSAT = "UNSATISFIABLE"
 
 FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
 
+FILE_PATH = os.path.abspath(__file__)
+
+RUNSOLVER_PATH = os.path.join(get_parent_dir(FILE_PATH), "runsolver") 
 
 def create_folder(path):
     """
@@ -379,7 +391,7 @@ def get_sort_value(object, attributes):
 
 def call_clingo(file_names, time_limit, options):
 
-    CLINGO = ["./runsolver", "-W", "{}".format(time_limit), \
+    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "-d", "20", 
               "clingo"] + file_names
 
@@ -732,16 +744,6 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("time writing file: {}".format(time_writing_file))
 
     return total_nogoods, scaling_by_val, scaling_labels
-
-
-def get_parent_dir(path):
-    # this gets the name of the parent folder
-
-    # if there is a trailing backslash then delete it
-    if path.endswith("/"):
-        path = path[:-1]
-
-    return os.path.dirname(path)
 
 def plasp_translate(instance, domain, filename):
 
