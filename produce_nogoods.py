@@ -835,7 +835,11 @@ def produce_nogoods(file_names, args, config):
 
     logging.info("time to extract: {}".format(time_extract))
     logging.info("time to do conversion jobs: {}".format(time_conversion))
-    os.remove(ng_name)
+    
+    try:
+        os.remove(ng_name)
+    except OSError:
+        logging.warning("Tried to remove {} but it was already deleted!".format(ng_name))
 
     return converted_ng_name, scaling_by_val, scaling_labels
 
