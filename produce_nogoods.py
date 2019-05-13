@@ -287,7 +287,7 @@ def call_clingo(file_names, time_limit, options):
 
     logging.info(output)
 
-def call_clingo_pipe(file_names, time_limit, options, out_file, max_lit_count=1000):
+def call_clingo_pipe(file_names, time_limit, options, out_file, max_deg=10, max_lit_count=50):
 
     CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), 
               "-w", "runsolver.watcher", "-d", "20", 
@@ -307,7 +307,7 @@ def call_clingo_pipe(file_names, time_limit, options, out_file, max_lit_count=10
         for line in pipe.stdout:
             line = line.decode("utf-8")
             if line.startswith(":-"):
-                if len(re.split(split_atom_re, line)) <= max_lit_count:
+                if check_nogood_str(line, max_deg, max_lit_count):
                     out.write(line)
             else:
                 output += line
@@ -426,6 +426,25 @@ def read_nogood_file(ng_file, max_deg, max_lit_count):
             unprocessed_ng.append(nogood)
 
     return unprocessed_ng
+
+def check_nogood_str(ng_str, max_deg, max_lit_count):
+    # if no lbd is found then the file was not written fully
+    # if it it found then pass it as argument to not do this twice
+    try:
+        lbd = int(re.search(lbd_re, ng_str).group(1))
+    except AttributeError as e:
+        return False
+
+    # ng_str is the raw text of the nogood, ng_str num is the order it appears in the file
+    nogood = Nogood(ng_str, 1, lbd)
+    # ignore nogoods of higher degree or literal count
+    if max_deg >= 0 and nogood.degree > max_deg:
+        print("max_deg boi: {}".format(nogood.degree))
+        return False
+    if max_lit_count > 0 and nogood.literal_count > max_lit_count:
+        return False
+
+    return True
 
 def generalize_nogoods(ng_list, nogoods_wanted):
 
@@ -702,9 +721,17 @@ def produce_nogoods(file_names, args, config):
                         "--loops=no", "--reverse-arcs=0", "--otfs=0",
                         "1"]
 
+    if args.horizon is not None:
+        horizon = ["-c", "horizon={}".format(args.horizon)]
+    else:
+        horizon = []
+
+    NG_RECORDING_OPTIONS += horizon
+
     # call clingo to extract nogoods
     t = time.time()
-    call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS, ng_name)
+    call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
+                     ng_name, args.max_deg, args.max_lit_count)
     time_extract = time.time() - t
 
     t = time.time()
@@ -751,6 +778,7 @@ if __name__ == "__main__":
     parser.add_argument("--pddl-instance", help="pddl instance")
     parser.add_argument("--pddl-domain", help="pddl domain", default=None)
     parser.add_argument("--trans-name", help="name of the translated file")
+    parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
 
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
@@ -843,8 +871,9 @@ if __name__ == "__main__":
         scaling_list = None
 
     if args.consume:
-        times = consume_nogoods.consume(files, converted_nogoods, scaling_list, scaling_exp, time_limit=args.consume_time_limit, labels=scaling_labels)
-        logging.info(times)
+        results = consume_nogoods.consume(files, converted_nogoods, scaling_list, scaling_exp, time_limit=args.consume_time_limit, labels=scaling_labels)
+        for label, out in results.items():
+            logging.debug(out)
 
     if args.pddl_instance is not None:
         os.remove(trans_name)
