@@ -17,6 +17,7 @@ def get_parent_dir(path):
         path = path[:-1]
 
     return os.path.dirname(path)
+
     
 
 match_time = r"Time         : (\d+\.\d+)s"
@@ -27,6 +28,18 @@ FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
 FILE_PATH = os.path.abspath(__file__)
 
 RUNSOLVER_PATH = os.path.join(get_parent_dir(FILE_PATH), "runsolver")
+
+def create_folder(path):
+    """
+    from http://stackoverflow.com/posts/5032238/revisions
+
+    :param path: folder to be created
+    """
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
 
 def setup_logging(logtofile):
 
@@ -84,7 +97,7 @@ def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
     CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
-              "-w", "runsolver.watcher", "clingo"] + file_names
+              "-w", "runsolver.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
 
     call = CLINGO + options
 
@@ -106,15 +119,14 @@ def eval_re(regex, text, group, default):
     except AttributeError:
         return default
 
-def parse_call_results(output, base_time=None):
+def parse_call_results(output):
     # here i will parse the results of ONE call
     # return a dict with the results
 
     res = {"time" : 0,
            "solving" : 0,
            "success": None,
-           "percent": None
-           }
+          }
 
     res["time"] = float(eval_re(match_time, output, 1, res["time"]))
 
@@ -130,9 +142,6 @@ def parse_call_results(output, base_time=None):
             res["success"] = "UNKNOWN"
     except AttributeError:
         pass    
-
-    if base_time is not None:
-        res["percent"] = res["time"] / float(base_time)
 
     return res
 
@@ -155,7 +164,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,)
     noogood_temp_name = "nogood.temp"
     options = []
 
-    times = {}
+    results = {}
 
     nogoods = read_nogoods(nogood_file)
     total_nogoods = len(nogoods)
@@ -163,8 +172,8 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,)
     # do a base run
     logging.info("base run")
     output = call_clingo(files, time_limit, options)
-    times["base"] = parse_call_results(output)
-    logging.info("Results: {}".format(str(times["base"])))
+    results["base"] = output
+    logging.info(parse_call_results(output))
 
     # runs with scaling
     for nogood_current, label in zip(scaling, labels):
@@ -182,12 +191,13 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,)
         write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
-        times[label] = parse_call_results(output, base_time=times["base"]["time"])
-        logging.info("Results: {}".format(str(times[label])))
+        results[label] = output
+
+        logging.info(parse_call_results(output))
 
     os.remove(noogood_temp_name)
 
-    return times
+    return results
 
 def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None):
     # scaling type can be "by_value" or "by_factor"
@@ -250,6 +260,9 @@ if __name__ == "__main__":
     parser.add_argument("--pddl-domain", help="pddl domain")
     parser.add_argument("--trans-name", help="name of the translated file")
 
+    parser.add_argument("--save-folder", help="name of the folder where results will be written to", default=None)
+    parser.add_argument("--print-results", action="store_true", help="Print results to stdout")
+
 
     args = parser.parse_args()
 
@@ -267,4 +280,17 @@ if __name__ == "__main__":
 
         files.append(trans_name)
 
-    logging.info(consume(files, args.nogoods, args.scaling_list, args.scaling_exp, max_scaling=args.max_scaling, time_limit=args.time_limit))
+    results = consume(files, args.nogoods, args.scaling_list, args.scaling_exp, max_scaling=args.max_scaling, time_limit=args.time_limit)
+    
+    if args.save_folder is not None:
+        create_folder(args.save_folder)
+
+        for label, out in results.items():
+            out_path = os.path.join(args.save_folder, "-{}".format(str(label)))
+            with open(out_path, "w") as f:
+                f.write(out)
+
+    if args.print_results:
+        for label, out in results.items():
+            logging.info(out)
+
