@@ -10,11 +10,11 @@
 %in some body of the set of rules of the input.
 
 
-#const maxtime = 35.
-time(0..maxtime).
+#const horizon = 35.
+time(0..horizon).
 
 first(0).
-last(maxtime).
+last(horizon).
 
 next(T-1,T) :- time(T), T>0.
 #external external(next(X,Y)) : next(X,Y).
