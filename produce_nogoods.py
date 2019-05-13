@@ -86,9 +86,6 @@ class Nogood:
 
         self.process_time()
 
-        self.generalized = None
-        self.minimized = None
-
         self.validated = None
         self.instance_validated = None
 
@@ -168,7 +165,7 @@ class Nogood:
 
     def generalize(self):
 
-        self.generalized = self._generalize(self.literals)
+        self.literals = self._generalize(self.literals)
 
         self.domain_literals = self._generalize(self.domain_literals)
 
@@ -177,116 +174,6 @@ class Nogood:
 
         # minimum timepoint in the rule is 1
         self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
-
-    def minimize(self, files):
-        t = time.time()
-        # files is a list of the needed files to run the validation
-
-        logging.debug("minimizing")
-
-        lit_len = len(self.generalized)
-        if lit_len == 1: # already minimal 
-            self.minimized = self.generalized
-
-            return 1
-
-        unknown = self.generalized[:]
-        needed = []
-
-        # this should go through every literal and see if its needed to keep the contraint working
-        # if it isnt it just gets deleted
-        # else if will be flagged as needed
-        # in the end the literals in needed are the ones that keep the constraint working
-        for i in range(lit_len):
-            delete_candidate = self.generalized[i]
-
-            unknown.remove(delete_candidate)
-
-            lits_to_validate = needed + unknown + self.domain_literals
-
-            validated = self._validate(files, lits_to_validate)
-
-            # there was a counterexample
-            if not validated:
-                needed.append(delete_candidate)
-
-        self.minimized = needed
-        logging.debug("initial literals: {}\nFinal literals: {}\n".format(len(self.literals), len(self.minimized)))
-        logging.debug("minimized: {}".format(self.minimized))
-
-        logging.info("time minimize: {}".format(time.time() - t))
-
-        return 1
-
-    def minimize_optimized(self, files):
-        t = time.time()
-        # files is a list of the needed files to run(e.g. encoding + instance)
-        logging.debug("minimizing")
-
-        lit_len = len(self.generalized)
-        if lit_len == 1: # already minimal 
-            self.minimized = self.generalized
-
-            return self.minimized
-
-        unknown = self.generalized[:]
-        needed = []
-
-        # this should go through every literal and see if its needed to keep the contraint working
-        # if it isnt it just gets deleted
-        # else if will be flagged as needed
-        # in the end the literals in needed are the ones that we keep
-        i = 0
-        elim_window_inc = 0
-        while i <= lit_len - 1:
-            if elim_window_inc == 0:
-                delete_candidate = self.generalized[i]
-
-                unknown.remove(delete_candidate)
-
-                lits_to_validate = needed + unknown + self.domain_literals
-
-                validated = self._validate(files, lits_to_validate)
-
-                # there was a counterexample
-                if not validated:
-                    needed.append(delete_candidate)
-
-                else: # on succesful eliminations increase window
-                    elim_window_inc += 1
-
-                i += 1
-
-            else:
-                delete_candidates = self.generalized[i:i+elim_window_inc]
-
-                test_unknown = [e for e in unknown if e not in delete_candidates]
-
-                lits_to_validate = needed + test_unknown + self.domain_literals
-
-                validated = self._validate(files, lits_to_validate)
-
-                if not validated:
-                    # reset elim window to 0
-                    # don't change the i so that in the next run it looks at the first
-                    # item alone
-                    elim_window_inc = 0
-                else:
-                    # if it worked increase i by the window
-                    i += elim_window_inc
-                    # and icnrease the window
-                    elim_window_inc += 1
-                    # use the unknown with the useless literals
-                    unknown = test_unknown
-
-        self.minimized = needed
-        logging.debug("minimized from {} to {}\n".format(len(self.literals), len(self.minimized)))
-        logging.debug("minimized: {}".format(self.minimized))
-
-        logging.debug("time minimize opt: {}".format(time.time() - t))
-
-
-        return self.minimized
 
     def validate(self, files):
 
@@ -367,14 +254,7 @@ error :- error(_).
         return ":- " +  ", ".join(literals) + ".\n"
 
     def get_nogood(self):
-        if self.minimized is not None:
-            return self.minimized + self.domain_literals
-
-        elif self.generalized is not None:
-            return self.generalized + self.domain_literals
-
-        else:
-            return self.literals + self.domain_literals
+        return self.literals + self.domain_literals
 
     def __str__(self):
         # returns a string version of the nogood
@@ -409,7 +289,7 @@ def call_clingo(file_names, time_limit, options):
 
 def call_clingo_pipe(file_names, time_limit, options, out_file, max_lit_count=1000):
 
-    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), 
               "-w", "runsolver.watcher", "-d", "20", 
               "clingo"] + file_names
 
@@ -634,7 +514,7 @@ def convert_ng_file(ng_name, converted_ng_name,
         scaling_by_val, nogoods_wanted, scaling_labels = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
     else:
         scaling_by_val = None
-        scaling_labels = []
+        scaling_labels = None
 
     if no_generalization == False:    
 
@@ -883,7 +763,7 @@ if __name__ == "__main__":
     parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100", default=100, type=int)
 
     parser.add_argument("--nogoods-wanted", help="Nogoods will be processed will stop after this amount. Default = 100", default=100, type=int)
-    parser.add_argument("--nogoods-wanted-by-count", help="Nogoods that have a value equal or less than the one given here in the variable given in the first position of the sortby option(does not work for ordering). This option overwrites nogoods-wanted option.", default=-1, type=int)
+    parser.add_argument("--nogoods-wanted-by-count", help="Nogoods that have a value equal or less than the one given here in the variable given in the first position of the sortby option(does not work for ordering). This option overwrites nogoods-wanted option. If this option is used along with --consume it will use this values as the argument for --scaling-list unless those values are provided.", default=-1, type=int)
 
     parser.add_argument("--max-deg", help="Processing will ignore nogoods with higher degree. Default = 10. A negative number means no limit.", default=10, type=int)
     parser.add_argument("--max-lit-count", help="Processing will ignore nogoods with higher literal count. Default = 50. 0 or a negative number means no limit.", default=50, type=int)
@@ -893,7 +773,8 @@ if __name__ == "__main__":
     parser.add_argument("--logtofile", help="log to a file")
 
     parser.add_argument("--consume", action="store_true", help="consume the generated nogoods based on the given scaling.")
-    parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
+    parser.add_argument("--scaling-exp", help="scaling of how many nogoods to use. format=start,factor,count", default=None)
+    parser.add_argument("--scaling-list", help="Perform scaling by the values provided", default=None)
     parser.add_argument("--consume-time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
     parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
@@ -902,6 +783,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     setup_logging(args.no_stream_output, args.logtofile)
+
+    if args.scaling_list is not None and args.scaling_exp is not None:
+        logging.error("only one scaling can be provided at a time. Use either --scaling-list or --scaling-exp")
+        sys.exit(1)
 
     files = args.files
 
@@ -946,15 +831,19 @@ if __name__ == "__main__":
     config["validate_instance_files"] = files
 
     converted_nogoods, scaling_by_val, scaling_labels = produce_nogoods(files, args, config)
-    if scaling_by_val is not None:
-        scaling = scaling_by_val
-        scaling_type = "by_value"
-    else:
-        scaling = args.scaling
-        scaling_type = "by_factor"
+    
+    if args.scaling_list is not None:
+        scaling_list = args.scaling_list
+        scaling_exp = None
+    elif scaling_by_val is not None:
+        scaling_list = scaling_by_val
+        scaling_exp = None
+    elif args.scaling_exp is not None:
+        scaling_exp = args.scaling_exp
+        scaling_list = None
 
     if args.consume:
-        times = consume_nogoods.consume(files, converted_nogoods, scaling, time_limit=args.consume_time_limit, scaling_type=scaling_type, labels=scaling_labels)
+        times = consume_nogoods.consume(files, converted_nogoods, scaling_list, scaling_exp, time_limit=args.consume_time_limit, labels=scaling_labels)
         logging.info(times)
 
     if args.pddl_instance is not None:

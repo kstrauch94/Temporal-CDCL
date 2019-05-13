@@ -189,7 +189,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,)
 
     return times
 
-def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_type="by_factor", labels=None):
+def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None):
     # scaling type can be "by_value" or "by_factor"
     # by_value means just passing a list with amount of nogoods, those amounts will be used in the runs
     # by factor means passing 3 argument, start amount, scaling factor and total runs
@@ -197,8 +197,12 @@ def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_ty
     # so: 8,16,32,64,128
     # a base run is always done
 
-    if scaling_type == "by_factor":
-        scaling_split = scaling.split(",")
+    if scaling_list is not None and scaling_exp is not None:
+        logging.error("only one scaling can be provided at a time. Use either --scaling-list or --scaling-exp")
+        sys.exit(1)
+
+    if scaling_exp is not None:
+        scaling_split = scaling_exp.split(",")
 
         if len(scaling_split) != 3:
             logging.error("scaling has to contain exactly 3 values!")
@@ -214,13 +218,18 @@ def consume(files, nogood_file, scaling, max_scaling=0, time_limit=0, scaling_ty
         
         scaling_labels=scaling
 
-    if scaling_type == "by_value":
-        if type(scaling) == str:
+    if scaling_list is not None:
+        if type(scaling_list) == str:
             # this comes from the command line
-            scaling_split = scaling.split(",")
+            scaling_split = scaling_list.split(",")
+            scaling = [int(s) for s in scaling_split]
+        elif type(scaling) == list:
             scaling = [int(s) for s in scaling_split]
         
-        scaling_labels = labels
+        if labels is not None:
+            scaling_labels = labels
+        else:
+            scaling_labels = scaling
 
     return run_tests(files, nogood_file, scaling, scaling_labels, \
             max_scaling=max_scaling, time_limit=time_limit)
@@ -231,10 +240,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--files", metavar='f', nargs='+', help="Files to run clingo on")
     parser.add_argument("--nogoods", help="File holding the processed nogoods")
-    parser.add_argument("--scaling", help="scaling of how many nogoods to use. format=start,factor,count. Default = 8,2,5", default="8,2,5")
+    parser.add_argument("--scaling-exp", help="scaling of how many nogoods to use. format=start,factor,count", default=None)
+    parser.add_argument("--scaling-list", help="Perform scaling by the values provided", default=None)
     parser.add_argument("--max-scaling", help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling. Default = 2048", default=2048)
-
-    parser.add_argument("--scaling-type", choices=["by_factor", "by_value"], help="Perform scaling by factor or by value")
 
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
@@ -259,4 +267,4 @@ if __name__ == "__main__":
 
         files.append(trans_name)
 
-    logging.info(run_tests(files, args.nogoods, args.scaling, max_scaling=args.max_scaling, time_limit=args.time_limit, scaling_type=args.scaling_type))
+    logging.info(consume(files, args.nogoods, args.scaling_list, args.scaling_exp, max_scaling=args.max_scaling, time_limit=args.time_limit))
