@@ -157,12 +157,15 @@ def write_nogood_partial(nogoods, filename="nogood.temp"):
     with open(filename, "w") as f:
         f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,):
+def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, horizon=None):
 
     logging.info("Starting nogood consumption...")
 
     noogood_temp_name = "nogood.temp"
     options = []
+
+    if horizon is not None:
+        options += ["-c", "horizon={}".format(horizon)]
 
     results = {}
 
@@ -199,7 +202,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0,)
 
     return results
 
-def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None):
+def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None, horizon=None):
     # scaling type can be "by_value" or "by_factor"
     # by_value means just passing a list with amount of nogoods, those amounts will be used in the runs
     # by factor means passing 3 argument, start amount, scaling factor and total runs
@@ -242,7 +245,7 @@ def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling
             scaling_labels = scaling
 
     return run_tests(files, nogood_file, scaling, scaling_labels, \
-            max_scaling=max_scaling, time_limit=time_limit)
+            max_scaling=max_scaling, time_limit=time_limit, horizon=horizon)
 
 if __name__ == "__main__":
 
@@ -254,6 +257,7 @@ if __name__ == "__main__":
     parser.add_argument("--scaling-list", help="Perform scaling by the values provided", default=None)
     parser.add_argument("--max-scaling", help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling. Default = 2048", default=2048)
 
+    parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
 
     parser.add_argument("--pddl-instance", help="pddl instance")
@@ -280,7 +284,8 @@ if __name__ == "__main__":
 
         files.append(trans_name)
 
-    results = consume(files, args.nogoods, args.scaling_list, args.scaling_exp, max_scaling=args.max_scaling, time_limit=args.time_limit)
+    results = consume(files, args.nogoods, args.scaling_list, args.scaling_exp, 
+                      max_scaling=args.max_scaling, time_limit=args.time_limit, horizon=args.horizon)
     
     if args.save_folder is not None:
         create_folder(args.save_folder)

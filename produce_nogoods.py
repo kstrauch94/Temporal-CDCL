@@ -871,7 +871,11 @@ if __name__ == "__main__":
         scaling_list = None
 
     if args.consume:
-        results = consume_nogoods.consume(files, converted_nogoods, scaling_list, scaling_exp, time_limit=args.consume_time_limit, labels=scaling_labels)
+        results = consume_nogoods.consume(files, converted_nogoods, 
+                                          scaling_list, scaling_exp, 
+                                          time_limit=args.consume_time_limit, 
+                                          labels=scaling_labels, 
+                                          horizon=args.horizon)
         for label, out in results.items():
             logging.debug(out)
 
