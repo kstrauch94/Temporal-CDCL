@@ -25,6 +25,8 @@ time_re = r"s\(([0-9]+)\)"
 END_STR = "asdasdasd"
 time_no_s_re = r"([0-9]+)\)*{end_str}".format(end_str=END_STR)
 
+time_step_re = r"step\(([0-9]+)\)"
+
 answer_re = r"Answer: [0-9]+\n(.*)\n"
 
 models_re = r"Models       : ([0-9]+)"
@@ -105,7 +107,7 @@ class Nogood:
         self.domain_literals = []
 
         for lit in pre_literals:
-            if "external(next" in lit or "next(" in lit:
+            if "external(next" in lit or "next(" in lit or "step(" in lit:
                 self.domain_literals.append(lit)
 
             else:
@@ -128,11 +130,23 @@ class Nogood:
 
         matches = re.findall(time_no_s_re, END_STR.join(self.literals)+END_STR)
         matches += re.findall(time_no_s_re, END_STR.join(self.domain_literals)+END_STR)
+        # get time matches only for step externals
+        matches_step = re.findall(time_step_re, " ".join(self.domain_literals))
+
         matches = [int(m) for m in matches]
 
         self.max_time = max(matches)
+
         # dif_to_min would be the degree
-        self.dif_to_min = self.max_time - min(matches)
+        if len(matches_step) == 0:
+            # if there are no step externals then dif is 0
+            self.dif_to_min = 0
+        else:
+            # if there are step external then dif +1 is the degree
+            # since step externals only cover the higher time step of
+            # the rule
+            matches_step = [int(m) for m in matches_step]
+            self.dif_to_min = self.max_time - min(matches_step) + 1
 
     @property
     def degree(self):
@@ -503,7 +517,8 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("total lines in the no good file: {}\n".format(total_nogoods))
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
-        return 0
+        logging.info("Exiting program.")
+        sys.exit(-1)
 
     t = time.time()
     if sortby is not None:
