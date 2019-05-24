@@ -3,6 +3,8 @@
 import clingo
 
 def get_assumptions(prg):
+    truth_dict = {"true": True,
+                  "false": False}
 
     assumptions = []
 
@@ -10,10 +12,7 @@ def get_assumptions(prg):
             if x.is_fact:
                 atom = x.symbol
                 if atom.name == "assumption":
-                    if atom.arguments[1].name == "true":
-                        truth_val = True
-                    elif atom.arguments[1].name == "false":
-                        truth_val = False
+                    truth_val = truth_dict[atom.arguments[1].name]
                         
                     assumptions.append([atom.arguments[0], truth_val])
     
