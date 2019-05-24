@@ -56,11 +56,11 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
 % open holds'
 { holds'(X,V,T) } :- contains(X,V), time(T).
-% holds' at T is equivalent to holds at T-1 (when step at T is true)
-:- holds'(X,V,T), not holds(X,V,T-1), step(T).
-:- not holds'(X,V,T), holds(X,V,T-1), step(T).
-% open step
-{ step(T) } :- time(T).
+% holds' at T is equivalent to holds at T-1 (when otime at T is true)
+:- holds'(X,V,T), not holds(X,V,T-1), otime(T).
+:- not holds'(X,V,T), holds(X,V,T-1), otime(T).
+% open otime
+{ otime(T) } :- time(T).
 
 
 %
@@ -72,5 +72,5 @@ assumption(holds(X,V,0), true) :-     initialState(X,V).
 assumption(holds(X,V,0),false) :- not initialState(X,V), contains(X,V).
 % goal
 assumption(holds(X,V,horizon),true) :- goal(X,V).
-% step
-assumption(step(T),true) :- time(T).
+% otime
+assumption(otime(T),true) :- time(T).
