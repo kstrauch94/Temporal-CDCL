@@ -20,12 +20,14 @@ def get_parent_dir(path):
 
     return os.path.dirname(path)
 
+OPENTIME = "otime"
+
 time_re = r"s\(([0-9]+)\)"
 
 END_STR = "asdasdasd"
 time_no_s_re = r"([0-9]+)\)*{end_str}".format(end_str=END_STR)
 
-time_step_re = r"step\(([0-9]+)\)"
+time_step_re = r"{}\(([0-9]+)\)".format(OPENTIME)
 
 answer_re = r"Answer: [0-9]+\n(.*)\n"
 
@@ -49,6 +51,7 @@ FILE_PATH = os.path.abspath(__file__)
 
 RUNSOLVER_PATH = os.path.join(get_parent_dir(FILE_PATH), "runsolver") 
 
+
 def create_folder(path):
     """
     from http://stackoverflow.com/posts/5032238/revisions
@@ -63,7 +66,7 @@ def create_folder(path):
 
 class Nogood:
 
-    def __init__(self, nogood_str, ordering, lbd=None):
+    def __init__(self, nogood_str, ordering, lbd=None, inc_t=False):
 
         #nogood_str: raw string printed out by the clingo call
         #ordering: line number of the nogood (the order in which the noogood was created)
@@ -71,7 +74,11 @@ class Nogood:
         # split by a . and then get the first element and add the . 
         # do this to delete the lbd part at the end
         #self.raw = nogood_str.split(".")[0] + "."
-        
+        if inc_t:
+            self.t = "t"
+        else:
+            self.t = "T"
+
         self.ordering = ordering
 
         if lbd is None:
@@ -107,7 +114,7 @@ class Nogood:
         self.domain_literals = []
 
         for lit in pre_literals:
-            if "external(next" in lit or "next(" in lit or "step(" in lit:
+            if "{}(".format(OPENTIME) in lit:
                 self.domain_literals.append(lit)
 
             else:
@@ -142,7 +149,7 @@ class Nogood:
             # if there are no step externals then dif is 0
             self.dif_to_min = 0
         else:
-            # if there are step external then dif +1 is the degree
+            # if there are step atoms then dif +1 is the degree
             # since step externals only cover the higher time step of
             # the rule
             matches_step = [int(m) for m in matches_step]
@@ -166,10 +173,10 @@ class Nogood:
         for lit in literals:
             time = int(re.search(r"([0-9]+)\)*{end}".format(end=END_STR), lit + END_STR).group(1))
 
-            new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"T-{dif}\1{end}".format(dif=self.max_time - time, end=END_STR), lit + END_STR)
+            new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}-{dif}\1{end}".format(t=self.t, dif=self.max_time - time, end=END_STR), lit + END_STR)
 
             if "external(next(" in lit or "next(" in lit:
-                new_lit = re.sub(r"next\({t},".format(t=time-1), r"next(T-{dif},".format(dif=self.max_time - time + 1), new_lit)
+                new_lit = re.sub(r"next\({t},".format(t=time-1), r"next({t}-{dif},".format(t=self.t, dif=self.max_time - time + 1), new_lit)
 
 
             gen_literals.append(new_lit.replace(END_STR, ""))
@@ -184,10 +191,11 @@ class Nogood:
         self.domain_literals = self._generalize(self.domain_literals)
 
         if self.dif_to_min == 0:
-            self.domain_literals += ["time(T)"]
+            if self.t == "T":
+                self.domain_literals += ["time(T)"]
 
         # minimum timepoint in the rule is 1
-        self.domain_literals += ["T-{} > 0".format(self.dif_to_min)]
+        self.domain_literals += ["{}-{} > 0".format(self.t, self.dif_to_min)]
 
     def validate(self, files):
 
@@ -199,10 +207,10 @@ class Nogood:
         logging.debug("calling : {}".format(call))
 
 
-        program = """#const degree={}.
-hypothesisConstraint(T-degree) {}
+        program = """#const degree={deg}.
+hypothesisConstraint({t}-degree) {constraint}
 :- not hypothesisConstraint(1).
-""".format(self.degree, self.to_constraint_any(literals))
+""".format(deg=self.degree, t=self.t, constraint=self.to_constraint_any(literals))
 
         with open(temp_validate, "w") as f:
             f.write(program)
@@ -230,11 +238,11 @@ hypothesisConstraint(T-degree) {}
 
         logging.debug("calling : {}".format(call))
 
-        program = """error(T) {}
+        program = """error({t}) {constraint}
 error :- error(_).
 :- not error.
 #project error/0.
-#show error/1.""".format(self.to_constraint())
+#show error/1.""".format(t=self.t, constraint=self.to_constraint())
 
         with open(temp_validate, "w") as f:
             f.write(program)
@@ -416,7 +424,7 @@ def scaling_by_value(stats, count, sortby):
 
     return scaling_by_val, total_count, scaling_labels
 
-def read_nogood_file(ng_file, max_deg, max_lit_count):
+def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t):
     unprocessed_ng = []
 
     with open(ng_file, "r") as f:
@@ -430,7 +438,7 @@ def read_nogood_file(ng_file, max_deg, max_lit_count):
                 continue
 
             # line is the raw text of the nogood, line num is the order it appears in the file
-            nogood = Nogood(line, line_num, lbd)
+            nogood = Nogood(line, line_num, lbd, inc_t)
             # ignore nogoods of higher degree or literal count
             if max_deg >= 0 and nogood.degree > max_deg:
                 continue
@@ -453,7 +461,6 @@ def check_nogood_str(ng_str, max_deg, max_lit_count):
     nogood = Nogood(ng_str, 1, lbd)
     # ignore nogoods of higher degree or literal count
     if max_deg >= 0 and nogood.degree > max_deg:
-        print("max_deg boi: {}".format(nogood.degree))
         return False
     if max_lit_count > 0 and nogood.literal_count > max_lit_count:
         return False
@@ -483,7 +490,8 @@ def convert_ng_file(ng_name, converted_ng_name,
                     validate_files=None, 
                     reverse_sort=False,
                     validate_instance="none",
-                    validate_instance_files=None):
+                    validate_instance_files=None,
+                    inc_t=False):
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
@@ -508,7 +516,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     
     t = time.time()
 
-    unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count)
+    unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t)
     total_nogoods = len(unprocessed_ng)
 
     time_init_nogood = time.time() - t
@@ -516,8 +524,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info("total lines in the no good file: {}\n".format(total_nogoods))
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
-        logging.info("Exiting program.")
-        sys.exit(-1)
+        return 0, None, None
 
     t = time.time()
     if sortby is not None:
@@ -794,6 +801,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
+    parser.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
 
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
     parser.add_argument("--validate-instance", default="none", choices=["none", "single", "all"], help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided. Single validates every constraint by itself. all validates all constraints together")
@@ -835,12 +843,12 @@ if __name__ == "__main__":
     config["validate_instance"] = args.validate_instance
     config["sortby"] = args.sortby
     config["reverse_sort"] = args.reverse_sort
-    config["minimal"] = args.minimize
 
     config["max_deg"] = args.max_deg
     config["max_lit_count"] = args.max_lit_count
     config["nogoods_wanted"] = args.nogoods_wanted
     config["nogoods_wanted_by_count"] = args.nogoods_wanted_by_count
+    config["inc_t"] = args.inc_t
 
     if args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
