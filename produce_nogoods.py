@@ -479,7 +479,6 @@ def convert_ng_file(ng_name, converted_ng_name,
                     max_lit_count=50,
                     nogoods_wanted=100,
                     nogoods_wanted_by_count=-1,
-                    minimal=False, 
                     sortby=["literal_count"], 
                     validate_files=None, 
                     reverse_sort=False,
@@ -576,9 +575,6 @@ def convert_ng_file(ng_name, converted_ng_name,
                 logging.debug("validated: {}".format(ng.validated))
 
                 if ng.validated:
-                    if minimal:
-                        #ng.minimize(validate_files)
-                        ng.minimize_optimized(validate_files)
                     amount_validated += 1
 
                 else:
@@ -798,7 +794,6 @@ if __name__ == "__main__":
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
-    parser.add_argument("--minimize", action="store_true", help="Minimize nogoods. Requires validation encoding.")
 
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
     parser.add_argument("--validate-instance", default="none", choices=["none", "single", "all"], help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided. Single validates every constraint by itself. all validates all constraints together")
