@@ -852,7 +852,7 @@ def setup_logging(no_stream_output=False, logtofile=None):
         rootLogger.addHandler(fileHandler)
 
     if not no_stream_output:
-        consoleHandler = logging.StreamHandler()
+        consoleHandler = logging.StreamHandler(sys.stdout)
         consoleHandler.setFormatter(formatter)
         rootLogger.addHandler(consoleHandler)
 
