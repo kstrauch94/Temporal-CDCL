@@ -516,6 +516,10 @@ def convert_ng_file(ng_name, converted_ng_name,
     
     t = time.time()
 
+    if not os.path.isfile(ng_name):
+        logging.info("nogood file does not exist!")
+        return 0, None, None
+
     unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t)
     total_nogoods = len(unprocessed_ng)
 
