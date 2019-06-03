@@ -690,17 +690,19 @@ def plasp_translate(instance, domain, filename):
 
     if domain is None:
         # look for domain in the same folder
-        logging.info(os.path.join(get_parent_dir(instance), "domain.pddl"))
-        if  os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
-            domain = os.path.join(get_parent_dir(instance), "domain.pddl")
+        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(instance), "domain.pddl")))
+        if os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
+            omain = os.path.join(get_parent_dir(instance), "domain.pddl")
 
         # look for domain in parent folder
-        elif os.path.isfile(os.path.join(get_parent_dir(instance), "../domain.pddl")):
-            domain = os.path.join(get_parent_dir(instance), "../domain.pddl")
-
         else:
-            logging.error("no domain could be found. Exiting...")
-            sys.exit(-1)
+            logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
+            if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
+                domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
+
+            else:
+                logging.error("no domain could be found. Exiting...")
+                sys.exit(-1)
 
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
