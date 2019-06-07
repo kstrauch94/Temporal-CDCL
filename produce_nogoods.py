@@ -11,7 +11,7 @@ import time
 import consume_nogoods
 from collections import Counter
 
-import config
+import config_file
 
 def get_parent_dir(path):
     # this gets the name of the parent folder
