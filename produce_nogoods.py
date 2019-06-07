@@ -148,11 +148,13 @@ class Nogood:
         if len(matches_step) == 0:
             # if there are no step externals then dif is 0
             self.dif_to_min = 0
+            self.min_time = self.max_time
         else:
             # if there are step atoms then dif +1 is the degree
             # since step externals only cover the higher time step of
             # the rule
             matches_step = [int(m) for m in matches_step]
+            self.min_time = min(matches + matches_step)
             self.dif_to_min = self.max_time - min(matches_step) + 1
 
     @property
@@ -195,7 +197,10 @@ class Nogood:
                 self.domain_literals += ["time(T)"]
 
         # minimum timepoint in the rule is 1
-        self.domain_literals += ["{}-{} > 0".format(self.t, self.dif_to_min)]
+        if self.min_time > 0:
+            # minimum timepoint in the rule is 1 but only if
+            # in the original rule the minimum was NOT 0
+            self.domain_literals += ["{}-{} > 0".format(self.t, self.dif_to_min)]
 
     def validate(self, files):
 
@@ -475,7 +480,10 @@ def generalize_nogoods(ng_list, nogoods_wanted):
             ng.generalize()
             nogoods.append(ng)
 
-            if len(nogoods) >= nogoods_wanted:
+            # if nogoods_wanted is a valid value
+            # and the amount of nogoods we have is higher or equal
+            # than the amount we want
+            if nogoods_wanted > 1 and len(nogoods) >= nogoods_wanted:
                 break
 
         return nogoods
