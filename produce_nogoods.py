@@ -11,6 +11,8 @@ import time
 import consume_nogoods
 from collections import Counter
 
+import config
+
 def get_parent_dir(path):
     # this gets the name of the parent folder
 
@@ -44,13 +46,6 @@ error_re = r"error\(([0-9]+)\)"
 split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
 
 UNSAT = "UNSATISFIABLE"
-
-FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
-
-FILE_PATH = os.path.abspath(__file__)
-
-RUNSOLVER_PATH = os.path.join(get_parent_dir(FILE_PATH), "runsolver") 
-
 
 def create_folder(path):
     """
@@ -297,7 +292,7 @@ def get_sort_value(object, attributes):
 
 def call_clingo(file_names, time_limit, options):
 
-    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "-d", "20", 
               "clingo"] + file_names
 
@@ -316,7 +311,7 @@ def call_clingo(file_names, time_limit, options):
 
 def call_clingo_pipe(file_names, time_limit, options, out_file, max_deg=10, max_lit_count=50):
 
-    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), 
+    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit), 
               "-w", "runsolver.watcher", "-d", "20", 
               "clingo"] + file_names
 
@@ -723,7 +718,7 @@ def plasp_translate(instance, domain, filename):
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
 
-    fd_call = FD_CALL + [domain, instance]
+    fd_call = config.FD_CALL + [domain, instance]
 
     output = subprocess.check_output(fd_call).decode("utf-8")
 
