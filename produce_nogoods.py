@@ -292,7 +292,7 @@ def get_sort_value(object, attributes):
 
 def call_clingo(file_names, time_limit, options):
 
-    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+    CLINGO = [config_file.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "-d", "20", 
               "clingo"] + file_names
 
@@ -311,7 +311,7 @@ def call_clingo(file_names, time_limit, options):
 
 def call_clingo_pipe(file_names, time_limit, options, out_file, max_deg=10, max_lit_count=50):
 
-    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit), 
+    CLINGO = [config_file.RUNSOLVER_PATH, "-W", "{}".format(time_limit), 
               "-w", "runsolver.watcher", "-d", "20", 
               "clingo"] + file_names
 
@@ -718,11 +718,11 @@ def plasp_translate(instance, domain, filename):
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
 
-    fd_call = config.FD_CALL + [domain, instance]
+    fd_call = config_file.FD_CALL + [domain, instance]
 
     output = subprocess.check_output(fd_call).decode("utf-8")
 
-    plasp_call = [config.PLASP, "translate", "output.sas"]
+    plasp_call = [config_file.PLASP, "translate", "output.sas"]
 
     output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
