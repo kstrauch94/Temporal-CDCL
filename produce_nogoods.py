@@ -722,7 +722,7 @@ def plasp_translate(instance, domain, filename):
 
     output = subprocess.check_output(fd_call).decode("utf-8")
 
-    plasp_call = ["plasp", "translate", "output.sas"]
+    plasp_call = [config.PLASP, "translate", "output.sas"]
 
     output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
