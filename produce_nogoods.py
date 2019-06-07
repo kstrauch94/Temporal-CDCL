@@ -527,7 +527,6 @@ def convert_ng_file(ng_name, converted_ng_name,
     total_nogoods = len(unprocessed_ng)
 
     time_init_nogood = time.time() - t
-
     logging.info("total lines in the no good file: {}\n".format(total_nogoods))
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
@@ -572,7 +571,6 @@ def convert_ng_file(ng_name, converted_ng_name,
         time_generalize = time.time() - t
 
         total_nogoods = len(nogoods)
-
         logging.info("Total nogoods after processing: {}".format(total_nogoods))
 
         if validate:
@@ -599,9 +597,6 @@ def convert_ng_file(ng_name, converted_ng_name,
                 if float(i) / float(total_nogoods) >= percent_validated:
                     logging.info("Validated {}% of total nogoods".format(percent_validated*100))
                     percent_validated += 0.1
-
-
-            print("failed vals {}".format(len(failed_to_validate)))
 
             logging.info("Finishing validation")
 
@@ -679,12 +674,17 @@ def convert_ng_file(ng_name, converted_ng_name,
     t = time.time()
     # write generalized nogoods into a file
     lines_set = set()
+    repeats = 0
     with open(converted_ng_name, "w") as f:
         for conv_line in nogoods:
             line = conv_line.to_constraint()
             if line not in lines_set:
                 f.write(str(line))
                 lines_set.add(line)
+            else:
+                repeats += 1
+
+    logging.info("{} nogoods were identical".format(repeats))
     
     time_writing_file = time.time() - t
 
