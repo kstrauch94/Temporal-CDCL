@@ -675,7 +675,11 @@ def convert_ng_file(ng_name, converted_ng_name,
     else:
         # if we don't generalize then nogoods is just the n first
         # from the list (since it should be sorted in the correct order anyway)
-        nogoods = unprocessed_ng[:nogoods_wanted]
+        # if nogoods wanted is 0 or less then we take all nogoods
+        if nogoods_wanted > 0:
+            nogoods = unprocessed_ng[:nogoods_wanted]
+        else:
+            nogoods = unprocessed_ng
 
     t = time.time()
     # write generalized nogoods into a file
