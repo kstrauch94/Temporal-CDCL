@@ -41,7 +41,7 @@ def create_folder(path):
         if exception.errno != errno.EEXIST:
             raise
 
-def setup_logging(logtofile):
+def setup_logging(no_stream_output=False, logtofile=None):
 
     rootLogger = logging.getLogger()
     rootLogger.setLevel(logging.INFO)
@@ -53,36 +53,39 @@ def setup_logging(logtofile):
         fileHandler.setFormatter(formatter)
         rootLogger.addHandler(fileHandler)
 
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(formatter)
-    rootLogger.addHandler(consoleHandler)
+    if not no_stream_output:
+        consoleHandler = logging.StreamHandler(sys.stdout)
+        consoleHandler.setFormatter(formatter)
+        rootLogger.addHandler(consoleHandler)
+
 
 
 def plasp_translate(instance, domain, filename):
 
     if domain is None:
         # look for domain in the same folder
-        logging.info(os.path.join(get_parent_dir(instance), "domain.pddl"))
-        if  os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
-            domain = os.path.join(get_parent_dir(instance), "domain.pddl")
+        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(instance), "domain.pddl")))
+        if os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
+            omain = os.path.join(get_parent_dir(instance), "domain.pddl")
 
         # look for domain in parent folder
-        elif os.path.isfile(os.path.join(get_parent_dir(instance), "../domain.pddl")):
-            domain = os.path.join(get_parent_dir(instance), "../domain.pddl")
-
         else:
-            logging.error("no domain could be found. Exiting...")
-            sys.exit(-1)
+            logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
+            if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
+                domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
+
+            else:
+                logging.error("no domain could be found. Exiting...")
+                sys.exit(-1)
 
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
 
-    FD_CALL = FD_CALL + [domain, instance]
+    fd_call = config_file.FD_CALL + [domain, instance]
 
-    output = subprocess.check_output(FD_CALL).decode("utf-8")
-    #print(output)
+    output = subprocess.check_output(fd_call).decode("utf-8")
 
-    plasp_call = ["plasp", "translate", "output.sas"]
+    plasp_call = [config_file.PLASP, "translate", "output.sas"]
 
     output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
@@ -157,7 +160,7 @@ def write_nogood_partial(nogoods, filename="nogood.temp"):
     with open(filename, "w") as f:
         f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, horizon=None):
+def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, horizon=None, base_run=True):
 
     logging.info("Starting nogood consumption...")
 
@@ -172,11 +175,13 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
     nogoods = read_nogoods(nogood_file)
     total_nogoods = len(nogoods)
 
-    # do a base run
-    logging.info("base run")
-    output = call_clingo(files, time_limit, options)
-    results["base"] = output
-    logging.info(parse_call_results(output))
+
+    if base_run:
+        # do a base run
+        logging.info("base run")
+        output = call_clingo(files, time_limit, options)
+        results["base"] = output
+        logging.info(parse_call_results(output))
 
     # runs with scaling
     for nogood_current, label in zip(scaling, labels):
@@ -202,7 +207,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
 
     return results
 
-def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None, horizon=None):
+def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None, horizon=None, base_run=True):
     # scaling type can be "by_value" or "by_factor"
     # by_value means just passing a list with amount of nogoods, those amounts will be used in the runs
     # by factor means passing 3 argument, start amount, scaling factor and total runs
@@ -245,7 +250,8 @@ def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling
             scaling_labels = scaling
 
     return run_tests(files, nogood_file, scaling, scaling_labels, \
-            max_scaling=max_scaling, time_limit=time_limit, horizon=horizon)
+            max_scaling=max_scaling, time_limit=time_limit, horizon=horizon, \
+            base_run=base_run)
 
 if __name__ == "__main__":
 
@@ -259,6 +265,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
+    parser.add_argument("--no-base-run", action="store_true", help="Do not do the base run", default=False)
 
     parser.add_argument("--pddl-instance", help="pddl instance")
     parser.add_argument("--pddl-domain", help="pddl domain")
@@ -267,12 +274,20 @@ if __name__ == "__main__":
     parser.add_argument("--save-folder", help="name of the folder where results will be written to", default=None)
     parser.add_argument("--print-results", action="store_true", help="Print results to stdout")
 
+    parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
+    parser.add_argument("--logtofile", help="log to a file")
+
 
     args = parser.parse_args()
 
-    setup_logging(None)
+    setup_logging(args.no_stream_output, args.logtofile)
 
     files = args.files
+
+    if args.instance.endswith(".pddl"):
+        args.pddl_instance = args.instance
+
+        args.instance = None
 
     if args.pddl_instance is not None:
         if args.trans_name is not None:
@@ -285,7 +300,7 @@ if __name__ == "__main__":
         files.append(trans_name)
 
     results = consume(files, args.nogoods, args.scaling_list, args.scaling_exp, 
-                      max_scaling=args.max_scaling, time_limit=args.time_limit, horizon=args.horizon)
+                      max_scaling=args.max_scaling, time_limit=args.time_limit, horizon=args.horizon, base_run=not args.no_base_run)
     
     if args.save_folder is not None:
         create_folder(args.save_folder)
