@@ -910,5 +910,5 @@ if __name__ == "__main__":
         for label, out in results.items():
             logging.debug(out)
 
-    if args.pddl_instance is not None:
-        os.remove(trans_name)
+    #if args.pddl_instance is not None:
+    #    os.remove(trans_name)
