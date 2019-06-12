@@ -284,11 +284,6 @@ if __name__ == "__main__":
 
     files = args.files
 
-    if args.instance.endswith(".pddl"):
-        args.pddl_instance = args.instance
-
-        args.instance = None
-
     if args.pddl_instance is not None:
         if args.trans_name is not None:
             trans_name = args.trans_name
