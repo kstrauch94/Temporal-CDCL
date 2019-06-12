@@ -203,7 +203,10 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
 
         logging.info(parse_call_results(output))
 
-    os.remove(noogood_temp_name)
+    try:
+        os.remove(noogood_temp_name)
+    except OSError:
+        logging.info("Failed to delete the nogood temp file.(Might not exist)")
 
     return results
 
