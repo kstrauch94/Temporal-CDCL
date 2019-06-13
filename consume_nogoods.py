@@ -129,6 +129,7 @@ def parse_call_results(output):
     res = {"time" : 0,
            "solving" : 0,
            "success": None,
+           "raw": output
           }
 
     res["time"] = float(eval_re(match_time, output, 1, res["time"]))
@@ -308,7 +309,7 @@ if __name__ == "__main__":
             with open(out_path, "w") as f:
                 f.write(out)
 
-    if args.print_results:
-        for label, out in results.items():
-            logging.info(out)
+    for label, out in results.items():
+        logging.info("results for label: {}".format(label))
+        logging.info(out)
 
