@@ -1,12 +1,7 @@
 time(S) :- max_steps(S),     0 < S.
 time(T) :- time(S), T = S-1, 1 < S.
 
-first(0).
 last(T) :- time(T), not time(T+1).
-
-next(T-1,T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
-
 
 dir(e). dir(w). dir(n). dir(s).
 inverse(e,w). inverse(w,e).
@@ -34,39 +29,12 @@ neighbor(e,X,Y, X, 1) :- field(X,Y), num_cols(Y).
 neighbor(w,X,1, X, Y) :- field(X,Y), num_cols(Y).
 
 
-% set initial state
-#external external(goal(X,Y,T)) : goal_on(X,Y), first(T).
-:- not goal(X,Y,T), not external(goal(X,Y,T)), goal_on(X,Y), first(T).
-
-% set initial state
-#external external(reach_init(X,Y,T)) : init_on(X,Y), first(T).
-:- not reach_init(X,Y,T), not external(reach_init(X,Y,T)), init_on(X,Y), first(T).
-
-domain_conn(X,Y,D) :- field(X,Y), dir(D).
-
-% set initial state
-#external external(conn(X,Y,D,T)) : connect(X,Y,D), first(T).
-:- not conn(X,Y,D,T), not external(conn(X,Y,D,T)), connect(X,Y,D), first(T).
-
-% conn not in init state is false
-#external false_external(conn(X,Y,D,T)) : not connect(X,Y,D), domain_conn(X,Y,D), first(T).
-:- conn(X,Y,D,T), not false_external(conn(X,Y,D,T)), not connect(X,Y,D), domain_conn(X,Y,D), first(T).
-
 %reach is expanded on a later rule so we can't set upper limit to 1
-1 {goal(X,Y,T) : field(X,Y)} 1  :-  first(T).
-1 {reach_init(X,Y,T): field(X,Y)} 1  :- first(T).
-reach(X,Y,T) :- reach_init(X,Y,T).
+{goal(X,Y,0) : field(X,Y)}.
+{reach_init(X,Y,0): field(X,Y)}.
+reach(X,Y,0) :- reach_init(X,Y,0).
 
-{conn(X,Y,D,T) : domain_conn(X,Y,D)} :-  first(T).
-
-%{goal(X,Y,T)}   :- goal_on(X,Y), first(T).
-%{reach_init(X,Y,T)}  :- init_on(X,Y), first(T).
-%{conn(X,Y,D,T)} :- connect(X,Y,D), first(T).
-
-% set goal
-#external external(neg_goal(T)) : last(T).
-:- neg_goal(T), not external(neg_goal(T)), last(T).
-
+{conn(X,Y,D,0) : domain_conn(X,Y,D)}.
 
 %%  Select a row or column to push
 
@@ -109,18 +77,39 @@ reach(X,Y,T) :- reach'(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
 
 
-{ neg_goal'(T) } :- time(T), not first(T).
-:- neg_goal'(T), not neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
-:- not neg_goal'(T), neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
+{ neg_goal'(T) } :- time(T), T>0.
+:- neg_goal'(T), not neg_goal(T-1), otime(T).
+:- not neg_goal'(T), neg_goal(T-1), otime(T).
 
-{ conn'(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), not first(T).
-:- conn'(X,Y,D,T), not conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not conn'(X,Y,D,T), conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
+domain_conn(X,Y,D) :- field(X,Y), dir(D).
+{ conn'(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), T>0.
+:- conn'(X,Y,D,T), not conn(X,Y,D,T-1), otime(T).
+:- not conn'(X,Y,D,T), conn(X,Y,D,T-1), otime(T).
 
-{ goal'(X,Y,T) } :- field(X,Y), time(T), not first(T).
-:- goal'(X,Y,T), not goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not goal'(X,Y,T), goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+domain_goal(X,Y) :- field(X,Y).
+{ goal'(X,Y,T) } :- field(X,Y), time(T), T>0.
+:- goal'(X,Y,T), not goal(X,Y,T-1), otime(T).
+:- not goal'(X,Y,T), goal(X,Y,T-1), otime(T).
 
-{ reach'(X,Y,T) } :- field(X,Y), time(T), not first(T).
-:- reach'(X,Y,T), not reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not reach'(X,Y,T), reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+domain_reach(X,Y) :- field(X,Y).
+{ reach'(X,Y,T) } :- field(X,Y), time(T), T>0.
+:- reach'(X,Y,T), not reach(X,Y,T-1), otime(T).
+:- not reach'(X,Y,T), reach(X,Y,T-1), otime(T).
+
+{ otime(T) } :- time(T).
+
+% initial state
+assumption(goal(X,Y,0), true) :-     goal_on(X,Y).
+assumption(goal(X,Y,0),false) :- not goal_on(X,Y), domain_goal(X,Y).
+
+assumption(reach_init(X,Y,0), true) :-     init_on(X,Y).
+assumption(reach_init(X,Y,0),false) :- not init_on(X,Y), domain_reach(X,Y).
+
+assumption(conn(X,Y,D,0), true) :-     connect(X,Y,D).
+assumption(conn(X,Y,D,0),false) :- not connect(X,Y,D), domain_conn(X,Y,D).
+
+% goal
+assumption(neg_goal(T),false) :- last(T).
+
+% otime
+assumption(otime(T),true) :- time(T).

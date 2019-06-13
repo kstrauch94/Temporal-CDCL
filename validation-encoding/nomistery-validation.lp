@@ -11,27 +11,18 @@
 
 time(1..degree+1).
 
-first(0).
-second(1).
-last(T) :- time(T), not time(T+1).
-
-next(T-1, T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
-
 % from here on we will use S and not T for time because of the truck T
 
+domain_fuel(T,F) :- fuel(T,F).
+domain_fuel(T,F-D) :- domain_fuel(T,F), fuelcost(D,_,_), F>=D.
+%domain_fuel(T,F) :- truck(T), fuel(T,F2), F = 1..F2.
 
-fuel_domain(T,F) :- fuel(T,F).
-fuel_domain(T,F-D) :- fuel_domain(T,F), fuelcost(D,_,_), F>=D.
-%fuel_domain(T,F) :- truck(T), fuel(T,F2), F = 1..F2.
+domain_at(O,L) :- truck(O), location(L).
+domain_at(O,L) :- package(O), location(L).
 
-at_domain(O,L) :- truck(O), location(L).
-at_domain(O,L) :- package(O), location(L).
+{at(O,L,0) : domain_at(O,L)}.
 
-1 {at(P,L,S) : at_domain(P,L)} 1 :- package(P), first(S).
-1 {at(T,L,S) : at_domain(T,L)} 1 :- truck(T), first(S).
-
-1 {fuel(T,F,S) : fuel_domain(T,F)} 1 :- truck(T), first(S).
+{fuel(T,F,0) : domain_fuel(T,F)} :- truck(T).
 
 truck(T) :- fuel(T,_).
 package(P) :- at(P,L), not truck(P).
@@ -46,10 +37,10 @@ action(drive(T,L1,L2)) :- fuelcost( Fueldelta,L1,L2 ) , truck( T ).
 %
 % GENERATE  >>>>>
 
-{ occurs(A,S) : action(A) } <= 1 :- time(S). % :- step(S), 0 < S.
+{ occurs(A,S) : action(A) } <= 1 :- time(S). % :- step(S), S > 0.
 
 done(S) :- occurs(A,S), time(S).
-:- done(S), not done'(S), not first(S), not second(S), time(S).
+:- done(S), not done'(S), S > 1, time(S).
 
 unload( P,T,L,S )  :- occurs(unload(P,T,L),S), time(S).
 load( P,T,L,S )    :- occurs(load(P,T,L),S), time(S).
@@ -97,19 +88,24 @@ preconditions_d( T,L1,L2,S ) :- time(S), at'( T,L1,S ), fuel'( T, Fuelpre, S), f
 %
 
 
-{done'(S)} :- time(S), not first(S).
-:- done'(S), not done(SM1), not external(next(SM1,S)), next(SM1,S).
-:- not done'(S), done(SM1), not external(next(SM1,S)), next(SM1,S).
+{done'(S)} :- time(S), S > 0.
+:- done'(S), not done(S-1), otime(S).
+:- not done'(S), done(S-1), otime(S).
 
-{fuel'(T,F,S)} :- fuel_domain(T,F), time(S), not first(S).
-:- fuel'(T,F,S), not fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
-:- not fuel'(T,F,S), fuel(T,F,SM1), not external(next(SM1,S)), next(SM1,S).
+{fuel'(T,F,S)} :- domain_fuel(T,F), time(S),  S > 0.
+:- fuel'(T,F,S), not fuel(T,F,S-1), otime(S).
+:- not fuel'(T,F,S), fuel(T,F,S-1), otime(S).
 
-{at'(O,L,S)} :- at_domain(O,L), time(S), not first(S).
-:- at'(O,L,S), not at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
-:- not at'(O,L,S), at(O,L,SM1), not external(next(SM1,S)), next(SM1,S).
+{at'(O,L,S)} :- domain_at(O,L), time(S),  S > 0.
+:- at'(O,L,S), not at(O,L,S-1), otime(S).
+:- not at'(O,L,S), at(O,L,S-1), otime(S).
 
-in_domain(P,T) :- package(P), truck(T).
-{in'(P,T,S)} :- in_domain(P,T), time(S), not first(S).
-:- in'(P,T,S), not in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
-:- not in'(P,T,S), in(P,T,SM1), not external(next(SM1,S)), next(SM1,S).
+domain_in(P,T) :- package(P), truck(T).
+{in'(P,T,S)} :- domain_in(P,T), time(S),  S > 0.
+:- in'(P,T,S), not in(P,T,S-1), otime(S).
+:- not in'(P,T,S), in(P,T,S-1), otime(S).
+
+{ otime(S) } :- time(S).
+
+% otime
+assumption(otime(S),true) :- time(S).

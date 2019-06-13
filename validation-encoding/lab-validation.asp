@@ -1,11 +1,5 @@
 time(1..degree+1).
 
-first(0).
-last(T) :- time(T), not time(T+1).
-
-next(T-1,T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
-
 dir(e). dir(w). dir(n). dir(s).
 inverse(e,w). inverse(w,e).
 inverse(n,s). inverse(s,n).
@@ -32,18 +26,12 @@ neighbor(e,X,Y, X, 1) :- field(X,Y), num_cols(Y).
 neighbor(w,X,1, X, Y) :- field(X,Y), num_cols(Y).
 
 
-domain_conn(X,Y,D) :- field(X,Y), dir(D).
+%reach is expanded on a later rule so we can't set upper limit to 1
+{goal(X,Y,0) : field(X,Y)}.
+{reach_init(X,Y,0): field(X,Y)}.
+reach(X,Y,0) :- reach_init(X,Y,0).
 
-1 {goal(X,Y,T) : field(X,Y)} 1  :-  first(T).
-1 {reach_init(X,Y,T): field(X,Y)} 1  :- first(T).
-reach(X,Y,T) :- reach_init(X,Y,T).
-
-%{conn(X,Y,D,T) : field(X,Y), dir(D)} :-  first(T).
-
-%{goal(X,Y,T)}   :- goal_on(X,Y), first(T).
-%{reach(X,Y,T)}  :- init_on(X,Y), first(T).
-%{conn(X,Y,D,T)} :- connect(X,Y,D), first(T).
-conn(X,Y,D,T) :- connect(X,Y,D), first(T).
+{conn(X,Y,D,0) : domain_conn(X,Y,D)}.
 
 %%  Select a row or column to push
 
@@ -86,18 +74,26 @@ reach(X,Y,T) :- reach'(XX,YY,T), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
 
 
-{ neg_goal'(T) } :- time(T), not first(T).
-:- neg_goal'(T), not neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
-:- not neg_goal'(T), neg_goal(TM1), not external(next(TM1, T)), next(TM1, T).
+{ neg_goal'(T) } :- time(T), T>0.
+:- neg_goal'(T), not neg_goal(T-1), otime(T).
+:- not neg_goal'(T), neg_goal(T-1), otime(T).
 
-{ conn'(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), not first(T).
-:- conn'(X,Y,D,T), not conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not conn'(X,Y,D,T), conn(X,Y,D,TM1), not external(next(TM1, T)), next(TM1, T).
+domain_conn(X,Y,D) :- field(X,Y), dir(D).
+{ conn'(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), T>0.
+:- conn'(X,Y,D,T), not conn(X,Y,D,T-1), otime(T).
+:- not conn'(X,Y,D,T), conn(X,Y,D,T-1), otime(T).
 
-{ goal'(X,Y,T) } :- field(X,Y), time(T), not first(T).
-:- goal'(X,Y,T), not goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not goal'(X,Y,T), goal(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+domain_goal(X,Y) :- field(X,Y).
+{ goal'(X,Y,T) } :- field(X,Y), time(T), T>0.
+:- goal'(X,Y,T), not goal(X,Y,T-1), otime(T).
+:- not goal'(X,Y,T), goal(X,Y,T-1), otime(T).
 
-{ reach'(X,Y,T) } :- field(X,Y), time(T), not first(T).
-:- reach'(X,Y,T), not reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not reach'(X,Y,T), reach(X,Y,TM1), not external(next(TM1, T)), next(TM1, T).
+domain_reach(X,Y) :- field(X,Y).
+{ reach'(X,Y,T) } :- field(X,Y), time(T), T>0.
+:- reach'(X,Y,T), not reach(X,Y,T-1), otime(T).
+:- not reach'(X,Y,T), reach(X,Y,T-1), otime(T).
+
+{ otime(T) } :- time(T).
+
+% otime
+assumption(otime(T),true) :- time(T).

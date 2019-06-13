@@ -12,30 +12,16 @@
 % goal, which is true iff the goal state is reached at time t
 % steps(T), which is the number of time steps T, required to reach the goal (provided part of Input data)
 
-%first(s(0)).
-%last(s(T)) :- time(s(T)), not time(s(T+1)).
-
-first(0).
 last(T) :- time(T), not time(T+1).
 
 time(T) :- timestep(T).
-next(T-1, T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
 
 peg(1..4).
 realdisk(N) :- disk(N), not peg(N).
 % M is on N
-on_domain(N,M) :- disk(N), realdisk(M), N < M.
+domain_on(N,M) :- disk(N), realdisk(M), N < M.
 
-% set initial state
-#external external(on(N1,N,T)) : on0(N,N1), first(T).
-:- not on(N1,N,T), not external(on(N1,N,T)), on0(N,N1), first(T).
-
-% goal must hold at the last time point
-#external external(on(N1,N,T)) : ongoal(N,N1), last(T).
-:- not on(N1,N,T), not external(on(N1,N,T)), ongoal(N,N1), last(T).
-
-1{on(N,M,T) : on_domain(N,M)} 1 :- realdisk(M), first(T).
+{on(N,M,0) : domain_on(N,M)} :- realdisk(M).
 
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
@@ -45,7 +31,7 @@ on_domain(N,M) :- disk(N), realdisk(M), N < M.
 % Specify a valid move (only for T < t)
 % pick a disk to move
 
-{ occurs(some_action,T) } :- time(T), not first(T).
+{ occurs(some_action,T) } :- time(T), T > 0.
 1 { move(N,T) : disk(N) } 1 :- occurs(some_action,T).
 
 % pick a disk onto which to move
@@ -65,13 +51,28 @@ on_domain(N,M) :- disk(N), realdisk(M), N < M.
 
 % Specify effects of a move
 on(N1,N,T) :- move(N,T), where(N1,T).
-on(N,N1,T) :- not first(T),
+on(N,N1,T) :- T > 0,
               on'(N,N1,T), not move(N1,T).
 
-{ on'(N,M,T) } :- on_domain(N,M), time(T), not first(T).
-:- on'(N,M,T), not on(N,M,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not on'(N,M,T), on(N,M,TM1), not external(next(TM1, T)), next(TM1, T).
+{ on'(N,M,T) } :- domain_on(N,M), time(T), T>0.
+:- on'(N,M,T), not on(N,M,T-1), otime(T).
+:- not on'(N,M,T), on(N,M,T-1), otime(T).
 
-{ move'(N,T) } :- disk(N), time(T), not first(T).
-:- move'(N,T), not move(N,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not move'(N,T), move(N,TM1), not external(next(TM1, T)), next(TM1, T).
+{ move'(N,T) } :- disk(N), time(T), T>0.
+:- move'(N,T), not move(N,T-1), otime(T).
+:- not move'(N,T), move(N,T-1), otime(T).
+
+{ otime(T) } :- time(T).
+
+
+%
+% Define assumptions
+%
+
+% initial state
+assumption(on(N1,N,0), true) :-     on0(N,N1).
+assumption(on(N1,N,0),false) :- not on0(N,N1), domain_on(N1,N).
+% goal
+assumption(on(N1,N,T),true) :- ongoal(N,N1), last(T).
+% otime
+assumption(otime(T),true) :- time(T).
