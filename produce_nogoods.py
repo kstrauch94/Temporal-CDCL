@@ -697,19 +697,20 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     return total_nogoods, scaling_by_val, scaling_labels
 
-def plasp_translate(instance, domain, filename):
+def plasp_translate(instance, domain, filename, no_fd):
 
     if domain is None:
         # look for domain in the same folder
         logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(instance), "domain.pddl")))
         if os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
-            omain = os.path.join(get_parent_dir(instance), "domain.pddl")
-
+            domain = os.path.join(get_parent_dir(instance), "domain.pddl")
+            logging.info("Succes finding domain!")
         # look for domain in parent folder
         else:
             logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
             if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
                 domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
+                logging.info("Succes finding domain!")
 
             else:
                 logging.error("no domain could be found. Exiting...")
@@ -718,11 +719,18 @@ def plasp_translate(instance, domain, filename):
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
 
-    fd_call = config_file.FD_CALL + [domain, instance]
+    if not no_fd:
+        logging.info("Calling Fast Downward preprocessing...")
+        fd_call = config_file.FD_CALL + [domain, instance]
+        instance_files = ["output.sas"]
 
-    output = subprocess.check_output(fd_call).decode("utf-8")
+        output = subprocess.check_output(fd_call).decode("utf-8")
 
-    plasp_call = [config_file.PLASP, "translate", "output.sas"]
+    else:
+        instance_files = [domain, instance]
+
+    logging.info("Translating with plasp...")
+    plasp_call = [config_file.PLASP, "translate"] + instance_files
 
     output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
@@ -730,7 +738,8 @@ def plasp_translate(instance, domain, filename):
 
     logging.info("saved translation into {}".format(filename))
 
-    os.remove("output.sas")
+    if not no_fd:
+        os.remove("output.sas")
 
 
 def produce_nogoods(file_names, args, config):
@@ -809,6 +818,7 @@ if __name__ == "__main__":
     parser.add_argument("--pddl-instance", help="pddl instance")
     parser.add_argument("--pddl-domain", help="pddl domain", default=None)
     parser.add_argument("--trans-name", help="name of the translated file")
+    parser.add_argument("--no-fd", action="store_true", help="When translating the pddl instance, do not use Fast Downward preprocessing.")
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
 
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
@@ -874,7 +884,7 @@ if __name__ == "__main__":
         else:
             trans_name = "instance-temp.lp"
 
-        plasp_translate(args.pddl_instance, args.pddl_domain, trans_name)
+        plasp_translate(args.pddl_instance, args.pddl_domain, trans_name, args.no_fd)
 
         instance = trans_name
         files.append(instance)
