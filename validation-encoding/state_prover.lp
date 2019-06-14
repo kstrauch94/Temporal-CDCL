@@ -1,32 +1,46 @@
+%
+% Domain
+%
 
-time(s(T)) :- T= 0..degree.
+time(1..degree+1).
 
-next(s(T-1), s(T)) :- time(s(T)), T>0.
-#external external(next(X,Y)) : next(X,Y).
 
-mutex(G,X) :- mutexGroup(G), contains(G,X,V). %, fluent(X,V).
+%
+% Preprocessing
+%
+
+mutex(G,X) :- mutexGroup(G), contains(G,X,V).
 mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
 
-% No action can be done at time 0
-%#external external(occurs(A,s(0))) : action(A).
-%:-  occurs(A,s(0)), not external(occurs(A,s(0))), action(A).
+%
+% Initial situation
+%
+
+% open initial situation
+{ holds(X,V,0) } :- contains(X,V).
+
+
+%
+% Transition
+%
 
 % generate (a SAT problem)
+{     holds(X,V,T) } :- contains(X,V), time(T).
 { occurs(A,T) : action(A) }  :- time(T).
 
 % at most one action
-:- 2{occurs(A,T) : action(A)}, time(T).
+:- 2 { occurs(A,T) : action(A) }, time(T).
 
 % effects
-:- occurs(A,T), postcondition(A,_,X,V), not holds(X,V,T).
+:- occurs(A,T), postcondition(A,_,X,V), not holds (X,V,T).
 
 % preconditions
-:- occurs(A,s(T)), precondition(A,X,V), not holds(X,V,s(T-1)), time(s(T)), time(s(T-1)).
+:- occurs(A,T),    precondition(A,X,V), not holds'(X,V,T).
 
 % inertia
-:- holds(X,V,s(T)), not holds(X,V,s(T-1)), 
-   not occurs(A,s(T)) : postcondition(A,_,X,V)  ; time(s(T)), time(s(T-1)).
+:- holds(X,V,T), not holds'(X,V,T), time(T),
+   not occurs(A,T) : postcondition(A,_,X,V).
 
 % existence and uniqueness of value
 :- not 1 { holds(X,V,T) } 1, variable(X), time(T).
@@ -35,8 +49,22 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 :- 2 #sum { 1,X,V: holds(X,V,T), contains(G,X,V) }, mutex(G), time(T).
 
 
+%
+% Additional rules
+%
 
-{ holds(X,V,T) } :- contains(X,V), time(T).
+% open holds'
+{ holds'(X,V,T) } :- contains(X,V), time(T).
+% holds' at T is equivalent to holds at T-1 (when otime at T is true)
+:- holds'(X,V,T), not holds(X,V,T-1), otime(T).
+:- not holds'(X,V,T), holds(X,V,T-1), otime(T).
+% open otime
+{ otime(T) } :- time(T).
 
-:- not hypothesisConstraint(s(0)).
 
+%
+% Define assumptions
+%
+
+% otime
+assumption(otime(T),true) :- time(T).
