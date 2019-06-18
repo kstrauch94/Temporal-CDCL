@@ -18,19 +18,17 @@ dir(south, -1). %dir(south,col).
 
 dir(D) :- dir(D,_).
 
-robot(R) :- pos(R,_,_). 
+robot(R) :- pos(R,_,_).
 
 time(1..degree+1).
 
-first(0).
 last(T) :- time(T), not time(T+1).
 
-next(T-1,T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
+domO(1).domO(-1).
+pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
+go_domain(R,D,O) :- robot(R), dir(D,O).
 
-1{pos(R,1,I,T) : dim(I)}1 :- robot(R), first(T).  
-1{pos(R,-1,J,T) : dim(J)}1 :- robot(R), first(T). 
-
+{pos(R,O,IJ,0) : pos_domain(R,O,IJ)}.  
 
 barrier(I+1,J,west ) :- barrier(I,J,east ), dim(I), dim(J), dim(I+1).
 barrier(I,J+1,north) :- barrier(I,J,south), dim(I), dim(J), dim(J+1).
@@ -69,14 +67,16 @@ selectDir(O,T) :- selectDir(D,O,T), time(T).
 %:- target(R,I,_), not pos(R,1,I,s(X)), time(s(X)), not time(s(X+1)).
 %:- target(R,_,J), not pos(R,-1,J,s(X)), time(s(X)), not time(s(X+1)).
 
-domO(1).domO(-1).
 
-pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
-{ pos'(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), not first(T).
-:- pos'(R,O,IJ,T), not pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not pos'(R,O,IJ,T), pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
+{ pos'(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), T > 0.
+:- pos'(R,O,IJ,T), not pos(R,O,IJ,T-1), otime(T).
+:- not pos'(R,O,IJ,T), pos(R,O,IJ,T-1), otime(T).
 
-go_domain(R,D,O) :- robot(R), dir(D,O).
-{ go'(R,D,O,T) } :- go_domain(R,D,O), time(T), not first(T).
-:- go'(R,D,O,T), not go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not go'(R,D,O,T), go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
+{ go'(R,D,O,T) } :- go_domain(R,D,O), time(T), T > 0.
+:- go'(R,D,O,T), not go(R,D,O,T-1), otime(T).
+:- not go'(R,D,O,T), go(R,D,O,T-1), otime(T).
+
+{ otime(T) } :- time(T).
+
+% otime
+assumption(otime(T),true) :- time(T).

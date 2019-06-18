@@ -7,51 +7,21 @@
 % 
 time(T) :- step(T).
 
-first(0).
 last(T) :- time(T), not time(T+1).
-
-next(T-1,T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
-
-
-% initial state
-#external external(at(PS,L,T)) : at(PS,L), first(T).
-:- not at(PS,L,T), not external(at(PS,L,T)), at(PS,L), first(T).
-
-#external external(clear(L,T)) : clear(L), first(T).
-:- not clear(L,T), not external(clear(L,T)), clear(L), first(T).
-
-#external false_external(clear(L,T)) : not clear(L), loc(L), first(T).
-:- clear(L,T), not false_external(clear(L,T)), not clear(L), loc(L), first(T).
-
-#external external(atgoal(S,T)) : isgoal(L), stone(S), at(S,L), first(T).
-:- not atgoal(S,T), not external(atgoal(S,T)), isgoal(L), stone(S), at(S,L), first(T).
-
-not_atgoal(S) :- stone(S), not at(S,L) : isgoal(L).
-#external false_external(atgoal(S,T)) : not_atgoal(S), first(T).
-:- atgoal(S,T), not false_external(atgoal(S,T)), not_atgoal(S), first(T).
-
-% goal
-#external external(atgoal(S,T)) : goal(S), last(T).
-:- not atgoal(S,T), not external(atgoal(S,T)), goal(S), last(T).
 
 loc(L) :- isgoal(L).
 loc(L) :- isnongoal(L).
 
-at_domain(P,L) :- loc(L), player(P).
-at_domain(S,L) :- loc(L), stone(S).
+domain_at(P,L) :- loc(L), player(P).
+domain_at(S,L) :- loc(L), stone(S).
+domain_clear(L) :- loc(L).
+domain_at_goal(S) :- stone(S).
 
-1 {at(P,L,T) : at_domain(P,L)} 1 :- player(P), first(T).
-1 {at(S,L,T) : at_domain(S,L)} 1 :- stone(S), first(T).
+{at(PS,L,0) : domain_at(PS,L)}.
 
-{clear(L,T)} :- loc(L), first(T).
+{clear(L,0) : domain_clear(L)}.
 
-{atgoal(S,T)} :- stone(S), first(T).
-%atgoal(S,T) :- isgoal(L), stone(S), at(S,L), first(T).
-
-%at(P,To,s(0)) :- at(P,To).
-%clear(P,s(0)) :- clear(P).
-%atgoal(S,s(0)) :- isgoal(L), stone(S), at(S,L).
+atgoal(S,0) :- isgoal(L), stone(S), at(S,L).
 
 % GENERATE  >>>>>
 { occurs(some_action,T) } :- time(T).
@@ -147,15 +117,28 @@ preconditions_pg( P,S,Ppos,From,To,Dir,Ti ) :- at'( P,Ppos,Ti ), at'( S,From,Ti 
 
 %:- not goalreached(T), last(T).
 
-{clear'(L,T)} :- loc(L), time(T), not first(T).
-:- clear'(L,T), not clear(L,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not clear'(L,T), clear(L,TM1), not external(next(TM1,T)), next(TM1,T).
+{clear'(L,T)} :- loc(L), time(T), T > 0.
+:- clear'(L,T), not clear(L,T-1), otime(T).
+:- not clear'(L,T), clear(L,T-1), otime(T).
 
-{at'(PS,L,T)} :- at_domain(PS,L), time(T), not first(T).
-:- at'(PS,L,T), not at(PS,L,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not at'(PS,L,T), at(PS,L,TM1), not external(next(TM1,T)), next(TM1,T).
+{at'(PS,L,T)} :- domain_at(PS,L), time(T), T > 0.
+:- at'(PS,L,T), not at(PS,L,T-1), otime(T).
+:- not at'(PS,L,T), at(PS,L,T-1), otime(T).
 
-{atgoal'(S,T)} :- stone(S), time(T), not first(T).
-:- atgoal'(S,T), not atgoal(S,TM1), not external(next(TM1,T)), next(TM1,T).
-:- not atgoal'(S,T), atgoal(S,TM1), not external(next(TM1,T)), next(TM1,T).
+{atgoal'(S,T)} :- stone(S), time(T), T > 0.
+:- atgoal'(S,T), not atgoal(S,T-1), otime(T).
+:- not atgoal'(S,T), atgoal(S,T-1), otime(T).
 
+{ otime(T) } :- time(T).
+
+% initial state
+assumption(at(PS,L,0), true) :-     at(PS,L).
+assumption(at(PS,L,0),false) :- not at(PS,L), domain_at(PS,L).
+
+assumption(clear(L,0), true) :-     clear(L).
+assumption(clear(L,0),false) :- not clear(L), domain_clear(L).
+
+% goal
+assumption(atgoal(S,T),true) :- goal(S), last(T).
+% otime
+assumption(otime(T),true) :- time(T).

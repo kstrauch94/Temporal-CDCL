@@ -23,31 +23,13 @@ robot(R) :- pos(R,_,_).
 time(1).
 time(X+1) :- time(X), length(L), X < L. 
 
-first(0).
 last(T) :- time(T), not time(T+1).
 
-next(T-1,T) :- time(T), T>0.
-#external external(next(X,Y)) : next(X,Y).
+domO(1).domO(-1).
+pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
+go_domain(R,D,O) :- robot(R), dir(D,O).
 
-% set initial state
-#external external(pos(R,1,I,T)) : pos(R,I,_), first(T).
-:- not pos(R,1,I,T), not external(pos(R,1,I,T)), pos(R,I,_), first(T).
-
-#external external(pos(R,-1,J,T)) : pos(R,_,J), first(T).
-:- not pos(R,-1,J,T), not external(pos(R,-1,J,T)), pos(R,_,J), first(T).
-
-%{pos(R,1,I,T)} :- pos(R,I,_), first(T).  
-%{pos(R,-1,J,T)} :- pos(R,_,J), first(T). 
-
-1 {pos(R,1,I,T) : dim(I)} 1 :- robot(R), first(T).  
-1 {pos(R,-1,J,T) : dim(J)} 1 :- robot(R), first(T). 
-
-% set goal state
-#external external(pos(R,1,I,T)) : target(R,I,_), last(T).
-:- not pos(R,1,I,T), not external(pos(R,1,I,T)), target(R,I,_), last(T).
-
-#external external(pos(R,-1,J,T)) : target(R,_,J), last(T).
-:- not pos(R,-1,J,T), not external(pos(R,-1,J,T)), target(R,_,J), last(T).
+{pos(R,O,IJ,0) : pos_domain(R,O,IJ)}.  
 
 barrier(I+1,J,west ) :- barrier(I,J,east ), dim(I), dim(J), dim(I+1).
 barrier(I,J+1,north) :- barrier(I,J,south), dim(I), dim(J), dim(J+1).
@@ -86,14 +68,28 @@ selectDir(O,T) :- selectDir(D,O,T), time(T).
 %:- target(R,I,_), not pos(R,1,I,s(X)), time(s(X)), not time(s(X+1)).
 %:- target(R,_,J), not pos(R,-1,J,s(X)), time(s(X)), not time(s(X+1)).
 
-domO(1).domO(-1).
 
-pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
-{ pos'(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), not first(T).
-:- pos'(R,O,IJ,T), not pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not pos'(R,O,IJ,T), pos(R,O,IJ,TM1), not external(next(TM1, T)), next(TM1, T).
+{ pos'(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), T > 0.
+:- pos'(R,O,IJ,T), not pos(R,O,IJ,T-1), otime(T).
+:- not pos'(R,O,IJ,T), pos(R,O,IJ,T-1), otime(T).
 
-go_domain(R,D,O) :- robot(R), dir(D,O).
-{ go'(R,D,O,T) } :- go_domain(R,D,O), time(T), not first(T).
-:- go'(R,D,O,T), not go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
-:- not go'(R,D,O,T), go(R,D,O,TM1), not external(next(TM1, T)), next(TM1, T).
+{ go'(R,D,O,T) } :- go_domain(R,D,O), time(T), T > 0.
+:- go'(R,D,O,T), not go(R,D,O,T-1), otime(T).
+:- not go'(R,D,O,T), go(R,D,O,T-1), otime(T).
+
+{ otime(T) } :- time(T).
+
+
+% initial state
+assumption(pos(R,1,I,0), true) :-     pos(R,I,_).
+assumption(pos(R,1,I,0),false) :- not pos(R,I,_), pos_domain(R,1,I).
+
+assumption(pos(R,-1,J,0), true) :-     pos(R,_,J).
+assumption(pos(R,-1,J,0),false) :- not pos(R,_,J), pos_domain(R,-1,J).
+
+% goal
+assumption(pos(R,1,I,T), true) :- target(R,I,_), last(T).
+assumption(pos(R,-1,J,T), true) :- target(R,_,J), last(T).
+
+% otime
+assumption(otime(T),true) :- time(T).

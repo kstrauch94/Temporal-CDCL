@@ -1,5 +1,7 @@
 time(1..degree+1).
 
+last(T) :- time(T), not time(T+1).
+
 dir(e). dir(w). dir(n). dir(s).
 inverse(e,w). inverse(w,e).
 inverse(n,s). inverse(s,n).
@@ -26,10 +28,11 @@ neighbor(e,X,Y, X, 1) :- field(X,Y), num_cols(Y).
 neighbor(w,X,1, X, Y) :- field(X,Y), num_cols(Y).
 
 
-%reach is expanded on a later rule so we can't set upper limit to 1
-{goal(X,Y,0) : field(X,Y)}.
-{reach_init(X,Y,0): field(X,Y)}.
-reach(X,Y,0) :- reach_init(X,Y,0).
+{goal(X,Y,0) : domain_goal(X,Y)}.
+
+reach_init(X,Y,0) :- init_on(X,Y).
+reach_init(X,Y,0) :- reach_init(XX,YY,0), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,0), conn(X,Y,E,0), inverse(D,E).
+{reach(X,Y,0): domain_reach(X,Y)}.
 
 {conn(X,Y,D,0) : domain_conn(X,Y,D)}.
 
