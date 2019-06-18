@@ -469,19 +469,32 @@ def check_nogood_str(ng_str, max_deg, max_lit_count):
 
 def generalize_nogoods(ng_list, nogoods_wanted):
 
-        nogoods = []
-        for ng in ng_list:
+    lines_set = set()
+    repeats = 0
+    nogoods_generalized = 0
+    nogoods = []
+    for ng in ng_list:
 
-            ng.generalize()
+        ng.generalize()
+
+        # if nogood is not a repeat we add it to the list
+        line = ng.to_constraint()
+        if line not in lines_set:
+            lines_set.add(line)
+
             nogoods.append(ng)
+            nogoods_generalized += 1
+        else:
+            repeats += 1
 
-            # if nogoods_wanted is a valid value
-            # and the amount of nogoods we have is higher or equal
-            # than the amount we want
-            if nogoods_wanted > 1 and len(nogoods) >= nogoods_wanted:
-                break
+        # if nogoods_wanted is a valid value
+        # and the amount of nogoods we have is higher or equal
+        # than the amount we want
+        if nogoods_wanted > 1 and nogoods_generalized >= nogoods_wanted:
+            break
 
-        return nogoods
+    print("total repeats: ", repeats)
+    return nogoods, repeats
 
 def convert_ng_file(ng_name, converted_ng_name,
                     no_generalization=False,
@@ -566,7 +579,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         t = time.time()
 
-        nogoods = generalize_nogoods(unprocessed_ng, nogoods_wanted)
+        nogoods, repeats = generalize_nogoods(unprocessed_ng, nogoods_wanted)
 
         time_generalize = time.time() - t
 
@@ -672,17 +685,11 @@ def convert_ng_file(ng_name, converted_ng_name,
             nogoods = unprocessed_ng
 
     t = time.time()
-    # write generalized nogoods into a file
-    lines_set = set()
-    repeats = 0
+
     with open(converted_ng_name, "w") as f:
         for conv_line in nogoods:
             line = conv_line.to_constraint()
-            if line not in lines_set:
-                f.write(str(line))
-                lines_set.add(line)
-            else:
-                repeats += 1
+            f.write(str(line))
 
     logging.info("{} nogoods were identical".format(repeats))
     
