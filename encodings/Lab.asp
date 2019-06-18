@@ -30,9 +30,11 @@ neighbor(w,X,1, X, Y) :- field(X,Y), num_cols(Y).
 
 
 %reach is expanded on a later rule so we can't set upper limit to 1
-{goal(X,Y,0) : field(X,Y)}.
-{reach_init(X,Y,0): field(X,Y)}.
-reach(X,Y,0) :- reach_init(X,Y,0).
+{goal(X,Y,0) : domain_goal(X,Y)}.
+
+reach_init(X,Y,0) :- init_on(X,Y).
+reach_init(X,Y,0) :- reach_init(XX,YY,0), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,0), conn(X,Y,E,0), inverse(D,E).
+{reach(X,Y,0): domain_reach(X,Y)}.
 
 {conn(X,Y,D,0) : domain_conn(X,Y,D)}.
 
@@ -102,8 +104,8 @@ domain_reach(X,Y) :- field(X,Y).
 assumption(goal(X,Y,0), true) :-     goal_on(X,Y).
 assumption(goal(X,Y,0),false) :- not goal_on(X,Y), domain_goal(X,Y).
 
-assumption(reach_init(X,Y,0), true) :-     init_on(X,Y).
-assumption(reach_init(X,Y,0),false) :- not init_on(X,Y), domain_reach(X,Y).
+assumption(reach(X,Y,0), true) :-     reach_init(X,Y).
+assumption(reach(X,Y,0),false) :- not reach_init(X,Y), domain_reach(X,Y).
 
 assumption(conn(X,Y,D,0), true) :-     connect(X,Y,D).
 assumption(conn(X,Y,D,0),false) :- not connect(X,Y,D), domain_conn(X,Y,D).
