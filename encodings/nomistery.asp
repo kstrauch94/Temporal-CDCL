@@ -24,7 +24,7 @@ domain_at(O,L) :- package(O), location(L).
 
 {at(O,L,0) : domain_at(O,L)}.
 
-{fuel(T,F,0) : domain_fuel(T,F)} :- truck(T).
+{fuel(T,F,0) : domain_fuel(T,F)}.
 
 truck(T) :- fuel(T,_).
 package(P) :- at(P,L), not truck(P).
