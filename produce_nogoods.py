@@ -496,6 +496,19 @@ def generalize_nogoods(ng_list, nogoods_wanted):
     print("total repeats: ", repeats)
     return nogoods, repeats
 
+
+class Stat:
+
+    def __init__(self, name, value, message):
+        self.name = name
+        self.value = value
+        self._message = message
+
+
+    @property
+    def message(self):
+        return self._message.format(self.value)
+    
 def convert_ng_file(ng_name, converted_ng_name,
                     no_generalization=False,
                     max_deg=10,
@@ -511,6 +524,8 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
+
+    conversion_stats = {}
 
     converted_lines = []
     amount_validated = 0
@@ -540,16 +555,23 @@ def convert_ng_file(ng_name, converted_ng_name,
     total_nogoods = len(unprocessed_ng)
 
     time_init_nogood = time.time() - t
-    logging.info("total lines in the no good file: {}\n".format(total_nogoods))
+    conversion_stats["time_init_nogood"] = Stat("time_init_nogood", time_init_nogood, "time initializing nogoods: {}")
+
+    conversion_stats["total_raw_nogoods"] = Stat("total_raw_nogoods", total_nogoods, "total lines in the raw nogood file: {}\n")
+
+    logging.info(conversion_stats["total_raw_nogoods"].message)
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
-        return 0, None, None
+        return conversion_stats, None, None
 
     t = time.time()
     if sortby is not None:
         unprocessed_ng.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=reverse_sort)
 
     time_sorting_nogoods = time.time() - t    
+
+    conversion_stats["time_sorting_nogoods"] = Stat("time_sorting_nogoods", time_sorting_nogoods, "time sorting nogoods: {}")
+
 
 #    # write sorted unprocessed nogoods
 #    with open("sorted_ng.txt", "w") as f:
@@ -561,12 +583,17 @@ def convert_ng_file(ng_name, converted_ng_name,
     t = time.time()
     stats = extract_stats(unprocessed_ng)
     time_extract_stats = time.time() - t
+    conversion_stats["time_extract_stats"] = Stat("time_extract_stats", time_extract_stats, "time to extract stats: {}")
+
 
     t = time.time()
     for key, val in stats.items():
         #if "mean" in key:
         logging.info("{} {}".format(key, val))
     time_logging_stats = time.time() - t
+
+    conversion_stats["time_logging_stats"] = Stat("time_logging_stats", time_logging_stats, "time to log stats: {}")
+
 
     # get the scaling amounts and the nogoods count we want
     if nogoods_wanted_by_count >= 0:
@@ -580,11 +607,17 @@ def convert_ng_file(ng_name, converted_ng_name,
         t = time.time()
 
         nogoods, repeats = generalize_nogoods(unprocessed_ng, nogoods_wanted)
+        conversion_stats["repeats"] = Stat("repeats", repeats, "{} nogoods were identical")
 
         time_generalize = time.time() - t
 
+        conversion_stats["time_generalize"] = Stat("time_generalize", time_generalize, "time to generalize: {}")
+
+
         total_nogoods = len(nogoods)
-        logging.info("Total nogoods after processing: {}".format(total_nogoods))
+        conversion_stats["total_nogoods_generalized"] = Stat("total_nogoods_generalized", total_nogoods, "Total nogoods after processing: {}")
+
+        logging.info(conversion_stats["total_nogoods_generalized"].message)
 
         if validate:
             logging.info("Starting validation...")
@@ -611,6 +644,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                     logging.info("Validated {}% of total nogoods".format(percent_validated*100))
                     percent_validated += 0.1
 
+            conversion_stats["time_validate"] = Stat("time_validate", time_validate, "time to validate: {}")
             logging.info("Finishing validation")
 
         if validate_instance != "none":
@@ -656,6 +690,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                 validate_instance_all(validate_instance_files)
                 time_validate_instance += time.time() - t
 
+            conversion_stats["time_validate_instance"] = Stat("time_validate_instance", time_validate_instance, "time to validate within instance: {}")
             logging.info("Finishing instance validation")
 
         # log some info after finishing
@@ -668,11 +703,11 @@ def convert_ng_file(ng_name, converted_ng_name,
         if validate_instance == "all":
             logging.info("Validation of all nogoods returned {}".format(all_val_result))
 
-        logging.info("time to generalize: {}".format(time_generalize))
+        logging.info(conversion_stats["time_generalize"].message)
         if validate:
-            logging.info("time to validate: {}".format(time_validate))
+            logging.info(conversion_stats["time_validate"].message)
         if validate_instance == "single" or validate_instance == "all":
-            logging.info("time to validate within instance: {}".format(time_validate_instance))
+            logging.info(conversion_stats["time_validate_instance"].message)
  
 
     else:
@@ -690,19 +725,20 @@ def convert_ng_file(ng_name, converted_ng_name,
         for conv_line in nogoods:
             line = conv_line.to_constraint()
             f.write(str(line))
-
-    logging.info("{} nogoods were identical".format(repeats))
     
     time_writing_file = time.time() - t
+    conversion_stats["time_writing_file"] = Stat("time_writing_file", time_writing_file, "time writing file: {}")
 
-    logging.info("time to extract stats: {}".format(time_extract_stats))
-    logging.info("time to log stats: {}".format(time_logging_stats))
 
-    logging.info("time initializing nogoods: {}".format(time_init_nogood))
-    logging.info("time sorting nogoods: {}".format(time_sorting_nogoods))
-    logging.info("time writing file: {}".format(time_writing_file))
+    logging.info(conversion_stats["repeats"].message)
+    logging.info(conversion_stats["time_extract_stats"].message)
+    logging.info(conversion_stats["time_logging_stats"].message)
 
-    return total_nogoods, scaling_by_val, scaling_labels
+    logging.info(conversion_stats["time_init_nogood"].message)
+    logging.info(conversion_stats["time_sorting_nogoods"].message)
+    logging.info(conversion_stats["time_writing_file"].message)
+
+    return conversion_stats, scaling_by_val, scaling_labels
 
 def plasp_translate(instance, domain, filename, no_fd):
 
@@ -783,7 +819,7 @@ def produce_nogoods(file_names, args, config):
 
     t = time.time()
     # convert the nogoods
-    total_nogoods, scaling_by_val, scaling_labels = convert_ng_file(ng_name, converted_ng_name,
+    stats, scaling_by_val, scaling_labels = convert_ng_file(ng_name, converted_ng_name,
                     **config)
     time_conversion = time.time() - t
 
