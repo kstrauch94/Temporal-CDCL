@@ -20,6 +20,7 @@ peg(1..4).
 realdisk(N) :- disk(N), not peg(N).
 % M is on N
 domain_on(N,M) :- disk(N), realdisk(M), N < M.
+domain_move(N) :- disk(N).
 
 {on(N,M,0) : domain_on(N,M)} :- realdisk(M).
 
@@ -58,7 +59,7 @@ on(N,N1,T) :- T > 0,
 :- on'(N,M,T), not on(N,M,T-1), otime(T).
 :- not on'(N,M,T), on(N,M,T-1), otime(T).
 
-{ move'(N,T) } :- disk(N), time(T), T>0.
+{ move'(N,T) } :- domain_move(N), time(T), T>0.
 :- move'(N,T), not move(N,T-1), otime(T).
 :- not move'(N,T), move(N,T-1), otime(T).
 
