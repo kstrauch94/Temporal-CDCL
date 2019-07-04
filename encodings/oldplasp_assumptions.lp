@@ -30,7 +30,7 @@ holds(X,V,T) :- holds'(X,V,T), not del(X,V,T), time(T), T > 0.
 %
 
 % open holds'
-{ holds'(X,V,T) } :- contains(X,V), time(T).
+{ holds'(X,V,T) } :- contains(X,V), time(T), T > 0.
 % holds' at T is equivalent to holds at T-1 (when otime at T is true)
 :- holds'(X,V,T), not holds(X,V,T-1), otime(T).
 :- not holds'(X,V,T), holds(X,V,T-1), otime(T).
