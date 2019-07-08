@@ -127,8 +127,7 @@ class Nogood:
                 self.domain_literals.append(new_dl)
 
     def process_time(self):
-        # finding the max doesnt take into account the first value of the external(next(T1,T2))
-        # because that value will never be the max anyway
+
 
         matches = re.findall(time_no_s_re, END_STR.join(self.literals)+END_STR)
         matches += re.findall(time_no_s_re, END_STR.join(self.domain_literals)+END_STR)
@@ -138,6 +137,10 @@ class Nogood:
         matches = [int(m) for m in matches]
 
         self.max_time = max(matches)
+
+        # if we are changing the holds' to holds(t-1) then the
+        # dynamic here changes since there can be degree of 1 even
+        # with no opentime
 
         # dif_to_min would be the degree
         if len(matches_step) == 0:
@@ -515,7 +518,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                     max_lit_count=50,
                     nogoods_wanted=100,
                     nogoods_wanted_by_count=-1,
-                    sortby=["literal_count"], 
+                    sortby=["ordering"], 
                     validate_files=None, 
                     reverse_sort=False,
                     validate_instance="none",
@@ -740,25 +743,31 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     return conversion_stats, scaling_by_val, scaling_labels
 
+def plasp_domain_search(instance):
+    # look for domain in the same folder
+    logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(instance), "domain.pddl")))
+    if os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
+        domain = os.path.join(get_parent_dir(instance), "domain.pddl")
+        logging.info("Succes finding domain!")
+    # look for domain in parent folder
+    else:
+        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
+        if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
+            domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
+            logging.info("Succes finding domain!")
+
+        else:
+            return None
+
+    return domain
+            
 def plasp_translate(instance, domain, filename, no_fd):
 
     if domain is None:
-        # look for domain in the same folder
-        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(instance), "domain.pddl")))
-        if os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
-            domain = os.path.join(get_parent_dir(instance), "domain.pddl")
-            logging.info("Succes finding domain!")
-        # look for domain in parent folder
-        else:
-            logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
-            if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
-                domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
-                logging.info("Succes finding domain!")
-
-            else:
-                logging.error("no domain could be found. Exiting...")
-                sys.exit(-1)
-
+        domain = plasp_domain_search(instance)
+        if domain is None:
+            logging.error("no domain could be found. Exiting...")
+            sys.exit(-1)
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
 
@@ -784,6 +793,38 @@ def plasp_translate(instance, domain, filename, no_fd):
     if not no_fd:
         os.remove("output.sas")
 
+def plasp2_translate(instance, domain, filename):
+    if domain is None:
+        domain = plasp_domain_search(instance)
+        if domain is None:
+            logging.error("no domain could be found. Exiting...")
+            sys.exit(-1)
+
+    instance_files = [domain, instance]
+
+    logging.info("translating instance {}\nwith domain {}".format(instance, domain))
+    logging.info("Translating with plasp 2...")
+    plasp_call = [config_file.PLASP, "-c"] + instance_files
+
+    output = subprocess.check_output(plasp_call).decode("utf-8")
+
+    logging.info(output)
+
+    ls_call = ["ls", "plasp_output"]
+    output = subprocess.check_output(ls_call).decode("utf-8")
+    logging.info(output)
+    files = output.split()
+    files = [os.path.join("plasp_output", f) for f in files if "plasp.log" not in f and "generated_encoding" not in f]
+    logging.info(files)
+    translated_instance = ""
+    for _f in files:
+        with open(_f, "r") as f:
+            translated_instance += f.read()
+
+    with open(filename, "w") as f:
+        f.write(translated_instance.replace("#base.", ""))
+
+    logging.info("saved translation into {}".format(filename))
 
 def produce_nogoods(file_names, args, config):
 
@@ -865,7 +906,7 @@ if __name__ == "__main__":
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
 
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
-    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["degree", "literal_count"])
+    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["ordering"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
 
@@ -891,10 +932,18 @@ if __name__ == "__main__":
 
     parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
 
+    parser.add_argument("--version", action="store_true", help="Print version information and exit.")
 
     args = parser.parse_args()
 
     setup_logging(args.no_stream_output, args.logtofile)
+
+    if args.version:
+        logging.info(subprocess.check_output([config_file.PLASP, "--version"]).decode("utf-8"))
+        logging.info(subprocess.check_output([config_file.RUNSOLVER_PATH, "--version"]).decode("utf-8"))
+        logging.info("last git commit: " + subprocess.check_output(["git", "describe", "--always"]).decode("utf-8"))
+
+        sys.exit(0)
 
     if args.scaling_list is not None and args.scaling_exp is not None:
         logging.error("only one scaling can be provided at a time. Use either --scaling-list or --scaling-exp")
@@ -916,7 +965,7 @@ if __name__ == "__main__":
     config["nogoods_wanted_by_count"] = args.nogoods_wanted_by_count
     config["inc_t"] = args.inc_t
 
-    if args.instance.endswith(".pddl"):
+    if args.instance is not None and args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
 
         args.instance = None
@@ -927,7 +976,13 @@ if __name__ == "__main__":
         else:
             trans_name = "instance-temp.lp"
 
-        plasp_translate(args.pddl_instance, args.pddl_domain, trans_name, args.no_fd)
+        # check plasp version
+        output = subprocess.check_output([config_file.PLASP, "--version"]).decode("utf-8")
+        logging.info(output)
+        if "plasp 2." in output:
+            plasp2_translate(args.pddl_instance, args.pddl_domain, trans_name)
+        elif "plasp version 3." in output:
+            plasp_translate(args.pddl_instance, args.pddl_domain, trans_name, args.no_fd)
 
         instance = trans_name
         files.append(instance)
