@@ -36,5 +36,5 @@ assumption(holds(F,0),false) :- not init(F), fluent(F).
 % goal
 assumption(holds(F,horizon),V) :- goal(F,V).
 % otime
-assumption(otime(T),true) :- time(T).
+assumption(otime(T),true) :- time(T), T > 0.
 
