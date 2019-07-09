@@ -126,17 +126,6 @@ class Nogood:
 
                 self.literals[i] = new_lit.replace("'", "")
 
-    def process_domain_literals(self):
-        # here we create "next" literals out of the not external literals
-        # as a form of handling the domain of the time 
-
-        for dl in self.domain_literals:
-            if "not external(" in dl:
-                # delete the not external and the last parenthesis )
-                new_dl = dl.replace("not external(", "")[:-1]
-
-                self.domain_literals.append(new_dl)
-
     def process_time(self):
 
 
