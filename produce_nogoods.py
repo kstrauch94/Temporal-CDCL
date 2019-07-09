@@ -86,7 +86,8 @@ class Nogood:
             self.lbd = lbd
 
         self.process_literals(nogood_str)
-        self.process_domain_literals()
+        #self.process_domain_literals()
+        self.process_prime_literals()
 
         self.process_time()
 
@@ -115,6 +116,15 @@ class Nogood:
             else:
                 self.literals.append(lit)
 
+    def process_prime_literals(self):
+
+        for i, lit in enumerate(self.literals):
+            if "'" in lit:
+                time = self._time_in_lit(lit)
+                new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}\1{end}".format(t=time-1, end=END_STR), lit + END_STR)
+
+                self.literals[i] = new_lit.replace("'", "")
+
     def process_domain_literals(self):
         # here we create "next" literals out of the not external literals
         # as a form of handling the domain of the time 
@@ -138,15 +148,14 @@ class Nogood:
 
         self.max_time = max(matches)
 
-        # if we are changing the holds' to holds(t-1) then the
-        # dynamic here changes since there can be degree of 1 even
-        # with no opentime
+
 
         # dif_to_min would be the degree
+        # if there are no otime(or step) atom then
+        # calculate min and dif to min based on matches
         if len(matches_step) == 0:
-            # if there are no step externals then dif is 0
-            self.dif_to_min = 0
-            self.min_time = self.max_time
+            self.min_time = min(matches)
+            self.dif_to_min = self.max_time - self.min_time
         else:
             # if there are step atoms then dif +1 is the degree
             # since step externals only cover the higher time step of
@@ -163,6 +172,11 @@ class Nogood:
     def literal_count(self):
         return len(self.literals)
 
+    def _time_in_lit(self, lit):
+        time = int(re.search(r"([0-9]+)\)*{end}".format(end=END_STR), lit + END_STR).group(1))
+
+        return time
+
     def _generalize(self, literals):
 
         if len(literals) == 0:
@@ -171,7 +185,7 @@ class Nogood:
         gen_literals = []
 
         for lit in literals:
-            time = int(re.search(r"([0-9]+)\)*{end}".format(end=END_STR), lit + END_STR).group(1))
+            time = self._time_in_lit(lit)
 
             new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}-{dif}\1{end}".format(t=self.t, dif=self.max_time - time, end=END_STR), lit + END_STR)
 
