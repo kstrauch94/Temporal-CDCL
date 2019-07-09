@@ -58,13 +58,6 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 % holds' at T is equivalent to holds at T-1 (when otime at T is true)
 :- holds'(X,V,T), not holds(X,V,T-1), otime(T).
 :- not holds'(X,V,T), holds(X,V,T-1), otime(T).
-% open otime
-{ otime(T) } :- time(T).
-
-
-%
-% Define assumptions
-%
-
 % otime
-assumption(otime(T),true) :- time(T).
+otime(T) :- time(T).
+
