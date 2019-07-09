@@ -28,8 +28,6 @@ holds(F, T) :- holds'(F, T), not del(F, T), time(T), time(T - 1).
 :- holds'(F,T), not holds(F,T-1), otime(T).
 :- not holds'(F,T), holds(F,T-1), otime(T).
 % open otime
-{ otime(T) } :- time(T), T > 0.
+otime(T) :- time(T), T > 0.
 
-% otime
-assumption(otime(T),true) :- time(T), T > 0.
 
