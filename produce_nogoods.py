@@ -138,14 +138,9 @@ class Nogood:
 
         self.max_time = max(matches)
 
-
-
-        # dif_to_min would be the degree
-        # if there are no otime(or step) atom then
-        # calculate min and dif to min based on matches
         if len(matches_step) == 0:
             self.min_time = min(matches)
-            self.dif_to_min = self.max_time - self.min_time
+            self.dif_to_min = 0
         else:
             # if there are step atoms then dif +1 is the degree
             # since step externals only cover the higher time step of
@@ -154,9 +149,11 @@ class Nogood:
             self.min_time = min(matches + matches_step)
             self.dif_to_min = self.max_time - min(matches_step) + 1
 
+    self._degree = self.max_time - self.min_time
+
     @property
     def degree(self):
-        return self.dif_to_min
+        return self._degree
 
     @property
     def literal_count(self):
@@ -179,10 +176,6 @@ class Nogood:
 
             new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}-{dif}\1{end}".format(t=self.t, dif=self.max_time - time, end=END_STR), lit + END_STR)
 
-            if "external(next(" in lit or "next(" in lit:
-                new_lit = re.sub(r"next\({t},".format(t=time-1), r"next({t}-{dif},".format(t=self.t, dif=self.max_time - time + 1), new_lit)
-
-
             gen_literals.append(new_lit.replace(END_STR, ""))
 
         # there is an extra empty item at the end, so we delete it
@@ -194,7 +187,7 @@ class Nogood:
 
         self.domain_literals = self._generalize(self.domain_literals)
 
-        if self.dif_to_min == 0:
+        if len(self.domain_literals) == 0:
             if self.t == "T":
                 self.domain_literals += ["time(T)"]
 
