@@ -135,8 +135,9 @@ class Nogood:
         matches_step = re.findall(time_step_re, " ".join(self.domain_literals))
 
         matches = [int(m) for m in matches]
+        matches_step = [int(m) for m in matches_step]
 
-        self.max_time = max(matches)
+        self.max_time = max(matches + matches_step)
 
         if len(matches_step) == 0:
             self.min_time = min(matches)
@@ -145,7 +146,6 @@ class Nogood:
             # if there are step atoms then dif +1 is the degree
             # since step externals only cover the higher time step of
             # the rule
-            matches_step = [int(m) for m in matches_step]
             self.min_time = min(matches + matches_step)
             self.dif_to_min = self.max_time - min(matches_step) + 1
 
