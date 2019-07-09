@@ -61,7 +61,7 @@ def create_folder(path):
 
 class Nogood:
 
-    def __init__(self, nogood_str, ordering, lbd=None, inc_t=False):
+    def __init__(self, nogood_str, ordering, lbd=None, inc_t=False, transform_prime=False):
 
         #nogood_str: raw string printed out by the clingo call
         #ordering: line number of the nogood (the order in which the noogood was created)
@@ -86,8 +86,9 @@ class Nogood:
             self.lbd = lbd
 
         self.process_literals(nogood_str)
-        #self.process_domain_literals()
-        self.process_prime_literals()
+
+        if transform_prime:
+            self.process_prime_literals()
 
         self.process_time()
 
@@ -441,7 +442,7 @@ def scaling_by_value(stats, count, sortby):
 
     return scaling_by_val, total_count, scaling_labels
 
-def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t):
+def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
     unprocessed_ng = []
 
     with open(ng_file, "r") as f:
@@ -455,7 +456,7 @@ def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t):
                 continue
 
             # line is the raw text of the nogood, line num is the order it appears in the file
-            nogood = Nogood(line, line_num, lbd, inc_t)
+            nogood = Nogood(line, line_num, lbd, inc_t, transform_prime)
             # ignore nogoods of higher degree or literal count
             if max_deg >= 0 and nogood.degree > max_deg:
                 continue
@@ -537,7 +538,8 @@ def convert_ng_file(ng_name, converted_ng_name,
                     reverse_sort=False,
                     validate_instance="none",
                     validate_instance_files=None,
-                    inc_t=False):
+                    inc_t=False,
+                    transform_prime=False):
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
@@ -568,7 +570,7 @@ def convert_ng_file(ng_name, converted_ng_name,
         logging.info("nogood file does not exist!")
         return 0, None, None
 
-    unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t)
+    unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t, transform_prime)
     total_nogoods = len(unprocessed_ng)
 
     time_init_nogood = time.time() - t
@@ -923,6 +925,7 @@ if __name__ == "__main__":
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["ordering"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
+    parser.add_argument("--transform-prime", action="store_true", help="Transform prime atoms to their non prime variant. E.G. holds'(T) --> holds(T-1)")
 
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
     parser.add_argument("--validate-instance", default="none", choices=["none", "single", "all"], help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided. Single validates every constraint by itself. all validates all constraints together")
@@ -978,6 +981,7 @@ if __name__ == "__main__":
     config["nogoods_wanted"] = args.nogoods_wanted
     config["nogoods_wanted_by_count"] = args.nogoods_wanted_by_count
     config["inc_t"] = args.inc_t
+    config["transform_prime"] = args.transform_prime
 
     if args.instance is not None and args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
