@@ -149,7 +149,7 @@ class Nogood:
             self.min_time = min(matches + matches_step)
             self.dif_to_min = self.max_time - min(matches_step) + 1
 
-    self._degree = self.max_time - self.min_time
+        self._degree = self.max_time - self.min_time
 
     @property
     def degree(self):
