@@ -940,7 +940,7 @@ if __name__ == "__main__":
     if args.version:
         logging.info(subprocess.check_output([config_file.PLASP, "--version"]).decode("utf-8"))
         logging.info(subprocess.check_output([config_file.RUNSOLVER_PATH, "--version"]).decode("utf-8"))
-        logging.info("last git commit: " + subprocess.check_output(["git", "describe", "--always"]).decode("utf-8"))
+        logging.info("last git commit: " + subprocess.check_output(["git", "show", "--name-status"]).decode("utf-8"))
 
         sys.exit(0)
 
