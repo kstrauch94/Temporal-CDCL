@@ -831,13 +831,18 @@ def produce_nogoods(file_names, args, config):
     ng_name = "ng_temp.lp"
     converted_ng_name =  "conv_ng.lp"
 
+    if int(args.nogoods_limit) == 0:
+        solve_limit = -1
+    else:
+        solve_limit = 3*int(args.nogoods_limit)
+
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                         "--lemma-out=-",
                         "--lemma-out-dom=output", 
                         "--heuristic=Domain", 
                         "--dom-mod=level,show",
                         "--lemma-out-max={}".format(args.nogoods_limit),
-                        "--solve-limit={}".format(3*int(args.nogoods_limit)),
+                        "--solve-limit={}".format(solve_limit),
                         "--quiet=2",
                         "--stats",
                         "--loops=no", "--reverse-arcs=0", "--otfs=0",
@@ -912,7 +917,7 @@ if __name__ == "__main__":
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
     parser.add_argument("--validate-instance", default="none", choices=["none", "single", "all"], help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided. Single validates every constraint by itself. all validates all constraints together")
 
-    parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100", default=100, type=int)
+    parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 100, 0 = no limit", default=100, type=int)
 
     parser.add_argument("--nogoods-wanted", help="Nogoods will be processed will stop after this amount. Default = 100", default=100, type=int)
     parser.add_argument("--nogoods-wanted-by-count", help="Nogoods that have a value equal or less than the one given here in the variable given in the first position of the sortby option(does not work for ordering). This option overwrites nogoods-wanted option. If this option is used along with --consume it will use this values as the argument for --scaling-list unless those values are provided.", default=-1, type=int)
