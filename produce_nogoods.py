@@ -139,6 +139,9 @@ class Nogood:
 
         self.max_time = max(matches + matches_step)
 
+        # dif_to_min : this is the difference from the max time
+        # that can be the minimum timepoint in the rule
+        # so t_max - dif_to_min is (usually) above 0
         if len(matches_step) == 0:
             self.min_time = min(matches)
             self.dif_to_min = 0
@@ -149,6 +152,9 @@ class Nogood:
             self.min_time = min(matches + matches_step)
             self.dif_to_min = self.max_time - min(matches_step) + 1
 
+        # this is the actual timespan of the rule
+        # NOTE: degree CAN be one higher than max_time - dif_to_min
+        #       but ONLY when processing the prime literals
         self._degree = self.max_time - self.min_time
 
     @property
