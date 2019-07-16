@@ -19,6 +19,7 @@ def get_parent_dir(path):
     return os.path.dirname(path)
 
     
+DEBUG = False
 
 match_time = r"Time         : (\d+\.\d+)s"
 match_time_solve = r"Solving: (\d+\.\d+)s"
@@ -163,10 +164,17 @@ def read_nogoods(nogood_file):
 
     return nogoods
 
-def write_nogood_partial(nogoods, filename="nogood.temp"):
+def write_nogood_partial(nogoods, filename="nogood.temp", debug=False, fileid=0):
 
     with open(filename, "w") as f:
         f.writelines(nogoods)
+
+    if debug:
+        # if debug is on, write a file with the nogoods that won't get deleted
+        # fileid should be the scaling so that you can see for which run this file was used
+
+        with open(filename+"debug.{}".format(fileid), "w") as f:
+            f.writelines(nogoods)
 
 def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, horizon=None, base_run=True):
 
@@ -189,7 +197,6 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
         logging.info("base run")
         output = call_clingo(files, time_limit, options)
         results["base"] = output
-        logging.info(parse_call_results(output))
 
     # runs with scaling
     for nogood_current, label in zip(scaling, labels):
@@ -204,12 +211,10 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
 
         logging.info("Current scaling: {}".format(nogood_current))
 
-        write_nogood_partial(nogoods[:nogood_current], noogood_temp_name)
+        write_nogood_partial(nogoods[:nogood_current], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
         results[label] = output
-
-        logging.info(parse_call_results(output))
 
     try:
         os.remove(noogood_temp_name)
@@ -289,12 +294,16 @@ if __name__ == "__main__":
     parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
     parser.add_argument("--logtofile", help="log to a file")
 
+    parser.add_argument("--debug", action="store_true", help="For every scaling amount, write a file with the nogoods used for that particular scaling.")
+
 
     args = parser.parse_args()
 
     setup_logging(args.no_stream_output, args.logtofile)
 
     files = args.files
+
+    DEBUG = args.debug
 
     if args.pddl_instance is not None:
         if args.trans_name is not None:
@@ -317,7 +326,7 @@ if __name__ == "__main__":
             with open(out_path, "w") as f:
                 f.write(out)
 
-    for label, out in results.items():
+    for label, out in sorted(results.items()):
         logging.info("results for label: {}".format(label))
         logging.info(out)
 
