@@ -749,29 +749,27 @@ def produce_nogoods(file_names, args, config):
     ng_name = "ng_temp.lp"
     converted_ng_name =  "conv_ng.lp"
 
-    if int(args.nogoods_limit) == 0:
-        solve_limit = -1
-    else:
-        solve_limit = 3*int(args.nogoods_limit)
-
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                         "--lemma-out=-",
                         "--lemma-out-dom=output", 
                         "--heuristic=Domain", 
                         "--dom-mod=level,show",
-                        "--lemma-out-max={}".format(args.nogoods_limit),
-                        "--solve-limit={}".format(solve_limit),
                         "--quiet=2",
                         "--stats",
-                        "--loops=no", "--reverse-arcs=0", "--otfs=0",
-                        "1"]
+                        "--loops=no", "--reverse-arcs=0", "--otfs=0"]
+
+    if int(args.nogoods_limit) > 0:
+        lemma_out_max = ["--lemma-out-max={}".format(args.nogoods_limit)]
+    else:
+        lemma_out_max = []
+
 
     if args.horizon is not None:
         horizon = ["-c", "horizon={}".format(args.horizon)]
     else:
         horizon = []
 
-    NG_RECORDING_OPTIONS += horizon
+    NG_RECORDING_OPTIONS += lemma_out_max + horizon + ["0"]
 
     # call clingo to extract nogoods
     t = time.time()
