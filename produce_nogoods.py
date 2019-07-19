@@ -473,12 +473,16 @@ def check_nogood_str(ng_str, max_deg, max_lit_count):
 
     return True
 
-def generalize_nogoods(ng_list, nogoods_wanted):
+def generalize_nogoods(ng_list, nogoods_wanted, grab_last):
 
     lines_set = set()
     repeats = 0
     nogoods_generalized = 0
     nogoods = []
+
+    if grab_last:
+        ng_list = reversed(ng_list)
+
     for ng in ng_list:
 
         ng.generalize()
@@ -498,6 +502,9 @@ def generalize_nogoods(ng_list, nogoods_wanted):
         # than the amount we want
         if nogoods_wanted > 1 and nogoods_generalized >= nogoods_wanted:
             break
+
+    if grab_last:
+        nogoods = list(reversed(nogoods))
 
     print("total repeats: ", repeats)
     return nogoods, repeats
@@ -527,7 +534,8 @@ def convert_ng_file(ng_name, converted_ng_name,
                     validate_instance="none",
                     validate_instance_files=None,
                     inc_t=False,
-                    transform_prime=False):
+                    transform_prime=False,
+                    grab_last=False):
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
@@ -613,7 +621,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         t = time.time()
 
-        nogoods, repeats = generalize_nogoods(unprocessed_ng, nogoods_wanted)
+        nogoods, repeats = generalize_nogoods(unprocessed_ng, nogoods_wanted, grab_last)
         conversion_stats["repeats"] = Stat("repeats", repeats, "{} nogoods were identical")
 
         time_generalize = time.time() - t
@@ -877,7 +885,8 @@ def produce_nogoods(file_names, args, config):
     logging.info("time to do conversion jobs: {}".format(time_conversion))
     
     try:
-        os.remove(ng_name)
+        #os.remove(ng_name)
+        pass
     except OSError:
         logging.warning("Tried to remove {} but it was already deleted!".format(ng_name))
 
@@ -914,6 +923,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-fd", action="store_true", help="When translating the pddl instance, do not use Fast Downward preprocessing.")
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
 
+    parser.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods. E.G. list=[1,2,3,4,5,6] and we want 2 nogoods: no --grab-last result is [1,2]. with --grab-last result is [5,6] ")
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["ordering"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
@@ -975,6 +985,7 @@ if __name__ == "__main__":
     config["nogoods_wanted_by_count"] = args.nogoods_wanted_by_count
     config["inc_t"] = args.inc_t
     config["transform_prime"] = args.transform_prime
+    config["grab_last"] = args.grab_last
 
     if args.instance is not None and args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
