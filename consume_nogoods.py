@@ -7,28 +7,13 @@ import argparse
 import operator
 import logging
 import time
+import config_file
+from tools.tools import setup_logging, plasp_translate, get_parent_dir
 
-
-def get_parent_dir(path):
-    # this gets the name of the parent folder
-
-    # if there is a trailing backslash then delete it
-    if path.endswith("/"):
-        path = path[:-1]
-
-    return os.path.dirname(path)
-
-    
 DEBUG = False
 
 match_time = r"Time         : (\d+\.\d+)s"
 match_time_solve = r"Solving: (\d+\.\d+)s"
-
-FD_CALL = ["/home/klaus/bin/Fast-Downward/fast-downward.py", "--translate"]
-
-FILE_PATH = os.path.abspath(__file__)
-
-RUNSOLVER_PATH = os.path.join(get_parent_dir(FILE_PATH), "runsolver")
 
 def create_folder(path):
     """
@@ -42,72 +27,10 @@ def create_folder(path):
         if exception.errno != errno.EEXIST:
             raise
 
-def setup_logging(no_stream_output=False, logtofile=None):
-
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter("%(levelname)s: %(message)s")
-
-    if logtofile is not None:
-        fileHandler = logging.FileHandler(logtofile, mode="w")
-        fileHandler.setFormatter(formatter)
-        rootLogger.addHandler(fileHandler)
-
-    if not no_stream_output:
-        consoleHandler = logging.StreamHandler(sys.stdout)
-        consoleHandler.setFormatter(formatter)
-        rootLogger.addHandler(consoleHandler)
-
-def plasp_translate(instance, domain, filename, no_fd):
-
-    if domain is None:
-        # look for domain in the same folder
-        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(instance), "domain.pddl")))
-        if os.path.isfile(os.path.join(get_parent_dir(instance), "domain.pddl")):
-            domain = os.path.join(get_parent_dir(instance), "domain.pddl")
-            logging.info("Succes finding domain!")
-        # look for domain in parent folder
-        else:
-            logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
-            if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
-                domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
-                logging.info("Succes finding domain!")
-
-            else:
-                logging.error("no domain could be found. Exiting...")
-                sys.exit(-1)
-
-
-    logging.info("translating instance {}\nwith domain {}".format(instance, domain))
-
-    if not no_fd:
-        logging.info("Calling Fast Downward preprocessing...")
-        fd_call = config_file.FD_CALL + [domain, instance]
-        instance_files = ["output.sas"]
-
-        output = subprocess.check_output(fd_call).decode("utf-8")
-
-    else:
-        instance_files = [domain, instance]
-
-    logging.info("Translating with plasp...")
-    plasp_call = [config_file.PLASP, "translate"] + instance_files
-
-    output = subprocess.check_output(plasp_call).decode("utf-8")
-    with open(filename, "w") as f:
-        f.write(output)
-
-    logging.info("saved translation into {}".format(filename))
-
-    if not no_fd:
-        os.remove("output.sas")
-
-
 def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
-    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+    CLINGO = [config_file.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
 
     call = CLINGO + options
@@ -197,6 +120,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
         logging.info("base run")
         output = call_clingo(files, time_limit, options)
         results["base"] = output
+        logging.info(output)
 
     # runs with scaling
     for nogood_current, label in zip(scaling, labels):
@@ -215,6 +139,8 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
         results[label] = output
+
+        logging.info(output)
 
     try:
         os.remove(noogood_temp_name)
@@ -326,7 +252,4 @@ if __name__ == "__main__":
             with open(out_path, "w") as f:
                 f.write(out)
 
-    for label, out in sorted(results.items()):
-        logging.info("results for label: {}".format(label))
-        logging.info(out)
 
