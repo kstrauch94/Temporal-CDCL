@@ -829,11 +829,6 @@ if __name__ == "__main__":
 
     parser.add_argument("--logtofile", help="log to a file")
 
-    parser.add_argument("--consume", action="store_true", help="consume the generated nogoods based on the given scaling.")
-    parser.add_argument("--scaling-exp", help="scaling of how many nogoods to use. format=start,factor,count", default=None)
-    parser.add_argument("--scaling-list", help="Perform scaling by the values provided", default=None)
-    parser.add_argument("--consume-time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
-
     parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
 
     parser.add_argument("--version", action="store_true", help="Print version information and exit.")
@@ -848,10 +843,6 @@ if __name__ == "__main__":
         logging.info("last git commit: " + subprocess.check_output(["git", "show", "--name-status"]).decode("utf-8"))
 
         sys.exit(0)
-
-    if args.scaling_list is not None and args.scaling_exp is not None:
-        logging.error("only one scaling can be provided at a time. Use either --scaling-list or --scaling-exp")
-        sys.exit(1)
 
     files = args.files
 
@@ -906,24 +897,13 @@ if __name__ == "__main__":
 
     converted_nogoods, scaling_by_val, scaling_labels = produce_nogoods(files, args, config)
     
-    if args.scaling_list is not None:
-        scaling_list = args.scaling_list
-        scaling_exp = None
-    elif scaling_by_val is not None:
-        scaling_list = scaling_by_val
-        scaling_exp = None
-    elif args.scaling_exp is not None:
-        scaling_exp = args.scaling_exp
-        scaling_list = None
+    if scaling_by_val is not None:
+        scaling_by_val = ",".join([str(v) for v in scaling_by_val])
+        scaling_labels = ",".join([str(v) for v in scaling_labels])
 
-    if args.consume:
-        results = consume_nogoods.consume(files, converted_nogoods, 
-                                          scaling_list, scaling_exp, 
-                                          time_limit=args.consume_time_limit, 
-                                          labels=scaling_labels, 
-                                          horizon=args.horizon)
-        for label, out in results.items():
-            logging.debug(out)
+        logging.info("Scaling by value amounts: {}".format(scaling_by_val))
+        logging.info("Scaling by value labels : {}".format(scaling_labels))
+
 
     #if args.pddl_instance is not None:
     #    os.remove(trans_name)
