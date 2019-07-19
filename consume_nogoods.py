@@ -87,7 +87,7 @@ def write_nogood_partial(nogoods, filename="nogood.temp", debug=False, fileid=0)
         with open(filename+"debug.{}".format(fileid), "w") as f:
             f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, horizon=None, base_run=True):
+def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, horizon=None, no_base_run=False):
 
     logging.info("Starting nogood consumption...")
 
@@ -103,7 +103,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
     total_nogoods = len(nogoods)
 
 
-    if base_run:
+    if not no_base_run:
         # do a base run
         logging.info("base run")
         output = call_clingo(files, time_limit, options)
@@ -137,7 +137,7 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
 
     return results
 
-def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None, horizon=None, base_run=True):
+def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling=0, time_limit=0, labels=None, horizon=None, no_base_run=False):
     # scaling type can be "by_value" or "by_factor"
     # by_value means just passing a list with amount of nogoods, those amounts will be used in the runs
     # by factor means passing 3 argument, start amount, scaling factor and total runs
@@ -181,7 +181,7 @@ def consume(files, nogood_file, scaling_list=None, scaling_exp=None, max_scaling
 
     return run_tests(files, nogood_file, scaling, scaling_labels, \
             max_scaling=max_scaling, time_limit=time_limit, horizon=horizon, \
-            base_run=base_run)
+            no_base_run=no_base_run)
 
 if __name__ == "__main__":
 
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         files.append(trans_name)
 
     results = consume(files, args.nogoods, args.scaling_list, args.scaling_exp, 
-                      max_scaling=args.max_scaling, time_limit=args.time_limit, horizon=args.horizon, base_run=not args.no_base_run)
+                      max_scaling=args.max_scaling, time_limit=args.time_limit, horizon=args.horizon, no_base_run=args.no_base_run)
     
     if args.save_folder is not None:
         create_folder(args.save_folder)
