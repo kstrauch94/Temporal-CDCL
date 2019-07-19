@@ -217,6 +217,13 @@ if __name__ == "__main__":
 
     files = args.files
 
+    if args.scaling_list is not None and args.scaling_exp is not None:
+        logging.error("only one scaling can be provided at a time. Use either --scaling-list or --scaling-exp.\nExiting...")
+        sys.exit(1)
+    if args.scaling_list is None and args.scaling_exp is None:
+        logging.error("A scaling has to be specified. Use either --scaling-list or --scaling-exp.\nExiting...")
+        sys.exit(1)
+        
     DEBUG = args.debug
 
     if args.pddl_instance is not None:
