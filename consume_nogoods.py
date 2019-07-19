@@ -15,18 +15,6 @@ DEBUG = False
 match_time = r"Time         : (\d+\.\d+)s"
 match_time_solve = r"Solving: (\d+\.\d+)s"
 
-def create_folder(path):
-    """
-    from http://stackoverflow.com/posts/5032238/revisions
-
-    :param path: folder to be created
-    """
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
 def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
