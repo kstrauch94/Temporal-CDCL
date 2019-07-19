@@ -236,11 +236,14 @@ hypothesisConstraint({t}-degree) {constraint}
         else:
             self.validated = False
 
-    def validate_instance(self, files):
+    def validate_instance(self, files, horizon=None):
 
         temp_validate = "temp_validate_inst.lp"
 
         call = ["clingo", "--quiet=1", temp_validate] + files
+
+        if horizon is not None:
+            call += ["-c", "horizon={}".format(horizon)]
 
         logging.debug("calling : {}".format(call))
 
@@ -344,7 +347,7 @@ def call_clingo_pipe(file_names, time_limit, options, out_file, max_deg=10, max_
 
     logging.info(output)
 
-def validate_instance_all(files):
+def validate_instance_all(files, horizon=None):
     # files argument is a list containing the encoding, instance and the file containing all nogoods to be proven
 
     val_file_all = "validate_instance_all.lp"
@@ -358,6 +361,9 @@ def validate_instance_all(files):
         f.write("#show error/1.\n")
 
     call = ["clingo", "--quiet=1", val_file_all] + files
+
+    if horizon is not None:
+        call += ["-c", "horizon={}".format(horizon)]
 
     logging.debug("calling : {}".format(call))
 
@@ -535,7 +541,8 @@ def convert_ng_file(ng_name, converted_ng_name,
                     validate_instance_files=None,
                     inc_t=False,
                     transform_prime=False,
-                    grab_last=False):
+                    grab_last=False,
+                    horizon=None):
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
@@ -674,7 +681,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
                     # this part is validating within the instance
                     t = time.time()
-                    ng.validate_instance(validate_instance_files)
+                    ng.validate_instance(validate_instance_files, horizon)
                     time_validate_instance += time.time() - t
                     
                     if not ng.instance_validated:
@@ -702,7 +709,7 @@ def convert_ng_file(ng_name, converted_ng_name,
                 #write all nogoods in a file as a rule:
                 # add the rule as in the nogoods class instance val
                 t = time.time()
-                validate_instance_all(validate_instance_files)
+                validate_instance_all(validate_instance_files, horizon)
                 time_validate_instance += time.time() - t
 
             conversion_stats["time_validate_instance"] = Stat("time_validate_instance", time_validate_instance, "time to validate within instance: {}")
@@ -986,6 +993,7 @@ if __name__ == "__main__":
     config["inc_t"] = args.inc_t
     config["transform_prime"] = args.transform_prime
     config["grab_last"] = args.grab_last
+    config["horizon"] = args.horizon
 
     if args.instance is not None and args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
