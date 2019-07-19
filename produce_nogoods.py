@@ -12,7 +12,7 @@ import consume_nogoods
 from collections import Counter
 
 import config_file
-from tools.tools import setup_logging, plasp_translate, get_parent_dir
+from tools.tools import setup_logging, plasp_translate, get_parent_dir, create_folder
 
 OPENTIME = "otime"
 
@@ -38,18 +38,6 @@ error_re = r"error\(([0-9]+)\)"
 split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
 
 UNSAT = "UNSATISFIABLE"
-
-def create_folder(path):
-    """
-    from http://stackoverflow.com/posts/5032238/revisions
-
-    :param path: folder to be created
-    """
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
 
 class Nogood:
 

@@ -113,3 +113,15 @@ def get_parent_dir(path):
         path = path[:-1]
 
     return os.path.dirname(path)
+
+def create_folder(path):
+    """
+    from http://stackoverflow.com/posts/5032238/revisions
+
+    :param path: folder to be created
+    """
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
