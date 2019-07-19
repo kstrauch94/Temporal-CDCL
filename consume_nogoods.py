@@ -112,18 +112,21 @@ def run_tests(files, nogood_file, scaling, labels, max_scaling=0, time_limit=0, 
 
     # runs with scaling
     for nogood_current, label in zip(scaling, labels):
-        if nogood_current > total_nogoods:
+        if nogood_current > 0 and nogood_current > total_nogoods:
             logging.info("Finishing early. Trying to use {} nogoods but only {} are available.".format(nogood_current, total_nogoods))
             break
 
         # if this run has a current scaling higher than the max, break
-        if max_scaling > 0 and nogood_current > max_scaling:
+        if nogood_current > 0 and max_scaling > 0 and nogood_current > max_scaling:
             logging.info("Finishing early. Current scaling of {} is higher than max scaling: {}".format(nogood_current, max_scaling))
             break
 
         logging.info("Current scaling: {}".format(nogood_current))
 
-        write_nogood_partial(nogoods[:nogood_current], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
+        if nogood_current == -1:
+            write_nogood_partial(nogoods[:], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
+        else:
+            write_nogood_partial(nogoods[:nogood_current], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
         results[label] = output
@@ -223,7 +226,7 @@ if __name__ == "__main__":
     if args.scaling_list is None and args.scaling_exp is None:
         logging.error("A scaling has to be specified. Use either --scaling-list or --scaling-exp.\nExiting...")
         sys.exit(1)
-        
+
     DEBUG = args.debug
 
     if args.pddl_instance is not None:
