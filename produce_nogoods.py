@@ -12,7 +12,7 @@ import consume_nogoods
 from collections import Counter
 
 import config_file
-from tools.tools import setup_logging, plasp_translate, get_parent_dir, create_folder
+from tools.tools import setup_logging, plasp_translate, plasp2_translate, get_parent_dir, create_folder
 
 OPENTIME = "otime"
 
