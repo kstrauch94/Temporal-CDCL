@@ -81,9 +81,10 @@ def plasp2_translate(instance, domain, filename):
     instance_files = [domain, instance]
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
-    logging.info("Translating with plasp 2...")
+    logging.info("Translating with plasp 2...\n")
     plasp_call = [config_file.PLASP, "-c"] + instance_files
 
+    logging.info("plasp call: {}".format(" ".join(plasp_call)))
     output = subprocess.check_output(plasp_call).decode("utf-8")
 
     logging.info(output)
@@ -94,15 +95,18 @@ def plasp2_translate(instance, domain, filename):
     files = output.split()
     files = [os.path.join("plasp_output", f) for f in files if "plasp.log" not in f and "generated_encoding" not in f]
     logging.info(files)
-    translated_instance = ""
+    translated_instance = []
     for _f in files:
         with open(_f, "r") as f:
-            translated_instance += f.read()
+            translated_instance += f.readlines()
+
+    # sort lines and then make a string from the list
+    translated_instance = "\n".join(sorted(translated_instance))
 
     with open(filename, "w") as f:
         f.write(translated_instance.replace("#base.", ""))
 
-    logging.info("saved translation into {}".format(filename))
+    logging.info("saved translation into {}\n".format(filename))
 
 
 def get_parent_dir(path):
