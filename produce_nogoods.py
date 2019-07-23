@@ -590,8 +590,11 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     t = time.time()
     for key, val in stats.items():
-        #if "mean" in key:
-        logging.info("{} {}".format(key, val))
+        if "mean" not in key:
+            logging.info("{} {}".format(key, sorted(val.items())))
+        else:
+            logging.info("{} {}".format(key, val))
+
     time_logging_stats = time.time() - t
 
     conversion_stats["time_logging_stats"] = Stat("time_logging_stats", time_logging_stats, "time to log stats: {}")
