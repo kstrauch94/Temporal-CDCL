@@ -419,10 +419,10 @@ def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
     unprocessed_ng = []
 
     with open(ng_file, "r") as f:
-        for line_num, line in enumerate(f):
+        for line_num, line in enumerate(f, 1):
 
             # if no lbd is found then the file was not written fully
-            # if it it found then pass it as argument to not do this twice
+            # if it is found then pass it as argument to not do this twice
             try:
                 lbd = int(re.search(lbd_re, line).group(1))
             except AttributeError as e:
@@ -438,11 +438,12 @@ def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
 
             unprocessed_ng.append(nogood)
 
-    return unprocessed_ng
+    # line-num should be the amount of nogoods in the raw file
+    return unprocessed_ng, line_num + 1
 
 def check_nogood_str(ng_str, max_deg, max_lit_count):
     # if no lbd is found then the file was not written fully
-    # if it it found then pass it as argument to not do this twice
+    # if it is found then pass it as argument to not do this twice
     try:
         lbd = int(re.search(lbd_re, ng_str).group(1))
     except AttributeError as e:
@@ -553,15 +554,17 @@ def convert_ng_file(ng_name, converted_ng_name,
         logging.info("nogood file does not exist!")
         return 0, None, None
 
-    unprocessed_ng = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t, transform_prime)
-    total_nogoods = len(unprocessed_ng)
+    unprocessed_ng, total_nogoods = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t, transform_prime)
+    total_nogoods_after_processing = len(unprocessed_ng)
 
     time_init_nogood = time.time() - t
     conversion_stats["time_init_nogood"] = Stat("time_init_nogood", time_init_nogood, "time initializing nogoods: {}")
 
     conversion_stats["total_raw_nogoods"] = Stat("total_raw_nogoods", total_nogoods, "total lines in the raw nogood file: {}\n")
+    conversion_stats["total_raw_nogoods_after_filters"] = Stat("total_raw_nogoods_after_filters", total_nogoods_after_processing, "total nogoods after filtering by degree and size: {}\n")
 
     logging.info(conversion_stats["total_raw_nogoods"].message)
+    logging.info(conversion_stats["total_raw_nogoods_after_filters"].message)
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
         return conversion_stats, None, None
@@ -625,7 +628,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
 
         total_nogoods = len(nogoods)
-        conversion_stats["total_nogoods_generalized"] = Stat("total_nogoods_generalized", total_nogoods, "Total nogoods after processing: {}")
+        conversion_stats["total_nogoods_generalized"] = Stat("total_nogoods_generalized", total_nogoods, "Total nogoods after generalizing: {}")
 
         logging.info(conversion_stats["total_nogoods_generalized"].message)
 
@@ -781,8 +784,13 @@ def produce_nogoods(file_names, args, config):
 
     # call clingo to extract nogoods
     t = time.time()
-    call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
-                     ng_name, args.max_deg, args.max_lit_count)
+    if args.no_nogood_logging_filter:
+        # if no filter: add the correct values to max def and max lit so that there is no limit
+        call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
+                         ng_name, -1, 0)
+    else:
+        call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
+                         ng_name, args.max_deg, args.max_lit_count)
     time_extract = time.time() - t
 
     t = time.time()
@@ -836,6 +844,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
     parser.add_argument("--no-nogood-stats", action="store_true", help="Do not calculate and show the stats on nogoods(degree, size and lbd count)")
+    parser.add_argument("--no-nogood-logging-filter", action="store_true", help="Do not filter the nogoods by literal count or degree on the nogoods logging stage(on the first clingo call)")
 
     parser.add_argument("--logtofile", help="log to a file")
 
