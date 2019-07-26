@@ -521,7 +521,8 @@ def convert_ng_file(ng_name, converted_ng_name,
                     inc_t=False,
                     transform_prime=False,
                     grab_last=False,
-                    horizon=None):
+                    horizon=None,
+                    no_nogood_stats=False):
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
@@ -581,22 +582,27 @@ def convert_ng_file(ng_name, converted_ng_name,
 #            f.write(str(line))
 
     # extract some stats about some nogood properties
-    t = time.time()
-    stats = extract_stats(unprocessed_ng)
-    time_extract_stats = time.time() - t
-    conversion_stats["time_extract_stats"] = Stat("time_extract_stats", time_extract_stats, "time to extract stats: {}")
+    if not no_nogood_stats:
+        t = time.time()
+        stats = extract_stats(unprocessed_ng)
+        time_extract_stats = time.time() - t
+        conversion_stats["time_extract_stats"] = Stat("time_extract_stats", time_extract_stats, "time to extract stats: {}")
 
 
-    t = time.time()
-    for key, val in stats.items():
-        if "mean" not in key:
-            logging.info("{} {}".format(key, sorted(val.items())))
-        else:
-            logging.info("{} {}".format(key, val))
+        t = time.time()
+        for key, val in stats.items():
+            if "mean" not in key:
+                logging.info("{} {}".format(key, sorted(val.items())))
+            else:
+                logging.info("{} {}".format(key, val))
 
-    time_logging_stats = time.time() - t
+        time_logging_stats = time.time() - t
 
-    conversion_stats["time_logging_stats"] = Stat("time_logging_stats", time_logging_stats, "time to log stats: {}")
+        conversion_stats["time_logging_stats"] = Stat("time_logging_stats", time_logging_stats, "time to log stats: {}")
+
+    else:
+        conversion_stats["time_extract_stats"] = Stat("time_extract_stats", 0, "time to extract stats: {}")
+        conversion_stats["time_logging_stats"] = Stat("time_logging_stats", 0, "time to log stats: {}")
 
 
     # get the scaling amounts and the nogoods count we want
@@ -829,6 +835,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
+    parser.add_argument("--no-nogood-stats", action="store_true", help="Do not calculate and show the stats on nogoods(degree, size and lbd count)")
+
     parser.add_argument("--logtofile", help="log to a file")
 
     parser.add_argument("--no-stream-output", action="store_true", help="Supress output to the console")
@@ -864,6 +872,7 @@ if __name__ == "__main__":
     config["transform_prime"] = args.transform_prime
     config["grab_last"] = args.grab_last
     config["horizon"] = args.horizon
+    config["no_nogood_stats"] = args.no_nogood_stats
 
     if args.instance is not None and args.instance.endswith(".pddl"):
         args.pddl_instance = args.instance
