@@ -1,5 +1,4 @@
 import os
-import clingo
 import subprocess
 import re
 import sys
