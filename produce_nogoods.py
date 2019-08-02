@@ -825,7 +825,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods. E.G. list=[1,2,3,4,5,6] and we want 2 nogoods: no --grab-last result is [1,2]. with --grab-last result is [5,6] ")
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
-    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: [degree, literal_count]", default=["ordering"])
+    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: ordering", default=["ordering"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
     parser.add_argument("--transform-prime", action="store_true", help="Transform prime atoms to their non prime variant. E.G. holds'(T) --> holds(T-1)")
