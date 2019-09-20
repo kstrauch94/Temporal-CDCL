@@ -118,8 +118,9 @@ class Nogood:
 
         self.max_time = max(matches + matches_step)
 
+        # TODO: add more general approach when calculating dif_to_min
         # dif_to_min : this is the difference from the max time
-        # that can be the minimum timepoint in the rule
+        # to the time that can be the minimum timepoint in the rule
         # so t_max - dif_to_min is (usually) above 0
         if len(matches_step) == 0:
             self.min_time = min(matches)
@@ -365,6 +366,12 @@ def extract_stats(nogoods):
 
     total_nogoods = len(nogoods)
 
+    if total_nogoods == 0:
+        return {"degree": {}, "lbd": {}, "size": {},
+            "degree mean": None,
+            "lbd mean": None,
+            "size mean": None}
+
     degree = Counter()
     lbd = Counter()
     size = Counter()
@@ -418,8 +425,10 @@ def scaling_by_value(stats, count, sortby):
 def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
     unprocessed_ng = []
 
+    total_nogoods = 0
+
     with open(ng_file, "r") as f:
-        for line_num, line in enumerate(f, 1):
+        for line in f:
 
             # if no lbd is found then the file was not written fully
             # if it is found then pass it as argument to not do this twice
@@ -428,8 +437,10 @@ def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
             except AttributeError as e:
                 continue
 
+            total_nogoods += 1
+
             # line is the raw text of the nogood, line num is the order it appears in the file
-            nogood = Nogood(line, line_num, lbd, inc_t, transform_prime)
+            nogood = Nogood(line, total_nogoods, lbd, inc_t, transform_prime)
             # ignore nogoods of higher degree or literal count
             if max_deg >= 0 and nogood.degree > max_deg:
                 continue
@@ -439,7 +450,7 @@ def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
             unprocessed_ng.append(nogood)
 
     # line-num should be the amount of nogoods in the raw file
-    return unprocessed_ng, line_num + 1
+    return unprocessed_ng, total_nogoods
 
 def check_nogood_str(ng_str, max_deg, max_lit_count):
     # if no lbd is found then the file was not written fully
@@ -486,7 +497,7 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last):
         # if nogoods_wanted is a valid value
         # and the amount of nogoods we have is higher or equal
         # than the amount we want
-        if nogoods_wanted > 1 and nogoods_generalized >= nogoods_wanted:
+        if nogoods_wanted > 0 and nogoods_generalized >= nogoods_wanted:
             break
 
     if grab_last:
@@ -527,6 +538,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
+    conversion_time = time.time()
 
     conversion_stats = {}
 
@@ -552,7 +564,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     if not os.path.isfile(ng_name):
         logging.info("nogood file does not exist!")
-        return 0, None, None
+        return None, None, None
 
     unprocessed_ng, total_nogoods = read_nogood_file(ng_name, max_deg, max_lit_count, inc_t, transform_prime)
     total_nogoods_after_processing = len(unprocessed_ng)
@@ -567,7 +579,7 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info(conversion_stats["total_raw_nogoods_after_filters"].message)
     if total_nogoods == 0:
         logging.info("no nogoods learned...")
-        return conversion_stats, None, None
+        return None, None, None
 
     t = time.time()
     if sortby is not None:
@@ -585,12 +597,12 @@ def convert_ng_file(ng_name, converted_ng_name,
 #            f.write(str(line))
 
     # extract some stats about some nogood properties
-    if not no_nogood_stats:
-        t = time.time()
-        stats = extract_stats(unprocessed_ng)
-        time_extract_stats = time.time() - t
-        conversion_stats["time_extract_stats"] = Stat("time_extract_stats", time_extract_stats, "time to extract stats: {}")
+    t = time.time()
+    stats = extract_stats(unprocessed_ng)
+    time_extract_stats = time.time() - t
+    conversion_stats["time_extract_stats"] = Stat("time_extract_stats", time_extract_stats, "time to extract stats: {}")
 
+    if not no_nogood_stats:
 
         t = time.time()
         for key, val in stats.items():
@@ -604,7 +616,6 @@ def convert_ng_file(ng_name, converted_ng_name,
         conversion_stats["time_logging_stats"] = Stat("time_logging_stats", time_logging_stats, "time to log stats: {}")
 
     else:
-        conversion_stats["time_extract_stats"] = Stat("time_extract_stats", 0, "time to extract stats: {}")
         conversion_stats["time_logging_stats"] = Stat("time_logging_stats", 0, "time to log stats: {}")
 
 
@@ -751,6 +762,10 @@ def convert_ng_file(ng_name, converted_ng_name,
     logging.info(conversion_stats["time_sorting_nogoods"].message)
     logging.info(conversion_stats["time_writing_file"].message)
 
+    conversion_time = time.time() - conversion_time
+
+    conversion_stats["time_conversion_jobs"] = Stat("time_conversion_jobs", conversion_time, "time to do conversion jobs: {}")    
+
     return conversion_stats, scaling_by_val, scaling_labels
 
 def produce_nogoods(file_names, args, config):
@@ -793,14 +808,12 @@ def produce_nogoods(file_names, args, config):
                          ng_name, args.max_deg, args.max_lit_count)
     time_extract = time.time() - t
 
-    t = time.time()
     # convert the nogoods
     stats, scaling_by_val, scaling_labels = convert_ng_file(ng_name, converted_ng_name,
                     **config)
-    time_conversion = time.time() - t
 
     logging.info("time to extract: {}".format(time_extract))
-    logging.info("time to do conversion jobs: {}".format(time_conversion))
+    logging.info(stats["time_conversion_jobs"].message)
     
     try:
         #os.remove(ng_name)
@@ -843,7 +856,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
-    parser.add_argument("--no-nogood-stats", action="store_true", help="Do not calculate and show the stats on nogoods(degree, size and lbd count)")
+    parser.add_argument("--no-nogood-stats", action="store_true", help="Do not show the stats on nogoods(degree, size and lbd count)")
     parser.add_argument("--no-nogood-logging-filter", action="store_true", help="Do not filter the nogoods by literal count or degree on the nogoods logging stage(on the first clingo call)")
 
     parser.add_argument("--logtofile", help="log to a file")
