@@ -397,7 +397,7 @@ def extract_stats(nogoods):
             "lbd mean": float(lbd_total)/total_nogoods,
             "size mean": float(size_total)/total_nogoods}
 
-def scaling_by_value(stats, count, sortby):
+def scaling_by_value_total_count(stats, nogoods_wanted_by_count, sortby):
 
     if sortby[0] != "ordering" :
         if args.sortby[0] == "literal_count":
@@ -407,10 +407,33 @@ def scaling_by_value(stats, count, sortby):
         elif args.sortby[0] == "lbd":
             stat_name = "lbd"
 
+        # keep track of cumulative count of prev values
+        total_count = 0 
+        for i in range(nogoods_wanted_by_count + 1):
+            if i in stats[stat_name]:
+                count = int(stats[stat_name][i])
+                total_count += count
+
+    return total_count
+
+def get_scaling_count_and_labels(new_nogoods, nogoods_wanted_by_count, sortby):
+
+    stats = extract_stats(new_nogoods)
+
+    if sortby[0] != "ordering" :
+        if args.sortby[0] == "literal_count":
+            stat_name = "size"
+        elif args.sortby[0] == "degree":
+            stat_name = "degree"
+        elif args.sortby[0] == "lbd":
+            stat_name = "lbd"
+
+        print(stats[stat_name])
+
         scaling_by_val = []
         total_count = 0 # keep track of cumulative count of prev values
         scaling_labels = []
-        for i in range(args.nogoods_wanted_by_count + 1):
+        for i in range(nogoods_wanted_by_count + 1):
             if i in stats[stat_name]:
                 count = int(stats[stat_name][i])
                 scaling_by_val.append(count + total_count)
@@ -419,8 +442,9 @@ def scaling_by_value(stats, count, sortby):
 
     else:
         scaling_by_val = None
+        scaling_labels = None
 
-    return scaling_by_val, total_count, scaling_labels
+    return scaling_by_val, scaling_labels
 
 def read_nogood_file(ng_file, max_deg, max_lit_count, inc_t, transform_prime):
     unprocessed_ng = []
@@ -621,7 +645,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     # get the scaling amounts and the nogoods count we want
     if nogoods_wanted_by_count >= 0:
-        scaling_by_val, nogoods_wanted, scaling_labels = scaling_by_value(stats, nogoods_wanted_by_count, sortby)
+        nogoods_wanted = scaling_by_value_total_count(stats, nogoods_wanted_by_count, sortby)
     else:
         scaling_by_val = None
         scaling_labels = None
@@ -632,6 +656,9 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         nogoods, repeats = generalize_nogoods(unprocessed_ng, nogoods_wanted, grab_last)
         conversion_stats["repeats"] = Stat("repeats", repeats, "{} nogoods were identical")
+
+        if nogoods_wanted_by_count >= 0:
+            scaling_by_val, scaling_labels = get_scaling_count_and_labels(nogoods, nogoods_wanted_by_count, sortby)
 
         time_generalize = time.time() - t
 
