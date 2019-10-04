@@ -797,43 +797,55 @@ def convert_ng_file(ng_name, converted_ng_name,
 
 def produce_nogoods(file_names, args, config):
 
-    logging.info("Starting nogood production...")
+    if args.use_existing_ng_file is None:
 
-    ng_name = "ng_temp.lp"
+        logging.info("Starting nogood production...")
+
+        ng_name = "ng_temp.lp"
+
+        NG_RECORDING_OPTIONS = ["--lemma-out-txt",
+                            "--lemma-out=-",
+                            "--lemma-out-dom=output", 
+                            "--heuristic=Domain", 
+                            "--dom-mod=level,show",
+                            "--quiet=2",
+                            "--stats",
+                            "--loops=no", "--reverse-arcs=0", "--otfs=0"]
+
+        if int(args.nogoods_limit) > 0:
+            lemma_out_max = ["--lemma-out-max={}".format(args.nogoods_limit)]
+        else:
+            lemma_out_max = []
+
+
+        if args.horizon is not None:
+            horizon = ["-c", "horizon={}".format(args.horizon)]
+        else:
+            horizon = []
+
+        NG_RECORDING_OPTIONS += lemma_out_max + horizon + ["0"]
+
+        # call clingo to extract nogoods
+        t = time.time()
+        if args.no_nogood_logging_filter:
+            # if no filter: add the correct values to max def and max lit so that there is no limit
+            call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
+                             ng_name, -1, 0)
+        else:
+            call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
+                             ng_name, args.max_deg, args.max_lit_count)
+        time_extract = time.time() - t
+
+    else:
+        if not os.path.isfile(args.use_existing_ng_file):
+            logging.error("The nogood file provided does not exist. Exiting...")
+            sys.exit(-1)
+
+        ng_name = args.use_existing_ng_file
+        time_extract = 0
+
+
     converted_ng_name =  "conv_ng.lp"
-
-    NG_RECORDING_OPTIONS = ["--lemma-out-txt",
-                        "--lemma-out=-",
-                        "--lemma-out-dom=output", 
-                        "--heuristic=Domain", 
-                        "--dom-mod=level,show",
-                        "--quiet=2",
-                        "--stats",
-                        "--loops=no", "--reverse-arcs=0", "--otfs=0"]
-
-    if int(args.nogoods_limit) > 0:
-        lemma_out_max = ["--lemma-out-max={}".format(args.nogoods_limit)]
-    else:
-        lemma_out_max = []
-
-
-    if args.horizon is not None:
-        horizon = ["-c", "horizon={}".format(args.horizon)]
-    else:
-        horizon = []
-
-    NG_RECORDING_OPTIONS += lemma_out_max + horizon + ["0"]
-
-    # call clingo to extract nogoods
-    t = time.time()
-    if args.no_nogood_logging_filter:
-        # if no filter: add the correct values to max def and max lit so that there is no limit
-        call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
-                         ng_name, -1, 0)
-    else:
-        call_clingo_pipe(file_names, args.max_extraction_time, NG_RECORDING_OPTIONS,
-                         ng_name, args.max_deg, args.max_lit_count)
-    time_extract = time.time() - t
 
     # convert the nogoods
     stats, scaling_by_val, scaling_labels = convert_ng_file(ng_name, converted_ng_name,
@@ -863,6 +875,8 @@ if __name__ == "__main__":
     parser.add_argument("--no-fd", action="store_true", help="When translating the pddl instance, do not use Fast Downward preprocessing.")
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
 
+    parser.add_argument("--use-existing-ng-file", help="Process and existing nogood file.", metavar="file", default=None)
+
     parser.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods. E.G. list=[1,2,3,4,5,6] and we want 2 nogoods: no --grab-last result is [1,2]. with --grab-last result is [5,6] ")
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
     parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: ordering", default=["ordering"])
@@ -876,7 +890,7 @@ if __name__ == "__main__":
     parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 0, 0 = no limit", default=0, type=int)
 
     parser.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = 0, 0 = no limit", default=0, type=int)
-    parser.add_argument("--nogoods-wanted-by-count", help="Nogoods that have a value equal or less than the one given here in the variable given in the first position of the sortby option(does not work for ordering). This option overwrites nogoods-wanted option. If this option is used along with --consume it will use this values as the argument for --scaling-list unless those values are provided.", default=-1, type=int)
+    parser.add_argument("--nogoods-wanted-by-count", help="Nogoods that have a value equal or less than the one given here in the variable given in the first position of the sortby option(does not work for ordering).", default=-1, type=int)
 
     parser.add_argument("--max-deg", help="Processing will ignore nogoods with higher degree. Default = -1. A negative number means no limit.", default=-1, type=int)
     parser.add_argument("--max-lit-count", help="Processing will ignore nogoods with higher literal count. Default = 0. 0 or a negative number means no limit.", default=0, type=int)
