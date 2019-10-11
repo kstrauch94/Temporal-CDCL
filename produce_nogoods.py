@@ -10,6 +10,8 @@ import time
 import consume_nogoods
 from collections import Counter
 
+import random
+
 import config_file
 from tools.tools import setup_logging, plasp_translate, plasp2_translate, get_parent_dir, create_folder
 
@@ -77,6 +79,7 @@ class Nogood:
         # time in the name refers to timepoint in the program
         self.instance_val_error_time = "-1" 
 
+        self.random_id = random.randint(1, 999999999) # 999 999 999
 
     def process_literals(self, nogood_str):
         # this takes the raw nogood string and splits the atoms
@@ -879,7 +882,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods. E.G. list=[1,2,3,4,5,6] and we want 2 nogoods: no --grab-last result is [1,2]. with --grab-last result is [5,6] ")
     parser.add_argument("--no-generalization", action="store_true", help="Don't generalize the learned nogoods")
-    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd]. default: ordering", default=["ordering"])
+    parser.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd, random_id]. default: ordering", default=["ordering"])
     parser.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
     parser.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
     parser.add_argument("--transform-prime", action="store_true", help="Transform prime atoms to their non prime variant. E.G. holds'(T) --> holds(T-1)")
