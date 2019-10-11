@@ -804,7 +804,7 @@ def produce_nogoods(file_names, args, config):
 
         logging.info("Starting nogood production...")
 
-        ng_name = "ng_temp.lp"
+        ng_name = args.ng_file_name
 
         NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                             "--lemma-out=-",
@@ -848,7 +848,7 @@ def produce_nogoods(file_names, args, config):
         time_extract = 0
 
 
-    converted_ng_name =  "conv_ng.lp"
+    converted_ng_name = args.generalized_ng_file_name
 
     # convert the nogoods
     stats, scaling_by_val, scaling_labels = convert_ng_file(ng_name, converted_ng_name,
@@ -877,6 +877,9 @@ if __name__ == "__main__":
     parser.add_argument("--trans-name", help="name of the translated file")
     parser.add_argument("--no-fd", action="store_true", help="When translating the pddl instance, do not use Fast Downward preprocessing.")
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
+
+    parser.add_argument("--ng-file-name", help="name of the file that the nogoods will be saved to. Default=ng_temp.lp", default="ng_temp.lp")
+    parser.add_argument("--generalized-ng-file-name", help="name of the file that the nogoods will be saved to. Default=conv_ng.lp", default="conv_ng.lp")
 
     parser.add_argument("--use-existing-ng-file", help="Process and existing nogood file.", metavar="file", default=None)
 
