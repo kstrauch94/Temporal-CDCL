@@ -39,6 +39,10 @@ error_re = r"error\(([0-9]+)\)"
 split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
 
 UNSAT = "UNSATISFIABLE"
+UNK = "UNKNOWN"
+TIMEOUT = "TIMEOUT"
+INTERRUPTED = "INTERRUPTED"
+SAT = "SATISFIABLE"
 
 class Nogood:
 
@@ -171,7 +175,7 @@ class Nogood:
         return gen_literals
 
     def generalize(self):
-
+        t = time.time()
         self.literals = self._generalize(self.literals)
 
         self.domain_literals = self._generalize(self.domain_literals)
@@ -186,15 +190,14 @@ class Nogood:
             # in the original rule the minimum was NOT 0
             self.domain_literals += ["{}-{} > 0".format(self.t, self.dif_to_min)]
 
-    def validate(self, files):
+        return time.time() - t
+        
+    def validate(self, files, walltime=0):
+        #walltime in seconds
+        t = time.time()
 
         literals = self.get_nogood()
         temp_validate = "temp_validate.lp"
-
-        call = ["clingo", "--quiet=2", temp_validate] + files
-
-        logging.debug("calling : {}".format(call))
-
 
         program = """#const degree={deg}.
 hypothesisConstraint({t}-degree) {constraint}
@@ -204,6 +207,15 @@ hypothesisConstraint({t}-degree) {constraint}
         with open(temp_validate, "w") as f:
             f.write(program)
 
+        # build call
+        call = [config_file.RUNSOLVER_PATH, "-w", "runsolver.watcher"]
+        if walltime is not None:
+            call += ["-W", "{}".format(walltime)]
+
+        call += ["clingo", "--quiet=2", temp_validate] + files
+
+        logging.debug("calling : {}".format(call))
+
         try:
             output = subprocess.check_output(call).decode("utf-8")
         except subprocess.CalledProcessError as e:
@@ -212,23 +224,37 @@ hypothesisConstraint({t}-degree) {constraint}
         logging.debug(output)
 
         os.remove(temp_validate)
+        os.remove("runsolver.watcher")
 
         if UNSAT in output:
             self.validated = True
+            fail_reason = "none"
 
         else:
             self.validated = False
 
-    def validate_instance(self, files, horizon=None):
+            logging.info("not validated: {}".format(self.to_constraint()))
+            logging.info("number: {}".format(self.ordering))
+            if TIMEOUT in output:
+                logging.info("validation timed out!")
+
+            fail_reason = "unknown"
+            if SAT in output:
+                fail_reason = "sat"
+            if TIMEOUT in output or INTERRUPTED in output:
+                fail_reason = "timeout"
+
+            logging.info("fail reason: {}".format(fail_reason))
+
+        time_taken = time.time() - t
+
+        return time_taken, fail_reason
+
+    def validate_instance(self, files, horizon=None, walltime=None):
+        # walltime in seconds
+        t = time.time()
 
         temp_validate = "temp_validate_inst.lp"
-
-        call = ["clingo", "--quiet=1", temp_validate] + files
-
-        if horizon is not None:
-            call += ["-c", "horizon={}".format(horizon)]
-
-        logging.debug("calling : {}".format(call))
 
         program = """error({t}) {constraint}
 error :- error(_).
@@ -239,6 +265,18 @@ error :- error(_).
         with open(temp_validate, "w") as f:
             f.write(program)
 
+        # build call
+        call = [config_file.RUNSOLVER_PATH, "-w", "runsolver.watcher"]
+        if walltime is not None:
+            call += ["-W", "{}".format(walltime)]
+
+        call += ["clingo", "--quiet=1", temp_validate] + files
+
+        if horizon is not None:
+            call += ["-c", "horizon={}".format(horizon)]
+
+        logging.debug("calling : {}".format(call))
+
         try:
             output = subprocess.check_output(call).decode("utf-8")
         except subprocess.CalledProcessError as e:
@@ -247,13 +285,31 @@ error :- error(_).
         logging.debug(output)
 
         os.remove(temp_validate)
+        os.remove("runsolver.watcher")
 
         if UNSAT in output:
             self.instance_validated = True
+            fail_reason = "none"
 
         else:
             self.instance_validated = False
             self.instance_val_error_time = str(re.findall(error_re, output))
+
+            logging.info("not validated: {}".format(self.to_constraint()))
+            logging.info("number: {}".format(self.ordering))
+            logging.info("error times: {}".format(self.instance_val_error_time))
+
+            fail_reason = "unknown"
+            if SAT in output:
+                fail_reason = "sat"
+            if TIMEOUT in output or INTERRUPTED in output:
+                fail_reason = "timeout"
+
+            logging.info("fail reason: {}".format(fail_reason))
+
+        time_taken = time.time() - t
+
+        return time_taken, fail_reason
 
     def to_constraint(self):
         return ":- " +  ", ".join(self.get_nogood()) + ".\n"
@@ -329,41 +385,6 @@ def call_clingo_pipe(file_names, time_limit, options, out_file, max_deg=10, max_
     logging.info("call has finished\n")
 
     logging.info(output)
-
-def validate_instance_all(files, horizon=None):
-    # files argument is a list containing the encoding, instance and the file containing all nogoods to be proven
-
-    val_file_all = "validate_instance_all.lp"
-
-    with open(val_file_all, "w") as f:
-        for ng in nogoods:
-            f.write(str(ng.to_rule()))
-        f.write("\nerror :- error(_).\n")
-        f.write(":- not error.\n")
-        f.write("#project error/0.\n")
-        f.write("#show error/1.\n")
-
-    call = ["clingo", "--quiet=1", val_file_all] + files
-
-    if horizon is not None:
-        call += ["-c", "horizon={}".format(horizon)]
-
-    logging.debug("calling : {}".format(call))
-
-    try:
-        output = subprocess.check_output(call).decode("utf-8")
-    except subprocess.CalledProcessError as e:
-        output = e.output.decode("utf-8")
-
-    logging.debug(output)
-
-    os.remove(val_file_all)
-
-    if UNSAT in output:
-        return True
-
-    else:
-        return False
 
 def extract_stats(nogoods):
 
@@ -496,28 +517,109 @@ def check_nogood_str(ng_str, max_deg, max_lit_count):
         return False
 
     return True
+def check_subsumed(ng_list, new_ng):
+    # ng_list is a list of nogoods of which none is a subset of any other
+    # new_ng is a nogood object
 
-def generalize_nogoods(ng_list, nogoods_wanted, grab_last):
+    # returns: nogood_list, success
+    # success is True if new nogood is in the list or not
+    if ng_list == []:
+        return [new_ng]
+
+    irrelevant = False
+
+
+    new_ng_literals = set(new_ng.literals + new_ng.domain_literals)
+    new_list = []
+    for ng in ng_list:
+        # remember to check if the T>0 is there or not!!
+        literals = set(ng.literals + ng.domain_literals)f
+
+        # if nogood is useless
+        if literals.issubset(new_ng_literals):
+            # new nogood is now irrelevant
+            # because if this nogood already in the list is a subset
+            # we dont really need the new nogood anymore
+            # and also, any nogood that would be made irrelevant
+            # by the new one should not be in the list
+            # since we have a subset of that nogood already in the list 
+            # so we just return the old list
+            return ng_list, False
+
+        # if new is not a subset of the nogood in the list()
+        # then add the old nogood to the list
+        if not new_ng_literals.issubset(literals):
+            new_list.append(ng)
+
+    # at this point we have deleted all supersets of the new nogood
+    # so we add the new nogood to the list and return it
+    new_list.append(new_ng)
+
+    return new_list, True
+
+
+def generalize_nogoods(ng_list, nogoods_wanted, grab_last, 
+                       validate_files, validate_instance, validate_instance_files,
+                       horizon, val_walltime):
+
+    validate = validate_files is not None
 
     lines_set = set()
     repeats = 0
     nogoods_generalized = 0
     nogoods = []
+    ng_count = len(ng_list)
+
+    time_generalize = 0
+
+    not_validated = 0
+    not_instance_validated = 0
+
+    validation_time = 0
+    instance_validation_time = 0
+
+    fail_reason_counter = Counter()
+    fail_reason_instance_counter = Counter()
+
+    percent_checkpoint = 0.1
 
     if grab_last:
         ng_list = reversed(ng_list)
 
-    for ng in ng_list:
-
-        ng.generalize()
-
+    for num, ng in enumerate(ng_list):
+        time = ng.generalize()
+        time_generalize += time
         # if nogood is not a repeat we add it to the list
         line = ng.to_constraint()
         if line not in lines_set:
-            lines_set.add(line)
+            # check if we want to validate or not
+            if validate:
+                time, fail_reason = ng.validate(validate_files, walltime=val_walltime)
+                validation_time += time
+                if not ng.validated:
+                    not_validated += 1
+                    fail_reason_counter[fail_reason] += 1
 
-            nogoods.append(ng)
-            nogoods_generalized += 1
+            if validate_instance:
+                time, fail_reason = ng.validate_instance(validate_instance_files, horizon=horizon, walltime=val_walltime)
+                instance_validation_time += time
+                if not ng.instance_validated:
+                    not_instance_validated += 1
+                    fail_reason_instance_counter[fail_reason] += 1
+
+            if (validate and not ng.validated) or (validate_instance and not ng.instance_validated):
+                continue
+
+            nogoods, success = check_subsumed(nogoods, ng)
+
+            # if its not a repeat and not subsumed then add it to the lines to check for repeats
+            # even if eliminated are in the repeat line, if its a repeat anyway it would be eliminated
+            # by one of the nogoods added previously
+            # also, only update amount generalized if its a success
+            # since for no success we get the same list
+            if success:
+                lines_set.add(line)
+                nogoods_generalized = len(nogoods)
         else:
             repeats += 1
 
@@ -527,12 +629,32 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last):
         if nogoods_wanted > 0 and nogoods_generalized >= nogoods_wanted:
             break
 
+        if nogoods_wanted > 0:
+            if nogoods_generalized / nogoods_wanted >= percent_checkpoint:
+                logging.info("Progress: {} generalized of {} wanted ({:.2f}%)".format(nogoods_generalized, nogoods_wanted, nogoods_generalized / nogoods_wanted*100))
+                percent_checkpoint += 0.1
+
+        else:
+            if num / ng_count >= percent_checkpoint:
+                logging.info("Progress: {} processed of {} total ({:.2f}%)".format(nogoods_generalized, ng_count, num / ng_count*100))
+                percent_checkpoint += 0.1
+
+
     if grab_last:
         nogoods = list(reversed(nogoods))
 
-    print("total repeats: ", repeats)
-    return nogoods, repeats
 
+    if validate_files is not None:
+        logging.info("Failed {} validations".format(not_validated))
+        if not_validated > 0:
+            line = " - ".join(["{} : {}".format(reason, amount) for reason, amount in fail_reason_counter.items()])
+            logging.info("Reasons for validation failure: {}".format(line))
+    if validate_instance:
+        logging.info("Failed {} validations within the instance".format(not_instance_validated))
+        if not_instance_validated > 0:
+            line = " - ".join(["{} : {}".format(reason, amount) for reason, amount in fail_reason_instance_counter.items()])
+            logging.info("Reasons for instance validation failure: {}".format(line))
+    return nogoods, repeats, time_generalize, validation_time, instance_validation_time
 
 class Stat:
 
@@ -555,13 +677,14 @@ def convert_ng_file(ng_name, converted_ng_name,
                     sortby=["ordering"], 
                     validate_files=None, 
                     reverse_sort=False,
-                    validate_instance="none",
+                    validate_instance=False,
                     validate_instance_files=None,
                     inc_t=False,
                     transform_prime=False,
                     grab_last=False,
                     horizon=None,
-                    no_nogood_stats=False):
+                    no_nogood_stats=False,
+                    val_walltime=None):
 
     # sortby should be a list of the int attributes in the nogood:
     # lbd, ordering, degree, literal_count
@@ -574,16 +697,12 @@ def convert_ng_file(ng_name, converted_ng_name,
     amount_instance_validated = 0
 
     failed_to_validate = []
-    # just so that we dont check multiple times
-    validate = validate_files is not None
 
     # read nogoods
     
     total_nogoods = 0
 
     time_generalize = 0
-    time_validate = 0
-    time_validate_instance = 0
 
     logging.info("converting...")
     
@@ -615,13 +734,6 @@ def convert_ng_file(ng_name, converted_ng_name,
     time_sorting_nogoods = time.time() - t    
 
     conversion_stats["time_sorting_nogoods"] = Stat("time_sorting_nogoods", time_sorting_nogoods, "time sorting nogoods: {}")
-
-
-#    # write sorted unprocessed nogoods
-#    with open("sorted_ng.txt", "w") as f:
-#        for conv_line in unprocessed_ng:
-#            line = conv_line.to_constraint()
-#            f.write(str(line))
 
     # extract some stats about some nogood properties
     t = time.time()
@@ -657,15 +769,21 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         t = time.time()
 
-        nogoods, repeats = generalize_nogoods(unprocessed_ng, nogoods_wanted, grab_last)
+        nogoods, repeats, validation_time, instance_validation_time = generalize_nogoods(unprocessed_ng, 
+                                                                                        nogoods_wanted, 
+                                                                                        grab_last, 
+                                                                                        validate_files, 
+                                                                                        validate_instance, 
+                                                                                        validate_instance_files, 
+                                                                                        horizon,
+                                                                                        val_walltime)
+        time_generalize = time.time() - t
+        conversion_stats["time_generalize"] = Stat("time_generalize", time_generalize, "time to generalize: {}")
+
         conversion_stats["repeats"] = Stat("repeats", repeats, "{} nogoods were identical")
 
         if nogoods_wanted_by_count >= 0:
             scaling_by_val, scaling_labels = get_scaling_count_and_labels(nogoods, nogoods_wanted_by_count, sortby)
-
-        time_generalize = time.time() - t
-
-        conversion_stats["time_generalize"] = Stat("time_generalize", time_generalize, "time to generalize: {}")
 
 
         total_nogoods = len(nogoods)
@@ -673,96 +791,18 @@ def convert_ng_file(ng_name, converted_ng_name,
 
         logging.info(conversion_stats["total_nogoods_generalized"].message)
 
-        if validate:
-            logging.info("Starting validation...")
-            percent_validated = 0.1
-
-            for i, ng in enumerate(nogoods):
-
-                # this part is the normal validation as patrick does it
-                t = time.time()
-                ng.validate(validate_files)
-                time_validate += time.time() - t
-
-                logging.debug("validated: {}".format(ng.validated))
-
-                if ng.validated:
-                    amount_validated += 1
-
-                else:
-                    logging.info("not validated: {}".format(ng.to_constraint()))
-                    logging.info("number: {}".format(ng.ordering))
-                    failed_to_validate.append(ng.to_rule())
-
-                if float(i) / float(total_nogoods) >= percent_validated:
-                    logging.info("Validated {}% of total nogoods".format(percent_validated*100))
-                    percent_validated += 0.1
-
-            conversion_stats["time_validate"] = Stat("time_validate", time_validate, "time to validate: {}")
-            logging.info("Finishing validation")
-
-        if validate_instance != "none":
-
-            logging.info("Starting instance validation...")
-
-            # validate nogoods one at a time
-            if validate_instance == "single":
-                percent_validated = 0.1
-
-                for i, ng in enumerate(nogoods):
-
-                    # this part is validating within the instance
-                    t = time.time()
-                    ng.validate_instance(validate_instance_files, horizon)
-                    time_validate_instance += time.time() - t
-                    
-                    if not ng.instance_validated:
-                        logging.info("Result of instance val: {}".format(ng.instance_validated))
-                        logging.info("constraint: {}".format(ng.to_constraint()))
-                        logging.info("number: {}".format(ng.ordering))
-                        logging.info("error times: {}".format(ng.instance_val_error_time))
-                    else:
-                        amount_instance_validated += 1
-
-                    # if we validate with both methods check if they have the same result
-                    if (validate_instance and validate):
-                        if ng.instance_validated != ng.validated:
-                            logging.info("validations do not match")
-                            logging.info("Normal validation: {}".format(ng.validated))
-                            logging.info("Instance validation: {}".format(ng.instance_validated))
-                            logging.info("constraint: {}".format(str(ng)))
-
-                    if float(i) / float(total_nogoods) >= percent_validated:
-                        logging.info("Validated {}% of total nogoods".format(percent_validated*100))
-                        percent_validated += 0.1
-                        
-            # validate nogoods all at the same time
-            elif validate_instance == "all":
-                #write all nogoods in a file as a rule:
-                # add the rule as in the nogoods class instance val
-                t = time.time()
-                validate_instance_all(validate_instance_files, horizon)
-                time_validate_instance += time.time() - t
-
-            conversion_stats["time_validate_instance"] = Stat("time_validate_instance", time_validate_instance, "time to validate within instance: {}")
-            logging.info("Finishing instance validation")
+        conversion_stats["time_validate"] = Stat("time_validate", validation_time, "time to validate: {}")
+        conversion_stats["time_validate_instance"] = Stat("time_validate_instance", instance_validation_time, "time to validate within instance: {}")
 
         # log some info after finishing
         logging.info("Finished converting!\n")
 
-        if validate:
-            logging.info("Validated {} of {} nogoods".format(amount_validated, total_nogoods))
-        if validate_instance == "single":
-            logging.info("Validated {} of {} nogoods within the instance".format(amount_instance_validated, total_nogoods))
-        if validate_instance == "all":
-            logging.info("Validation of all nogoods returned {}".format(all_val_result))
-
         logging.info(conversion_stats["time_generalize"].message)
-        if validate:
+        if validate_files is not None:
             logging.info(conversion_stats["time_validate"].message)
-        if validate_instance == "single" or validate_instance == "all":
+        if validate_instance:
             logging.info(conversion_stats["time_validate_instance"].message)
- 
+
 
     else:
         # if we don't generalize then nogoods is just the n first
@@ -855,7 +895,8 @@ def produce_nogoods(file_names, args, config):
                     **config)
 
     logging.info("time to extract: {}".format(time_extract))
-    logging.info(stats["time_conversion_jobs"].message)
+    if stats is not None:
+        logging.info(stats["time_conversion_jobs"].message)
     
     try:
         #os.remove(ng_name)
@@ -891,7 +932,8 @@ if __name__ == "__main__":
     parser.add_argument("--transform-prime", action="store_true", help="Transform prime atoms to their non prime variant. E.G. holds'(T) --> holds(T-1)")
 
     parser.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
-    parser.add_argument("--validate-instance", default="none", choices=["none", "single", "all"], help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided. Single validates every constraint by itself. all validates all constraints together")
+    parser.add_argument("--validate-instance", action="store_true", help="With this option the constraints will be validated with a search by counterexamples using the files and instances provided.")
+    parser.add_argument("--val-walltime", help="Walltime for the validation of each nogood in seconds. Default is no walltime.", default=None)
 
     parser.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 0, 0 = no limit", default=0, type=int)
 
@@ -930,6 +972,7 @@ if __name__ == "__main__":
     config["no_generalization"] = args.no_generalization
     config["validate_files"] = args.validate_files
     config["validate_instance"] = args.validate_instance
+    config["val_walltime"] = args.val_walltime
     config["sortby"] = args.sortby
     config["reverse_sort"] = args.reverse_sort
 
