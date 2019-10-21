@@ -521,19 +521,18 @@ def check_subsumed(ng_list, new_ng):
     # ng_list is a list of nogoods of which none is a subset of any other
     # new_ng is a nogood object
 
-    # returns: nogood_list, success
+    # returns: nogood_list, success, nogoods_deleted
     # success is True if new nogood is in the list or not
     if ng_list == []:
-        return [new_ng]
+        return [new_ng], True, 0
 
-    irrelevant = False
-
+    nogoods_deleted = 0
 
     new_ng_literals = set(new_ng.literals + new_ng.domain_literals)
     new_list = []
     for ng in ng_list:
         # remember to check if the T>0 is there or not!!
-        literals = set(ng.literals + ng.domain_literals)f
+        literals = set(ng.literals + ng.domain_literals)
 
         # if nogood is useless
         if literals.issubset(new_ng_literals):
@@ -544,18 +543,20 @@ def check_subsumed(ng_list, new_ng):
             # by the new one should not be in the list
             # since we have a subset of that nogood already in the list 
             # so we just return the old list
-            return ng_list, False
+            return ng_list, False, 0
 
         # if new is not a subset of the nogood in the list()
         # then add the old nogood to the list
         if not new_ng_literals.issubset(literals):
             new_list.append(ng)
+        else:
+            nogoods_deleted += 1
 
     # at this point we have deleted all supersets of the new nogood
     # so we add the new nogood to the list and return it
     new_list.append(new_ng)
 
-    return new_list, True
+    return new_list, True, nogoods_deleted
 
 
 def generalize_nogoods(ng_list, nogoods_wanted, grab_last, 
@@ -581,7 +582,7 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last,
     fail_reason_counter = Counter()
     fail_reason_instance_counter = Counter()
 
-    percent_checkpoint = 0.1
+    subsumed_fail_count = 0
 
     if grab_last:
         ng_list = reversed(ng_list)
@@ -610,7 +611,7 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last,
             if (validate and not ng.validated) or (validate_instance and not ng.instance_validated):
                 continue
 
-            nogoods, success = check_subsumed(nogoods, ng)
+            nogoods, success, deleted = check_subsumed(nogoods, ng)
 
             # if its not a repeat and not subsumed then add it to the lines to check for repeats
             # even if eliminated are in the repeat line, if its a repeat anyway it would be eliminated
@@ -620,6 +621,9 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last,
             if success:
                 lines_set.add(line)
                 nogoods_generalized = len(nogoods)
+                subsumed_fail_count += deleted
+            else:
+                subsumed_fail_count += 1                
         else:
             repeats += 1
 
@@ -629,16 +633,8 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last,
         if nogoods_wanted > 0 and nogoods_generalized >= nogoods_wanted:
             break
 
-        if nogoods_wanted > 0:
-            if nogoods_generalized / nogoods_wanted >= percent_checkpoint:
-                logging.info("Progress: {} generalized of {} wanted ({:.2f}%)".format(nogoods_generalized, nogoods_wanted, nogoods_generalized / nogoods_wanted*100))
-                percent_checkpoint += 0.1
-
-        else:
-            if num / ng_count >= percent_checkpoint:
-                logging.info("Progress: {} processed of {} total ({:.2f}%)".format(nogoods_generalized, ng_count, num / ng_count*100))
-                percent_checkpoint += 0.1
-
+        if num % 100 == 0:
+            logging.info("Checked {} of {} nogoods for generalization.".format(num, ng_count))
 
     if grab_last:
         nogoods = list(reversed(nogoods))
@@ -649,11 +645,15 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last,
         if not_validated > 0:
             line = " - ".join(["{} : {}".format(reason, amount) for reason, amount in fail_reason_counter.items()])
             logging.info("Reasons for validation failure: {}".format(line))
+
     if validate_instance:
         logging.info("Failed {} validations within the instance".format(not_instance_validated))
         if not_instance_validated > 0:
             line = " - ".join(["{} : {}".format(reason, amount) for reason, amount in fail_reason_instance_counter.items()])
             logging.info("Reasons for instance validation failure: {}".format(line))
+
+    logging.info("subsumed failures: {}".format(subsumed_fail_count))
+
     return nogoods, repeats, time_generalize, validation_time, instance_validation_time
 
 class Stat:
@@ -767,9 +767,7 @@ def convert_ng_file(ng_name, converted_ng_name,
 
     if no_generalization == False:    
 
-        t = time.time()
-
-        nogoods, repeats, validation_time, instance_validation_time = generalize_nogoods(unprocessed_ng, 
+        nogoods, repeats, time_generalize, validation_time, instance_validation_time = generalize_nogoods(unprocessed_ng, 
                                                                                         nogoods_wanted, 
                                                                                         grab_last, 
                                                                                         validate_files, 
@@ -777,7 +775,6 @@ def convert_ng_file(ng_name, converted_ng_name,
                                                                                         validate_instance_files, 
                                                                                         horizon,
                                                                                         val_walltime)
-        time_generalize = time.time() - t
         conversion_stats["time_generalize"] = Stat("time_generalize", time_generalize, "time to generalize: {}")
 
         conversion_stats["repeats"] = Stat("repeats", repeats, "{} nogoods were identical")
