@@ -72,8 +72,9 @@ class Nogood:
 
         self.process_literals(nogood_str)
 
+        self.process_prime_literals()
         if transform_prime:
-            self.process_prime_literals()
+            self.literals = self.literals_without_primes
 
         self.process_time()
 
@@ -105,18 +106,20 @@ class Nogood:
 
     def process_prime_literals(self):
 
+        self.literals_without_primes = self.literals[:]
+
         for i, lit in enumerate(self.literals):
             if "'" in lit:
                 time = self._time_in_lit(lit)
                 new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}\1{end}".format(t=time-1, end=END_STR), lit + END_STR)
 
-                self.literals[i] = new_lit.replace("'", "")
+                self.literals_without_primes[i] = new_lit.replace("'", "")
 
     def process_time(self):
 
 
-        matches = re.findall(time_no_s_re, END_STR.join(self.literals)+END_STR)
-        matches += re.findall(time_no_s_re, END_STR.join(self.domain_literals)+END_STR)
+        matches = re.findall(time_no_s_re, END_STR.join(self.literals_without_primes)+END_STR)
+        #matches += re.findall(time_no_s_re, END_STR.join(self.domain_literals)+END_STR)
         # get time matches only for step externals
         matches_step = re.findall(time_step_re, " ".join(self.domain_literals))
 
@@ -125,28 +128,19 @@ class Nogood:
 
         self.max_time = max(matches + matches_step)
 
-        # TODO: add more general approach when calculating dif_to_min
-        # dif_to_min : this is the difference from the max time
-        # to the time that can be the minimum timepoint in the rule
-        # so t_max - dif_to_min is (usually) above 0
+        # minimum between the lowest point in the step atom -1 (since step atom only covers the higher timepoint of the transition)
+        # and the lowest timepoint if the literals when no prime literals are present
+        
         if len(matches_step) == 0:
             self.min_time = min(matches)
-            self.dif_to_min = 0
         else:
-            # if there are step atoms then dif +1 is the degree
-            # since step externals only cover the higher time step of
-            # the rule
-            self.min_time = min(matches + matches_step)
-            self.dif_to_min = self.max_time - min(matches_step) + 1
+            self.min_time = min(min(matches_step)-1, min(matches))
 
-        # this is the actual timespan of the rule
-        # NOTE: degree CAN be one higher than max_time - dif_to_min
-        #       but ONLY when processing the prime literals
-        self._degree = self.max_time - self.min_time
+        self.dif_to_min = self.max_time - self.min_time
 
     @property
     def degree(self):
-        return self._degree
+        return self.dif_to_min
 
     @property
     def literal_count(self):
@@ -184,7 +178,6 @@ class Nogood:
             if self.t == "T":
                 self.domain_literals += ["time(T)"]
 
-        # minimum timepoint in the rule is 1
         if self.min_time > 0:
             # minimum timepoint in the rule is 1 but only if
             # in the original rule the minimum was NOT 0
@@ -212,16 +205,16 @@ hypothesisConstraint({t}-degree) {constraint}
         if walltime is not None:
             call += ["-W", "{}".format(walltime)]
 
-        call += ["clingo", "--quiet=2", temp_validate] + files
+        call += ["clingo", "--quiet=2", "--stats", temp_validate] + files
 
-        logging.debug("calling : {}".format(call))
+        logging.info("calling : {}".format(" ".join(call)))
 
         try:
             output = subprocess.check_output(call).decode("utf-8")
         except subprocess.CalledProcessError as e:
             output = e.output.decode("utf-8")
 
-        logging.debug(output)
+        logging.info(output)
 
         os.remove(temp_validate)
         os.remove("runsolver.watcher")
@@ -310,6 +303,13 @@ error :- error(_).
         time_taken = time.time() - t
 
         return time_taken, fail_reason
+
+    def issubset(self, other_ng):
+        return set(self.all_literals).issubset(set(other_ng.all_literals))
+
+    @property
+    def all_literals(self):
+        return self.literals + self.domain_literals
 
     def to_constraint(self):
         return ":- " +  ", ".join(self.get_nogood()) + ".\n"
@@ -528,14 +528,12 @@ def check_subsumed(ng_list, new_ng):
 
     nogoods_deleted = 0
 
-    new_ng_literals = set(new_ng.literals + new_ng.domain_literals)
     new_list = []
     for ng in ng_list:
         # remember to check if the T>0 is there or not!!
-        literals = set(ng.literals + ng.domain_literals)
 
         # if nogood is useless
-        if literals.issubset(new_ng_literals):
+        if ng.issubset(new_ng):
             # new nogood is now irrelevant
             # because if this nogood already in the list is a subset
             # we dont really need the new nogood anymore
@@ -547,7 +545,7 @@ def check_subsumed(ng_list, new_ng):
 
         # if new is not a subset of the nogood in the list()
         # then add the old nogood to the list
-        if not new_ng_literals.issubset(literals):
+        if not new_ng.issubset(ng):
             new_list.append(ng)
         else:
             nogoods_deleted += 1
