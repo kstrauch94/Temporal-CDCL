@@ -51,9 +51,6 @@ class Nogood:
         #nogood_str: raw string printed out by the clingo call
         #ordering: line number of the nogood (the order in which the noogood was created)
 
-        # split by a . and then get the first element and add the . 
-        # do this to delete the lbd part at the end
-        #self.raw = nogood_str.split(".")[0] + "."
         if inc_t:
             self.t = "t"
         else:
@@ -73,8 +70,13 @@ class Nogood:
         self.process_literals(nogood_str)
 
         self.process_prime_literals()
+
+        # here we choose which type of literal to use,
+        # normal or without primes
         if transform_prime:
             self.literals = self.literals_without_primes
+        else:
+            self.literals = self.literals_normal
 
         self.process_time()
 
@@ -94,7 +96,7 @@ class Nogood:
 
         pre_literals = re.split(split_atom_re, pre_literals)
 
-        self.literals = []
+        self.literals_normal = []
         self.domain_literals = []
 
         for lit in pre_literals:
@@ -102,13 +104,13 @@ class Nogood:
                 self.domain_literals.append(lit)
 
             else:
-                self.literals.append(lit)
+                self.literals_normal.append(lit)
 
     def process_prime_literals(self):
 
-        self.literals_without_primes = self.literals[:]
+        self.literals_without_primes = self.literals_normal[:]
 
-        for i, lit in enumerate(self.literals):
+        for i, lit in enumerate(self.literals_normal):
             if "'" in lit:
                 time = self._time_in_lit(lit)
                 new_lit = re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}\1{end}".format(t=time-1, end=END_STR), lit + END_STR)
@@ -117,25 +119,28 @@ class Nogood:
 
     def process_time(self):
 
-
-        matches = re.findall(time_no_s_re, END_STR.join(self.literals_without_primes)+END_STR)
-        #matches += re.findall(time_no_s_re, END_STR.join(self.domain_literals)+END_STR)
+        # matches with regular literals(prime literals still present)
+        matches_regular = re.findall(time_no_s_re, END_STR.join(self.literals_normal)+END_STR)
+        
         # get time matches only for step externals
         matches_step = re.findall(time_step_re, " ".join(self.domain_literals))
 
-        matches = [int(m) for m in matches]
+        matches_regular = [int(m) for m in matches_regular]
         matches_step = [int(m) for m in matches_step]
 
-        self.max_time = max(matches + matches_step)
+        self.max_time = max(matches_regular + matches_step)
 
         # minimum between the lowest point in the step atom -1 (since step atom only covers the higher timepoint of the transition)
         # and the lowest timepoint if the literals when no prime literals are present
         
         if len(matches_step) == 0:
-            self.min_time = min(matches)
-        else:
-            self.min_time = min(min(matches_step)-1, min(matches))
-
+            self.min_time = min(matches_regular)
+        else: 
+            # here, it is important to note that the lowest timepoint MAY contain prime literals. This is why we add the minimum T > 0
+            # to the domain literals later on. We could also, just take the minimum point as the minimum of the transformed literals
+            # but then, the degree and dif_to_min would be different
+            self.min_time = min(min(matches_step)-1, min(matches_regular))
+        
         self.dif_to_min = self.max_time - self.min_time
 
     @property
@@ -165,7 +170,6 @@ class Nogood:
 
             gen_literals.append(new_lit.replace(END_STR, ""))
 
-        # there is an extra empty item at the end, so we delete it
         return gen_literals
 
     def generalize(self):
@@ -205,16 +209,16 @@ hypothesisConstraint({t}-degree) {constraint}
         if walltime is not None:
             call += ["-W", "{}".format(walltime)]
 
-        call += ["clingo", "--quiet=2", "--stats", temp_validate] + files
+        call += ["clingo", "--quiet=2", "--stats", "--warn=none", temp_validate] + files
 
-        logging.info("calling : {}".format(" ".join(call)))
+        logging.debug("calling : {}".format(" ".join(call)))
 
         try:
             output = subprocess.check_output(call).decode("utf-8")
         except subprocess.CalledProcessError as e:
             output = e.output.decode("utf-8")
 
-        logging.info(output)
+        logging.debug(output)
 
         os.remove(temp_validate)
         os.remove("runsolver.watcher")
@@ -263,7 +267,7 @@ error :- error(_).
         if walltime is not None:
             call += ["-W", "{}".format(walltime)]
 
-        call += ["clingo", "--quiet=1", temp_validate] + files
+        call += ["clingo", "--quiet=1" ,"--warn=none", temp_validate] + files
 
         if horizon is not None:
             call += ["-c", "horizon={}".format(horizon)]
