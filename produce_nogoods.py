@@ -637,6 +637,7 @@ def generalize_nogoods(ng_list, nogoods_wanted, grab_last,
 
         if num % 100 == 0:
             logging.info("Checked {} of {} nogoods for generalization.".format(num, ng_count))
+            logging.info("Generalized {} of {} checked nogoods.".format(nogoods_generalized, num))
 
     if grab_last:
         nogoods = list(reversed(nogoods))
