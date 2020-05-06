@@ -195,6 +195,8 @@ class Handler:
         # ----
         # handling the unfisnihed nogood is done in the actual generalizer
         """
+        self.logger.info("POST")
+
         with open(self.ng_name, "r") as f:
             no_null_chars = f.read().replace("\0", "")
 
