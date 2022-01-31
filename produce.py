@@ -9,200 +9,61 @@ import operator
 import logging
 from collections import Counter
 
-import clingo
+from util import util
+
+from Nogood import Nogood
+from Validator import Validator
 
 import random
 
-OPENTIME = "otime"
+def check_subsumed(ng_list, new_ng):
+    # ng_list is a list of nogoods of which none is a subset of any other
+    # new_ng is a nogood object
 
-split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
+    # returns: nogood_list, success, nogoods_deleted
+    # success is True if new nogood is in the list or not
+    if ng_list == []:
+        return [new_ng], True, 0
 
-lbd_re = r"lbd = ([0-9]+)"
+    nogoods_deleted = 0
 
-class Literal:
+    new_list = []
+    for ng in ng_list:
+        # remember to check if the T>0 is there or not!!
 
-    def __init__(self, atom, sign):
-        self.name = atom.name
+        # if nogood is useless
+        if ng.issubset(new_ng):
+            # new nogood is now irrelevant
+            # because if this nogood already in the list is a subset
+            # we dont really need the new nogood anymore
+            # and also, any nogood that would be made irrelevant
+            # by the new one should not be in the list
+            # since we have a subset of that nogood already in the list 
+            # so we just return the old list
+            return ng_list, False, 0
 
-        self.arguments = [str(arg) for arg in atom.arguments[:-1]]
-
-        self.time = atom.arguments[-1].number
-
-        if sign not in [1,-1]:
-            raise ValueError(f"Invalid sign given {sign}")
-
-        self.sign = sign
-
-        self.process_prime()
-
-    def process_prime(self):
-
-        if self.name.endswith("'"):
-            self.name = self.name[:-1]
-
-            self.time -= 1
-
-    def __str__(self):
-
-        if len(self.arguments) > 0:
-            s = f"{self.name}({','.join(self.arguments)},{self.time})"
+        # if new is not a subset of the nogood in the list()
+        # then add the old nogood to the list
+        if not new_ng.issubset(ng):
+            new_list.append(ng)
         else:
-            s = f"{self.name}({self.time})"
+            nogoods_deleted += 1
 
-        if self.sign == 1:
-            return s
-        elif self.sign == -1:
-            return f"not {s}"
+    # at this point we have deleted all supersets of the new nogood
+    # so we add the new nogood to the list and return it
+    new_list.append(new_ng)
 
-class GenLiteral:
+    return new_list, True, nogoods_deleted
 
-    def __init__(self, name, arguments, t, sign):
+def get_sort_value(object, attributes):
+    val = []
 
-        self.name = name
+    for attr in attributes:
+        val.append(getattr(object, attr))
 
-        self.arguments = arguments
+    return val
 
-        self.t = t
-
-        self.sign = sign
-
-    def __str__(self):
-
-        if len(self.arguments) > 0:
-            s = f"{self.name}({','.join(self.arguments)},{self.t})"
-        else:
-            s = f"{self.name}({self.t})"
-
-        if self.sign == 1:
-            return s
-        elif self.sign == -1:
-            return f"not {s}" 
-
-class Nogood:
-
-    def __init__(self, ng_str):
-
-        self.literals = []
-        self.domain_literals = []
-
-        self.process_literals(ng_str)
-
-        try:
-            self.lbd = int(re.search(lbd_re, ng_str).group(1))
-        except AttributeError as e:
-            print("ERROR IN LBD: {}".format(ng_str))
-            raise AttributeError
-
-        self.process_time()
-
-        self.has_generalized = None
-
-        self.generalize("T")
-
-        print(self.to_constraint())
-        print(self.to_general_constraint())
-
-    def process_literals(self, nogood_str):
-        # this takes the raw nogood string and splits the atoms
-        # into singular ones
-        pre_literals = nogood_str.split(".")[0].replace(":-", "").strip()
-
-        pre_literals = re.split(split_atom_re, pre_literals)
-
-        for lit in pre_literals:
-            if "not " in lit:
-                self.literals.append(Literal(clingo.parse_term(lit.replace("not ", "")), sign=-1))
-
-            elif "{}(".format(OPENTIME) in lit:
-                self.domain_literals.append(Literal(clingo.parse_term(lit), sign=1))
-
-            else:
-                self.literals.append(Literal(clingo.parse_term(lit), sign=1))
-
-        #print(", ".join([str(a) for a in self.pos_literals + self.neg_literals + self.domain_literals]))
-            
-
-    def process_time(self):
-
-        # matches with regular literals(prime literals still present)
-        regular_times = []
-        for lit in self.literals:
-            regular_times.append(lit.time)
-        
-        step_times = []
-        for lit in self.domain_literals:
-            step_times.append(lit.time)
-
-        self.max_time = max(regular_times + step_times)
-
-        # minimum between the lowest point in the step atom -1 (since step atom only covers the higher timepoint of the transition)
-        # and the lowest timepoint if the literals when no prime literals are present
-        
-        if len(step_times) == 0:
-            self.min_time = min(regular_times)
-        else: 
-            # here, it is important to note that the lowest timepoint MAY contain prime literals. This is why we add the minimum T > 0
-            # to the domain literals later on. We could also, just take the minimum point as the minimum of the transformed literals
-            # but then, the degree and dif_to_min would be different
-            self.min_time = min(min(step_times)-1, min(regular_times))
-        
-        self.degree = self.max_time - self.min_time
-
-
-    def _generalize(self, literals, t):
-
-        if len(literals) == 0:
-            return []
-
-        gen_literals = []
-
-        for lit in literals:
-            time = lit.time
-
-            new_lit = GenLiteral(lit.name, lit.arguments, t=f"{t}-{self.max_time - time}", sign=lit.sign)
-            #re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}-{dif}\1{end}".format(t=self.t, dif=self.max_time - time, end=END_STR), lit + END_STR)
-
-            gen_literals.append(new_lit)
-
-        return gen_literals
-
-    def generalize(self, t="T"):
-
-        self.gen_literals = self._generalize(self.literals, t)
-
-        self.gen_domain_literals = self._generalize(self.domain_literals, t)
-
-        if len(self.domain_literals) == 0:
-            if t == "T":
-                self.domain_literals += ["time(T)"]
-
-        if self.min_time > 0:
-            # minimum timepoint in the rule is 1 but only if
-            # in the original rule the minimum was NOT 0
-            self.domain_literals += ["{}-{} > 0".format(t, self.degree)]
-
-        self.has_generalized = t
-
-    def to_constraint(self):
-
-        lits = [str(a) for a in self.literals]
-        lits.extend([str(a) for a in self.domain_literals])
-
-        return f":- {', '.join(lits)}."
-
-    def to_general_constraint(self):
-        if self.has_generalized is not None:
-            lits = [str(a) for a in self.gen_literals]
-            lits.extend([str(a) for a in self.gen_domain_literals])
-
-            return f":- {', '.join(lits)}."
-        
-        return self.to_constraint()
-    
-    def issubset(self, other_ng):
-        return set(self.all_literals).issubset(set(other_ng.all_literals))
-
-def call_clingo_pipe(file_names, time_limit, options):
+def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
     CLINGO = ["./runsolver", "-W", "{}".format(time_limit), 
               "-w", "runsolver.watcher", "-d", "20", 
@@ -210,17 +71,63 @@ def call_clingo_pipe(file_names, time_limit, options):
 
     call = CLINGO + options
 
-    logging.info("calling: " + " ".join(call))
+    print("calling: " + " ".join(call))
 
     pipe = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    for line in pipe.stdout:
+    ng_list = []
+
+    for order, line in enumerate(pipe.stdout):
         line = line.decode("utf-8")
         if line.startswith(":-") and "." in line:
-            Nogood(line)
+            util.Count.add("Total nogoods")
+            ng = Nogood(line, order=order)
 
-    logging.info("call has finished\n")
+            if max_size is not None and max_size < len(ng) or \
+               max_degree is not None and max_degree < ng.degree or \
+               max_lbd is not None and max_lbd < ng.lbd:
+                continue
 
+            ng.generalize(gen_t)
+            ng_list, success, deleted = check_subsumed(ng_list, ng)
+            util.Count.add("nogoods subsumed", deleted)
+
+
+    for ng in ng_list:
+        print(ng.to_general_constraint())
+
+    util.Count.add("Nogoods after filter", len(ng_list))
+
+    print("call has finished\n")
+
+    return ng_list
+
+def process_ng_list(ng_list, sort_by=None, sort_reversed=False, validator=None):
+
+    ng_list = validator.validate_list(ng_list)
+
+    if sort_by is not None:
+        ng_list.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=sort_reversed)
+    
+    return ng_list
+
+def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
+
+    with open(file_name, "w") as _f:
+        for ng in ng_list:
+            if generalized:
+                _f.write(ng.to_general_constraint()+"\n")
+            else:
+                _f.write(ng.to_constraint()+"\n")
+
+
+def print_stats():
+
+    for name, count in util.Count.counts.items():
+        print(f"{name:24}  :   {count}")
+
+    for name, time_taken in sorted(util.Timer.timers.items()):
+        print(f"{name:19}  :   {time_taken:.3f}")
 
 NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",
@@ -228,5 +135,16 @@ NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--quiet=2",
                     "--stats"]
 
-files = ["encodings/Hanoi.asp", "encodings/assumption-solver.py", "test-instances/hanoitest.asp"]               
-call_clingo_pipe(files, 100, NG_RECORDING_OPTIONS)
+encoding = ["encodings/Hanoi.asp", "encodings/assumption-solver.py"]
+instance = ["test-instances/hanoitest.asp"]          
+
+validation_files = ["validation-encoding/hanoi-validation.lp", "encodings/assumption-solver.py"] + instance
+ng_list = call_clingo_pipe(encoding+instance, 100, NG_RECORDING_OPTIONS, max_lbd=2)
+
+validator = Validator(validation_files)
+
+process_ng_list(ng_list, validator=validator)
+
+write_ng_list_to_file(ng_list)
+
+print_stats()
