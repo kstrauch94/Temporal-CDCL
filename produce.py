@@ -38,7 +38,7 @@ def check_subsumed(ng_list, new_ng):
             # we dont really need the new nogood anymore
             # and also, any nogood that would be made irrelevant
             # by the new one should not be in the list
-            # since we have a subset of that nogood already in the list 
+            # since we have a subset of that nogood already in the list
             # so we just return the old list
             return ng_list, False, 0
 
@@ -65,8 +65,8 @@ def get_sort_value(object, attributes):
 
 def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
-    CLINGO = ["./runsolver", "-W", "{}".format(time_limit), 
-              "-w", "runsolver.watcher", "-d", "20", 
+    CLINGO = ["./runsolver", "-W", "{}".format(time_limit),
+              "-w", "runsolver.watcher", "-d", "20",
               "clingo"] + file_names
 
     call = CLINGO + options
@@ -75,14 +75,21 @@ def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, 
 
     pipe = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
+    return collect_nogoods(pipe.stdout, gen_t, max_size, max_degree, max_lbd)
+
+def collect_nogoods(output, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
     ng_list = []
 
-    for order, line in enumerate(pipe.stdout):
+    for order, line in enumerate(output):
         line = line.decode("utf-8")
         if line.startswith(":-") and "." in line:
-            util.Count.add("Total nogoods")
-            ng = Nogood(line, order=order)
 
+            try:
+                ng = Nogood(line, order=order)
+            except AttributeError:
+                # in this case the line was not written properly in the output_file
+                break
+            util.Count.add("Total nogoods")
             if max_size is not None and max_size < len(ng) or \
                max_degree is not None and max_degree < ng.degree or \
                max_lbd is not None and max_lbd < ng.lbd:
@@ -93,8 +100,8 @@ def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, 
             util.Count.add("nogoods subsumed", deleted)
 
 
-    for ng in ng_list:
-        print(ng.to_general_constraint())
+    #for ng in ng_list:
+    #    print(ng.to_general_constraint())
 
     util.Count.add("Nogoods after filter", len(ng_list))
 
@@ -104,11 +111,12 @@ def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, 
 
 def process_ng_list(ng_list, sort_by=None, sort_reversed=False, validator=None):
 
-    ng_list = validator.validate_list(ng_list)
+    if validator is not None:
+        ng_list = validator.validate_list(ng_list)
 
     if sort_by is not None:
         ng_list.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=sort_reversed)
-    
+
     return ng_list
 
 def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
@@ -129,22 +137,85 @@ def print_stats():
     for name, time_taken in sorted(util.Timer.timers.items()):
         print(f"{name:19}  :   {time_taken:.3f}")
 
-NG_RECORDING_OPTIONS = ["--lemma-out-txt",
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+
+    domain_args = parser.add_argument_group("Domain input")
+
+    domain_args.add_argument('--files', metavar='f', nargs='+', help="Files to run clingo on not including instance")
+    domain_args.add_argument('--instance', metavar='i', nargs='+', help="Instance file. If file has a .pddl extension it will be treated as a pddl instance.")
+    domain_args.add_argument("--validate-files", nargs='+', help="file used to validate learned constraints. If no file is provided validation is not performed.", default=None)
+    domain_args.add_argument("--val-walltime", help="Walltime for the validation of each nogood in seconds. Default is no walltime.", default=None)
+
+    domain_args.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
+
+    processing = parser.add_argument_group("Processing options")
+
+    processing.add_argument("--output-file", help="name of the file that the nogoods will be saved to. Default=nogoods.lp", default="nogoods.lp")
+
+    processing.add_argument("--use-existing-file", help="Process an existing nogood file.", metavar="file", default=None)
+
+    #processing.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods.")
+    processing.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd, random_id]. default: ordering", default=["ordering"])
+    processing.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
+    processing.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
+
+    processing.add_argument("--max_degree", help="Processing will ignore nogoods with higher degree. Default = None", default=None, type=int)
+    processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
+    processing.add_argument("--max-lbd", help="Processing will ignore nogoods with higher lbd. Default = None.", default=None, type=int)
+    processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = 0, 0 = no limit", default=0, type=int)
+
+    processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 0, 0 = no limit", default=0, type=int)
+    processing.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
+
+    args = parser.parse_args()
+
+
+    NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",
-                    "--lemma-out-dom=output", 
+                    "--lemma-out-dom=output",
                     "--quiet=2",
                     "--stats"]
 
-encoding = ["encodings/Hanoi.asp", "encodings/assumption-solver.py"]
-instance = ["test-instances/hanoitest.asp"]          
+    encoding = ["encodings/Hanoi.asp", "encodings/assumption-solver.py"]
+    instance = ["test-instances/hanoitest.asp"]
 
-validation_files = ["validation-encoding/hanoi-validation.lp", "encodings/assumption-solver.py"] + instance
-ng_list = call_clingo_pipe(encoding+instance, 100, NG_RECORDING_OPTIONS, max_lbd=2)
+    validation_files = ["validation-encoding/hanoi-validation.lp", "encodings/assumption-solver.py"] + instance
 
-validator = Validator(validation_files)
+    # deal with encoding and validation files
+    encoding = args.files
+    instance = args.instance
 
-process_ng_list(ng_list, validator=validator)
+    if args.validate_files is not None:
+        validator = Validator(args.validate_files + args.instance)
+    else:
+        validator = None
 
-write_ng_list_to_file(ng_list)
+    # deal with extra arguments given to clingo
+    options = NG_RECORDING_OPTIONS.copy()
 
-print_stats()
+    if args.nogoods_limit is not None:
+        options += [f"--lemma-out-max={args.nogoods_limit}"]
+
+    if args.horizon is not None:
+        options += [f"-c horizon={args.horizon}"]
+
+    # generalize using the normal variable or incremental variable
+    gen_t = "T"
+    if args.inc_t:
+        gen_t = "t"
+
+    # grab the nogood list
+    if args.use_existing_file:
+        ng_list = collect_nogoods(args.use_existing_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+    else:
+        ng_list = call_clingo_pipe(encoding+instance, args.max_extraction_time, NG_RECORDING_OPTIONS, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+
+    # Process nogoods
+    process_ng_list(ng_list, validator=validator)
+
+    # output file
+    write_ng_list_to_file(ng_list, file_name=args.output_file)
+
+    print_stats()

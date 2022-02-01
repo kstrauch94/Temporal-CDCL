@@ -64,7 +64,7 @@ class GenLiteral:
         if self.sign == 1:
             return s
         elif self.sign == -1:
-            return f"not {s}" 
+            return f"not {s}"
 
 class Nogood:
 
@@ -118,7 +118,7 @@ class Nogood:
                 self.literals.append(Literal(clingo.parse_term(lit), sign=1))
 
         #print(", ".join([str(a) for a in self.pos_literals + self.neg_literals + self.domain_literals]))
-            
+
 
     def process_time(self):
 
@@ -126,7 +126,7 @@ class Nogood:
         regular_times = []
         for lit in self.literals:
             regular_times.append(lit.time)
-        
+
         step_times = []
         for lit in self.domain_literals:
             step_times.append(lit.time)
@@ -135,15 +135,15 @@ class Nogood:
 
         # minimum between the lowest point in the step atom -1 (since step atom only covers the higher timepoint of the transition)
         # and the lowest timepoint if the literals when no prime literals are present
-        
+
         if len(step_times) == 0:
             self.min_time = min(regular_times)
-        else: 
+        else:
             # here, it is important to note that the lowest timepoint MAY contain prime literals. This is why we add the minimum T > 0
             # to the domain literals later on. We could also, just take the minimum point as the minimum of the transformed literals
             # but then, the degree and dif_to_min would be different
             self.min_time = min(min(step_times)-1, min(regular_times))
-        
+
         self.degree = self.max_time - self.min_time
 
 
@@ -168,16 +168,23 @@ class Nogood:
 
         self.gen_literals = self._generalize(self.literals, t)
 
-        self.gen_domain_literals = self._generalize(self.domain_literals, t)
+        # otime is really only needed to keep track of the timepoints of the rules
+        # at conflict resolution time. So, no need to write them again.
+        # instead, if we use one-shot solving we add time(T) and time(T-degre)
+        # so that the maximum and minimum times actually exist.
 
-        if len(self.domain_literals) == 0:
-            if t == "T":
-                self.domain_literals += ["time(T)"]
+        #self.gen_domain_literals = self._generalize(self.domain_literals, t)
+
+        if t == "T":
+            self.gen_domain_literals += ["time(T)", f"time(T-{self.degree})"]
 
         if self.min_time > 0:
             # minimum timepoint in the rule is 1 but only if
             # in the original rule the minimum was NOT 0
-            self.domain_literals += ["{}-{} > 0".format(t, self.degree)]
+            self.gen_domain_literals += ["{}-{} > 0".format(t, self.degree)]
+        else:
+            # we have to make sure that the minimum value is still 0
+            self.gen_domain_literals += ["{}-{} >= 0".format(t, self.degree)]
 
         self.generalized = t
 
@@ -195,9 +202,9 @@ class Nogood:
 
             return f":- {', '.join(lits)}. % lbd = {self.lbd} , order = {self.order} , max,min = {self.max_time},{self.min_time}"
 
-        
+
         return self.to_constraint()
-    
+
     def issubset(self, other_ng):
         return set(self.all_literals).issubset(set(other_ng.all_literals))
 

@@ -26,17 +26,19 @@ hypothesisConstraint({t}-degree) {constraint}
     def validate_list(self, ng_list, walltime=0):
 
         validated = []
-        for ng in ng_list:
+        for i, ng in enumerate(ng_list):
             fail_reason = self.validate(ng, walltime)
             if fail_reason is not None:
                 util.Count.add(f"Validation failed {fail_reason}")
                 continue
-            
+            if i % 100 == 0:
+                print(f"{i} validations performed")
+
             util.Count.add("Validation Successful")
             validated.append(ng)
 
         return validated
-    
+
     @util.Timer("Validation")
     def validate(self, nogood, walltime=0):
         #walltime in seconds
@@ -62,7 +64,7 @@ hypothesisConstraint({t}-degree) {constraint}
         except subprocess.CalledProcessError as e:
             output = e.output.decode("utf-8")
 
-        print(output)
+        #print(output)
 
         os.remove(temp_validate)
         os.remove("runsolver.watcher")

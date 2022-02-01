@@ -1,4 +1,5 @@
 import os
+import errno
 import logging
 import sys
 import config_file
@@ -29,7 +30,7 @@ def plasp_domain_search(instance):
         logging.info("Succes finding domain!")
     # look for domain in parent folder
     else:
-        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl"))) 
+        logging.info("testing domain path: {}".format(os.path.join(get_parent_dir(get_parent_dir(instance)), "domain.pddl")))
         if os.path.isfile(os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")):
             domain = os.path.join(get_parent_dir(get_parent_dir(instance)), "../domain.pddl")
             logging.info("Succes finding domain!")
@@ -38,7 +39,7 @@ def plasp_domain_search(instance):
             return None
 
     return domain
-            
+
 def plasp_translate(instance, domain, filename, no_fd):
 
     if domain is None:
