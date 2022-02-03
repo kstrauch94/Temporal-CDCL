@@ -188,7 +188,7 @@ if __name__ == "__main__":
     instance = args.instance
 
     if args.validate_files is not None:
-        validator = Validator(args.validate_files + args.instance)
+        validator = Validator(args.validate_files + args.instance, args.val_walltime)
     else:
         validator = None
 
