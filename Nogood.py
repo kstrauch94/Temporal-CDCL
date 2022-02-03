@@ -168,6 +168,8 @@ class Nogood:
 
         self.gen_literals = self._generalize(self.literals, t)
 
+        #self.gen_domain_literals = self._generalize(self.domain_literals, t)
+
         # otime is really only needed to keep track of the timepoints of the rules
         # at conflict resolution time. So, no need to write them again.
         # instead, if we use one-shot solving we add time(T) and time(T-degre)
