@@ -19,20 +19,25 @@ hypothesisConstraint({t}-degree) {constraint}
 :- not hypothesisConstraint(1).
 """
 
-    def __init__(self, validation_files) -> None:
+    def __init__(self, validation_files, val_walltime=None) -> None:
         self.validation_files = validation_files
+        self.val_walltime = val_walltime
 
-
-    def validate_list(self, ng_list, walltime=0):
+    def validate_list(self, ng_list):
 
         validated = []
+        print(f"starting {len(ng_list)} validations")
         for i, ng in enumerate(ng_list):
-            fail_reason = self.validate(ng, walltime)
+            fail_reason = self.validate(ng)
             if fail_reason is not None:
                 util.Count.add(f"Validation failed {fail_reason}")
                 continue
-            if i % 100 == 0:
+            if i == len(ng_list):
                 print(f"{i} validations performed")
+            else:
+                # \r at the end resets the position in the cmd to the start
+                # we have to add end="" so that it doesnt go to a new line
+                print(f"{i} validations performed   \r", end="")
 
             util.Count.add("Validation Successful")
             validated.append(ng)
@@ -40,7 +45,7 @@ hypothesisConstraint({t}-degree) {constraint}
         return validated
 
     @util.Timer("Validation")
-    def validate(self, nogood, walltime=0):
+    def validate(self, nogood):
         #walltime in seconds
 
         temp_validate = "temp_validate.lp"
@@ -52,8 +57,8 @@ hypothesisConstraint({t}-degree) {constraint}
 
         # build call
         call = [RUNSOLVER_PATH, "-w", "runsolver.watcher"]
-        if walltime is not None:
-            call += ["-W", "{}".format(walltime)]
+        if self.val_walltime is not None:
+            call += ["-W", "{}".format(self.val_walltime)]
 
         call += ["clingo", "--quiet=2", "--stats", "--warn=none", temp_validate] + self.validation_files
 
