@@ -109,13 +109,15 @@ def collect_nogoods(output, gen_t="T", max_size=None, max_degree=None, max_lbd=N
 
     return ng_list
 
-def process_ng_list(ng_list, sort_by=None, sort_reversed=False, validator=None):
-
-    if validator is not None:
-        ng_list = validator.validate_list(ng_list)
+def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=False, validator=None):
 
     if sort_by is not None:
         ng_list.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=sort_reversed)
+
+    if validator is not None:
+        ng_list = validator.validate_list(ng_list, nogoods_wanted=nogoods_wanted)
+    else:
+        ng_list = ng_list[:nogoods_wanted]
 
     return ng_list
 
@@ -213,7 +215,7 @@ if __name__ == "__main__":
         ng_list = call_clingo_pipe(encoding+instance, args.max_extraction_time, NG_RECORDING_OPTIONS, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
 
     # Process nogoods
-    process_ng_list(ng_list, validator=validator)
+    process_ng_list(ng_list, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
 
     # output file
     write_ng_list_to_file(ng_list, file_name=args.output_file)

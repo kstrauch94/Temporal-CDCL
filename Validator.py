@@ -23,7 +23,7 @@ hypothesisConstraint({t}-degree) {constraint}
         self.validation_files = validation_files
         self.val_walltime = val_walltime
 
-    def validate_list(self, ng_list):
+    def validate_list(self, ng_list, nogoods_wanted):
 
         validated = []
         print(f"starting {len(ng_list)} validations")
@@ -41,6 +41,9 @@ hypothesisConstraint({t}-degree) {constraint}
 
             util.Count.add("Validation Successful")
             validated.append(ng)
+
+            if len(validated) == nogoods_wanted:
+                break
 
         return validated
 
