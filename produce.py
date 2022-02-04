@@ -63,7 +63,7 @@ def get_sort_value(object, attributes):
 
     return val
 
-def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
+def call_clingo_pipe(file_names, time_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
     CLINGO = ["./runsolver", "-W", "{}".format(time_limit),
               "-w", "runsolver.watcher", "-d", "20",
@@ -75,9 +75,15 @@ def call_clingo_pipe(file_names, time_limit, options, gen_t="T", max_size=None, 
 
     pipe = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    return collect_nogoods(pipe.stdout, gen_t, max_size, max_degree, max_lbd)
+    if raw_file is not None:
+        with open(raw_file, "w") as _f:
+            ng_list = collect_nogoods(pipe.stdout, raw_file=_f, gen_t, max_size, max_degree, max_lbd)
+    else:
+        ng_list = collect_nogoods(pipe.stdout, gen_t, max_size, max_degree, max_lbd)
 
-def collect_nogoods(output, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
+    return ng_list
+
+def collect_nogoods(output, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
     ng_list = []
 
     for order, line in enumerate(output):
@@ -90,6 +96,9 @@ def collect_nogoods(output, gen_t="T", max_size=None, max_degree=None, max_lbd=N
                 # in this case the line was not written properly in the output_file
                 break
             util.Count.add("Total nogoods")
+            if raw_file is not None:
+                raw_file.write(line)
+
             if max_size is not None and max_size < len(ng) or \
                max_degree is not None and max_degree < ng.degree or \
                max_lbd is not None and max_lbd < ng.lbd:
@@ -112,7 +121,7 @@ def collect_nogoods(output, gen_t="T", max_size=None, max_degree=None, max_lbd=N
 def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=False, validator=None):
 
     if sort_by is not None:
-        ng_list.sort(key=lambda nogood : get_sort_value(nogood, sortby), reverse=sort_reversed)
+        ng_list.sort(key=lambda nogood : get_sort_value(nogood, sort_by), reverse=sort_reversed)
 
     if validator is not None:
         ng_list = validator.validate_list(ng_list, nogoods_wanted=nogoods_wanted)
@@ -154,14 +163,14 @@ if __name__ == "__main__":
 
     processing = parser.add_argument_group("Processing options")
 
-    processing.add_argument("--output-file", help="name of the file that the nogoods will be saved to. Default=nogoods.lp", default="nogoods.lp")
-
+    processing.add_argument("--output-file", help="name of the file that the generalized nogoods will be saved to. Default=nogoods.lp", default="nogoods.lp")
+    processing.add_argument("--regular-ng-file", help="Name of the file containing the raw nogoods from clingo. Default=None", default=None)
     processing.add_argument("--use-existing-file", help="Process an existing nogood file.", metavar="file", default=None)
 
     #processing.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods.")
-    processing.add_argument("--sortby", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd, random_id]. default: ordering", default=["ordering"])
-    processing.add_argument("--reverse-sort", action="store_true", help="Reverse the sort order.")
-    processing.add_argument("--inc_t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
+    processing.add_argument("--sort-by", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd, random_id]. default: ordering", default=["ordering"])
+    processing.add_argument("--sort-reversed", action="store_true", help="Reverse the sort order.")
+    processing.add_argument("--inc-t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
 
     processing.add_argument("--max_degree", help="Processing will ignore nogoods with higher degree. Default = None", default=None, type=int)
     processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
@@ -212,7 +221,8 @@ if __name__ == "__main__":
     if args.use_existing_file:
         ng_list = collect_nogoods(args.use_existing_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
     else:
-        ng_list = call_clingo_pipe(encoding+instance, args.max_extraction_time, NG_RECORDING_OPTIONS, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+        ng_list = call_clingo_pipe(encoding+instance, args.max_extraction_time, NG_RECORDING_OPTIONS, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+
 
     # Process nogoods
     process_ng_list(ng_list, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
