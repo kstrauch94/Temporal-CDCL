@@ -1,20 +1,14 @@
-from lib2to3.pgen2 import literals
-import os
 import subprocess
 import re
-import sys
 import errno
 import argparse
-import operator
-import logging
-from collections import Counter
 
 from util import util
 
 from Nogood import Nogood
 from Validator import Validator
 
-import random
+global RUNSOLVER_PATH
 
 def check_subsumed(ng_list, new_ng):
     # ng_list is a list of nogoods of which none is a subset of any other
@@ -54,6 +48,9 @@ def check_subsumed(ng_list, new_ng):
     new_list.append(new_ng)
 
     return new_list, True, nogoods_deleted
+
+def minimize(nogood):
+    pass #TODO
 
 def get_sort_value(object, attributes):
     val = []
@@ -180,8 +177,13 @@ if __name__ == "__main__":
     processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 0, 0 = no limit", default=0, type=int)
     processing.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
+    other = parser.add_argument_group("Other options")
+
+    other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default="./runsolver")
+
     args = parser.parse_args()
 
+    RUNSOLVER_PATH = args.runsolver
 
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",

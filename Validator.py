@@ -3,8 +3,7 @@ import os
 
 from util import util
 
-
-RUNSOLVER_PATH = "./runsolver"
+global RUNSOLVER_PATH
 
 UNSAT = "UNSATISFIABLE"
 UNK = "UNKNOWN"

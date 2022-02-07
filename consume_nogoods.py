@@ -15,10 +15,12 @@ DEBUG = False
 match_time = r"Time         : (\d+\.\d+)s"
 match_time_solve = r"Solving: (\d+\.\d+)s"
 
+global RUNSOLVER_PATH
+
 def call_clingo(file_names, time_limit, options):
     #  TODO: use runsolver here to manage the max time and such
 
-    CLINGO = [config_file.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
 
     call = CLINGO + options
@@ -192,9 +194,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--files", metavar='f', nargs='+', help="Files to run clingo on")
     parser.add_argument("--nogoods", help="File holding the processed nogoods")
-    parser.add_argument("--scaling-exp", help="scaling of how many nogoods to use. format=start,factor,count", default=None)
     parser.add_argument("--scaling-list", help="Perform scaling by the values provided. A scaling of -1 signifies the use of ALL nogoods.", default=None)
-    parser.add_argument("--max-scaling", type=int, help="maximum value of the scaling. If this value if lower than any step in the scaling, it will be used as the last nogood amount. A zero value means no max scaling. Default = 0", default=0)
 
     parser.add_argument("--horizon", help="horizon will be added to clingo -c horizon=<h>", type=int, default=None)
     parser.add_argument("--time-limit", type=int, help="time limit per call in seconds. Default=300", default=300)
@@ -213,6 +213,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--debug", action="store_true", help="For every scaling amount, write a file with the nogoods used for that particular scaling.")
 
+    other = parser.add_argument_group("Other options")
+
+    other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default="./runsolver")
 
     args = parser.parse_args()
 
@@ -220,12 +223,8 @@ if __name__ == "__main__":
 
     files = args.files
 
-    if args.scaling_list is not None and args.scaling_exp is not None:
-        logging.error("only one scaling can be provided at a time. Use either --scaling-list or --scaling-exp.\nExiting...")
-        sys.exit(1)
-    if args.scaling_list is None and args.scaling_exp is None:
-        logging.error("A scaling has to be specified. Use either --scaling-list or --scaling-exp.\nExiting...")
-        sys.exit(1)
+    RUNSOLVER_PATH = args.runsolver
+
 
     DEBUG = args.debug
 
