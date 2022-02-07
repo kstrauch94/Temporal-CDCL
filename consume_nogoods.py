@@ -14,7 +14,7 @@ global RUNSOLVER_PATH
 def call_clingo(file_names, time_limit, options):
 
     CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
-              "-w", "runsolver.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
+              "-w", "runsolver.consumer.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
 
     call = CLINGO + options
 

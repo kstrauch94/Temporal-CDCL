@@ -63,7 +63,7 @@ def get_sort_value(object, attributes):
 def call_clingo_pipe(file_names, time_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
     CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit),
-              "-w", "runsolver.watcher", "-d", "20",
+              "-w", "runsolver.cdcl.watcher", "-d", "20",
               "clingo"] + file_names
 
     call = CLINGO + options
