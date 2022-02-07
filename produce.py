@@ -172,9 +172,9 @@ if __name__ == "__main__":
     processing.add_argument("--max_degree", help="Processing will ignore nogoods with higher degree. Default = None", default=None, type=int)
     processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
     processing.add_argument("--max-lbd", help="Processing will ignore nogoods with higher lbd. Default = None.", default=None, type=int)
-    processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = 0, 0 = no limit", default=0, type=int)
+    processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = None", default=None, type=int)
 
-    processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = 0, 0 = no limit", default=0, type=int)
+    processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = None", default=None, type=int)
     processing.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
     other = parser.add_argument_group("Other options")
@@ -220,14 +220,15 @@ if __name__ == "__main__":
         gen_t = "t"
 
     # grab the nogood list
-    if args.use_existing_file:
-        ng_list = collect_nogoods(args.use_existing_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
-    else:
-        ng_list = call_clingo_pipe(encoding+instance, args.max_extraction_time, NG_RECORDING_OPTIONS, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+    with util.Timer("Collect Nogoods"):
+        if args.use_existing_file:
+            ng_list = collect_nogoods(args.use_existing_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+        else:
+            ng_list = call_clingo_pipe(encoding+instance, args.max_extraction_time, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
 
-
-    # Process nogoods
-    process_ng_list(ng_list, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
+    with util.Timer("Process Nogoods"):
+        # Process nogoods
+        process_ng_list(ng_list, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
 
     # output file
     write_ng_list_to_file(ng_list, file_name=args.output_file)
