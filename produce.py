@@ -77,9 +77,9 @@ def call_clingo_pipe(file_names, time_limit, options, raw_file=None, gen_t="T", 
 
     if raw_file is not None:
         with open(raw_file, "w") as _f:
-            ng_list = collect_nogoods(pipe.stdout, raw_file=_f, gen_t, max_size, max_degree, max_lbd)
+            ng_list = collect_nogoods(pipe.stdout, raw_file=_f, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd)
     else:
-        ng_list = collect_nogoods(pipe.stdout, gen_t, max_size, max_degree, max_lbd)
+        ng_list = collect_nogoods(pipe.stdout, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd)
 
     return ng_list
 
