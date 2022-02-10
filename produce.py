@@ -104,6 +104,8 @@ def collect_nogoods(output, raw_file=None, gen_t="T", max_size=None, max_degree=
             ng.generalize(gen_t)
             ng_list, success, deleted = check_subsumed(ng_list, ng)
             util.Count.add("nogoods subsumed", deleted)
+        else:
+            print(line, end="")
 
 
     #for ng in ng_list:
@@ -182,6 +184,12 @@ if __name__ == "__main__":
     other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default="./runsolver")
 
     args = parser.parse_args()
+
+    if args.instance is None:
+        raise argparse.ArgumentTypeError(args.instance, "Instance can not be empty")
+
+    if args.files is None:
+        raise argparse.ArgumentTypeError(args.files, "Files can not be empty")
 
     RUNSOLVER_PATH = args.runsolver
 
