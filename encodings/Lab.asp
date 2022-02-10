@@ -104,8 +104,8 @@ domain_reach(X,Y) :- field(X,Y).
 assumption(goal(X,Y,0), true) :-     goal_on(X,Y).
 assumption(goal(X,Y,0),false) :- not goal_on(X,Y), domain_goal(X,Y).
 
-assumption(reach(X,Y,0), true) :-     reach_init(X,Y).
-assumption(reach(X,Y,0),false) :- not reach_init(X,Y), domain_reach(X,Y).
+assumption(reach(X,Y,0), true) :-     reach_init(X,Y,0).
+assumption(reach(X,Y,0),false) :- not reach_init(X,Y,0), domain_reach(X,Y).
 
 assumption(conn(X,Y,D,0), true) :-     connect(X,Y,D).
 assumption(conn(X,Y,D,0),false) :- not connect(X,Y,D), domain_conn(X,Y,D).
