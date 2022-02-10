@@ -7,8 +7,7 @@ from util import util
 
 from Nogood import Nogood
 from Validator import Validator
-
-global RUNSOLVER_PATH
+import config
 
 def check_subsumed(ng_list, new_ng):
     # ng_list is a list of nogoods of which none is a subset of any other
@@ -62,7 +61,7 @@ def get_sort_value(object, attributes):
 
 def call_clingo_pipe(file_names, time_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
-    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit),
+    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit),
               "-w", "runsolver.cdcl.watcher", "-d", "20",
               "clingo"] + file_names
 
@@ -181,7 +180,7 @@ if __name__ == "__main__":
 
     other = parser.add_argument_group("Other options")
 
-    other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default="./runsolver")
+    other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default=None)
 
     args = parser.parse_args()
 
@@ -191,7 +190,8 @@ if __name__ == "__main__":
     if args.files is None:
         raise argparse.ArgumentTypeError(args.files, "Files can not be empty")
 
-    RUNSOLVER_PATH = args.runsolver
+    if args.runsolver is not None:
+        config.RUNSOLVER_PATH = args.runsolver
 
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",

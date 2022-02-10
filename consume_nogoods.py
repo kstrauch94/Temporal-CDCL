@@ -3,17 +3,15 @@ import subprocess
 import argparse
 import logging
 
-import config_file
+import config
 
 from tools.tools import setup_logging, plasp_translate, plasp2_translate, get_parent_dir, create_folder
 
 DEBUG = False
 
-global RUNSOLVER_PATH
-
 def call_clingo(file_names, time_limit, options):
 
-    CLINGO = [RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
+    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
               "-w", "runsolver.consumer.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
 
     call = CLINGO + options
@@ -134,13 +132,14 @@ if __name__ == "__main__":
 
     other = parser.add_argument_group("Other options")
 
-    other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default="./runsolver")
+    other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default=None)
 
     args = parser.parse_args()
 
     setup_logging(args.no_stream_output, args.logtofile)
 
-    RUNSOLVER_PATH = args.runsolver
+    if args.runsolver is not None:
+        config.RUNSOLVER_PATH = args.runsolver
 
     DEBUG = args.debug
 
@@ -149,7 +148,7 @@ if __name__ == "__main__":
 
     results = consume(args.files, args.nogoods, args.scaling_list,
                         time_limit=args.time_limit, horizon=args.horizon, no_base_run=args.no_base_run)
-    
+
     if args.save_folder is not None:
         create_folder(args.save_folder)
 
@@ -157,5 +156,3 @@ if __name__ == "__main__":
             out_path = os.path.join(args.save_folder, "-{}".format(str(label)))
             with open(out_path, "w") as f:
                 f.write(out)
-
-

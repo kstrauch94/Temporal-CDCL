@@ -2,8 +2,7 @@ import subprocess
 import os
 
 from util import util
-
-global RUNSOLVER_PATH
+import config
 
 UNSAT = "UNSATISFIABLE"
 UNK = "UNKNOWN"
@@ -36,7 +35,7 @@ hypothesisConstraint({t}-degree) {constraint}
             else:
                 # \r at the end resets the position in the cmd to the start
                 # we have to add end="" so that it doesnt go to a new line
-                print(f"{i} validations performed   \r", end="")
+                print(f"validations performed: {i}    \r", end="")
 
             util.Count.add("Validation Successful")
             validated.append(ng)
@@ -49,7 +48,6 @@ hypothesisConstraint({t}-degree) {constraint}
     @util.Timer("Validation")
     def validate(self, nogood):
         #walltime in seconds
-
         temp_validate = "temp_validate.lp"
 
         program = Validator.program.format(deg=nogood.degree, t=nogood.generalized, constraint=nogood.to_general_constraint())
@@ -58,7 +56,7 @@ hypothesisConstraint({t}-degree) {constraint}
             f.write(program)
 
         # build call
-        call = [RUNSOLVER_PATH, "-w", "runsolver.watcher"]
+        call = [config.RUNSOLVER_PATH, "-w", "runsolver.watcher"]
         if self.val_walltime is not None:
             call += ["-W", "{}".format(self.val_walltime)]
 

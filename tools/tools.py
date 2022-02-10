@@ -2,7 +2,7 @@ import os
 import errno
 import logging
 import sys
-import config_file
+import config
 import subprocess
 
 def setup_logging(no_stream_output=False, logtofile=None):
@@ -52,7 +52,7 @@ def plasp_translate(instance, domain, filename, no_fd):
 
     if not no_fd:
         logging.info("Calling Fast Downward preprocessing...")
-        fd_call = config_file.FD_CALL + [domain, instance]
+        fd_call = config.FD_CALL + [domain, instance]
         instance_files = ["output.sas"]
 
         output = subprocess.check_output(fd_call).decode("utf-8")
@@ -61,7 +61,7 @@ def plasp_translate(instance, domain, filename, no_fd):
         instance_files = [domain, instance]
 
     logging.info("Translating with plasp...")
-    plasp_call = [config_file.PLASP, "translate"] + instance_files
+    plasp_call = [config.PLASP, "translate"] + instance_files
 
     output = subprocess.check_output(plasp_call).decode("utf-8")
     with open(filename, "w") as f:
@@ -83,7 +83,7 @@ def plasp2_translate(instance, domain, filename):
 
     logging.info("translating instance {}\nwith domain {}".format(instance, domain))
     logging.info("Translating with plasp 2...\n")
-    plasp_call = [config_file.PLASP, "-c"] + instance_files
+    plasp_call = [config.PLASP, "-c"] + instance_files
 
     logging.info("plasp call: {}".format(" ".join(plasp_call)))
     output = subprocess.check_output(plasp_call).decode("utf-8")
