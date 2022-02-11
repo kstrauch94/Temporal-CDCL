@@ -170,7 +170,7 @@ if __name__ == "__main__":
     processing.add_argument("--sort-reversed", action="store_true", help="Reverse the sort order.")
     processing.add_argument("--inc-t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
 
-    processing.add_argument("--max_degree", help="Processing will ignore nogoods with higher degree. Default = None", default=None, type=int)
+    processing.add_argument("--max-degree", help="Processing will ignore nogoods with higher degree. Default = None", default=None, type=int)
     processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
     processing.add_argument("--max-lbd", help="Processing will ignore nogoods with higher lbd. Default = None.", default=None, type=int)
     processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = None", default=None, type=int)
