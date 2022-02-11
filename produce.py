@@ -166,7 +166,7 @@ if __name__ == "__main__":
     processing.add_argument("--use-existing-file", help="Process an existing nogood file.", metavar="file", default=None)
 
     #processing.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods.")
-    processing.add_argument("--sort-by", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, ordering, lbd, random_id]. default: ordering", default=["ordering"])
+    processing.add_argument("--sort-by", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, order, lbd, random_id]. default: None", default=None)
     processing.add_argument("--sort-reversed", action="store_true", help="Reverse the sort order.")
     processing.add_argument("--inc-t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
 
