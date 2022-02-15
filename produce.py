@@ -9,6 +9,54 @@ from Nogood import Nogood
 from Validator import Validator
 import config
 
+from collections.abc import MutableSequence
+
+
+class Nogood_List(MutableSequence):
+    """A container for manipulating lists of hosts"""
+    def __init__(self, data=None):
+        """Initialize the class"""
+        super(Nogood_List, self).__init__()
+        if (data is not None):
+            self._list = list(data)
+        else:
+            self._list = list()
+
+    def replace(self, list):
+        self._list = list
+
+    def sort(self, *args, **kwargs):
+        return self._list.sort(*args, **kwargs)
+
+    def __repr__(self):
+        return "<{0} {1}>".format(self.__class__.__name__, self._list)
+
+    def __len__(self):
+        """List length"""
+        return len(self._list)
+
+    def __getitem__(self, ii):
+        """Get a list item"""
+        return self._list[ii]
+
+    def __delitem__(self, ii):
+        """Delete an item"""
+        del self._list[ii]
+
+    def __setitem__(self, ii, val):
+        # optional: self._acl_check(val)
+        self._list[ii] = val
+
+    def __str__(self):
+        return str(self._list)
+
+    def insert(self, ii, val):
+        # optional: self._acl_check(val)
+        self._list.insert(ii, val)
+
+    def append(self, val):
+        self.insert(len(self._list), val)
+
 def check_subsumed(ng_list, new_ng):
     # ng_list is a list of nogoods of which none is a subset of any other
     # new_ng is a nogood object
@@ -109,16 +157,7 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
             ng.generalize(gen_t)
             with util.Timer("subsumption"):
                 new_ng_list, success, deleted = check_subsumed(ng_list, ng)
-                bads = set()
-                for _ng in ng_list:
-                    if _ng not in new_ng_list:
-                        bads.add(_ng)
-                
-                for bad in bads:
-                    ng_list.remove(bad)
-
-                if success:
-                    ng_list.append(ng)
+                ng_list.replace(new_ng_list)
 
             util.Count.add("nogoods subsumed", deleted)
             
@@ -133,7 +172,7 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
     #print("call has finished\n")
 
 
-def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
+def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step, nogoods_wanted, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
     ng_file_name = "ng_file.tmp"
     with open(ng_file_name, "w") as _f:
@@ -154,6 +193,9 @@ def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step
         print(f"Collected nogoods: {len(ng_list)}  ,total {util.Count.counts['Total nogoods']}  ,sub {util.Count.counts['nogoods subsumed']} , skip {util.Count.counts['skipped']} \r", end="")
         
         if util.Timer.timers["pipe calls"] > time_limit:
+            break
+
+        elif nogoods_wanted is not None and len(ng_list) >= nogoods_wanted:
             break
 
 def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=False, validator=None):
@@ -271,13 +313,13 @@ if __name__ == "__main__":
 
     # grab the nogood list
     with util.Timer("Collect Nogoods"):
-        ng_list = []
+        ng_list = Nogood_List()
         if args.use_existing_file:
             collect_nogoods(args.use_existing_file, ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         elif args.multi_calls_step is None:
             call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         else:
-            clingo_pipe_multiple_calls(encoding+instance, ng_list, args.max_extraction_time, args.multi_calls_step, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+            clingo_pipe_multiple_calls(encoding+instance, ng_list, args.max_extraction_time, args.multi_calls_step, args.nogoods_wanted, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
 
     util.Count.add("Nogoods after filter", len(ng_list))
 

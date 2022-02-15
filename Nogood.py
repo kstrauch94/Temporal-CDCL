@@ -1,6 +1,6 @@
 import re
 import clingo
-
+from math import log
 OPENTIME = "otime"
 
 split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
@@ -42,6 +42,29 @@ class Literal:
         elif self.sign == -1:
             return f"not {s}"
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def __eq__(self, other: object) -> bool:
+        if self.name != other.name:
+            return False
+        
+        for arg, oarg in zip(self.arguments, other.arguments):
+            if arg != oarg:
+                return False
+        
+        if self.time != other.time:
+            return False
+
+        if self.sign != other.sign:
+            return False
+
+        return True
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other
+
+
 class GenLiteral:
 
     def __init__(self, name, arguments, t, sign):
@@ -65,6 +88,29 @@ class GenLiteral:
             return s
         elif self.sign == -1:
             return f"not {s}"
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def __eq__(self, other: object) -> bool:
+        if self.name != other.name:
+            return False
+        
+        for arg, oarg in zip(self.arguments, other.arguments):
+            if arg != oarg:
+                return False
+        
+        if self.t != other.t:
+            return False
+
+        if self.sign != other.sign:
+            return False
+
+        return True
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other
+
 
 class Nogood:
 
@@ -91,6 +137,14 @@ class Nogood:
         self.process_time()
 
         self.generalized = None
+
+    @property
+    def score(self):
+        return self.lbd + log(self.size, 50) + log(self.degree+1, 5)
+
+    @property
+    def size(self):
+        return len(self.literals)
 
     def process_lbd(self, nogood_str):
         try:
@@ -190,19 +244,22 @@ class Nogood:
 
         self.generalized = t
 
+    def properties_str(self):
+        return f"% lbd = {self.lbd} , order = {self.order} , max,min = {self.max_time},{self.min_time}  , score = {self.score}"
+
     def to_constraint(self):
 
         lits = [str(a) for a in self.literals]
         lits.extend([str(a) for a in self.domain_literals])
 
-        return f":- {', '.join(lits)}. % lbd = {self.lbd} , order = {self.order} , max,min = {self.max_time},{self.min_time}"
+        return f":- {', '.join(lits)}. {self.properties_str()}"
 
     def to_general_constraint(self):
         if self.generalized is not None:
             lits = [str(a) for a in self.gen_literals]
             lits.extend([str(a) for a in self.gen_domain_literals])
 
-            return f":- {', '.join(lits)}. % lbd = {self.lbd} , order = {self.order} , max,min = {self.max_time},{self.min_time}"
+            return f":- {', '.join(lits)}. {self.properties_str()}"
 
 
         return self.to_constraint()
