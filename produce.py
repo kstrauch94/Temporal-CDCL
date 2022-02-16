@@ -5,14 +5,14 @@ import argparse
 
 from util import util
 
-from Nogood import Nogood
+from Nogood import Nogood, Nogood_List
 from Validator import Validator
 import config
 
 from collections.abc import MutableSequence
 
 
-class Nogood_List(MutableSequence):
+class Nogood_List2(MutableSequence):
     """A container for manipulating lists of hosts"""
     def __init__(self, data=None):
         """Initialize the class"""
@@ -63,12 +63,13 @@ def check_subsumed(ng_list, new_ng):
 
     # returns: nogood_list, success, nogoods_deleted
     # success is True if new nogood is in the list or not
-    if ng_list == []:
+    if len(ng_list) == 0:
         return [new_ng], True, 0
 
     nogoods_deleted = 0
 
     new_list = []
+    failed = False
     for ng in ng_list:
         # remember to check if the T>0 is there or not!!
 
@@ -81,17 +82,27 @@ def check_subsumed(ng_list, new_ng):
             # by the new one should not be in the list
             # since we have a subset of that nogood already in the list
             # so we just return the old list
-            return ng_list, False, 0
-
+            ng.subsumes += 1
+            failed = True
+            continue
+        
+        if failed:
+            # only keep going to see if other nogoods subsume the new one also
+            continue
         # if new is not a subset of the nogood in the list()
         # then add the old nogood to the list
         if not new_ng.issubset(ng):
             new_list.append(ng)
         else:
             nogoods_deleted += 1
+    
+    if failed:
+        return None, False, 0
 
     # at this point we have deleted all supersets of the new nogood
     # so we add the new nogood to the list and return it
+    # also the amount of deleted nogoods is added to the subsumed amount of new nogood
+    new_ng.subsumes += nogoods_deleted
     new_list.append(new_ng)
 
     return new_list, True, nogoods_deleted
@@ -157,10 +168,11 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
             ng.generalize(gen_t)
             with util.Timer("subsumption"):
                 new_ng_list, success, deleted = check_subsumed(ng_list, ng)
-                ng_list.replace(new_ng_list)
-
-            util.Count.add("nogoods subsumed", deleted)
-            
+                if success:
+                    ng_list.replace(new_ng_list)
+                    util.Count.add("nogoods subsumed", deleted)
+                else:
+                    util.Count.add("nogoods subsumed", 1)
 
         #else:
         #    print(line, end="")
@@ -317,7 +329,7 @@ if __name__ == "__main__":
         if args.use_existing_file:
             collect_nogoods(args.use_existing_file, ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         elif args.multi_calls_step is None:
-            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         else:
             clingo_pipe_multiple_calls(encoding+instance, ng_list, args.max_extraction_time, args.multi_calls_step, args.nogoods_wanted, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
 
