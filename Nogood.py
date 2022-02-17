@@ -92,6 +92,16 @@ class GenLiteral:
         elif self.sign == -1:
             return f"not {s}"
 
+    def str_no_sign(self):
+        if self.sign == -1:
+            return str(self)[3:]
+        
+        return str(self)
+
+    def __repr__(self) -> str:
+        return str(self)
+        return f"GenLiteral({self.name},{self.arguments},{self.t},{self.sign})"
+
     def __hash__(self) -> int:
         return hash(str(self))
 

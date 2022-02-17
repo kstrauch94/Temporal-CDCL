@@ -1,3 +1,4 @@
+from operator import truediv, truth
 import subprocess
 import re
 import errno
@@ -94,6 +95,7 @@ def check_subsumed(ng_list, new_ng):
         if not new_ng.issubset(ng):
             new_list.append(ng)
         else:
+            new_ng.subsumes += ng.subsumes
             nogoods_deleted += 1
     
     if failed:
@@ -231,6 +233,34 @@ def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
             else:
                 _f.write(ng.to_constraint()+"\n")
 
+def count_literals(ng_list, top_k=5, multiplier=2):
+
+    counts = {}
+
+    for ng in ng_list:
+        for atom in ng.gen_literals:
+            counts.setdefault(atom, 0)
+            counts[atom] += 1
+
+    counts = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    
+    heuristics = []
+
+    best_score = counts[0][1]
+    for atom, score in counts[:top_k]:
+        heur_val = int(2*(score/best_score)*100)
+        t_arg = atom.t
+        heuristics.append(f"#heuristic {atom.str_no_sign()} : time(T), time({t_arg}), {t_arg} > 0. [T*{heur_val}, factor]")
+
+        if atom.sign == 1:
+            truthval = "true"
+        else:
+            truthval = "false"
+        heuristics.append(f"#heuristic {atom.str_no_sign()} : time(T), time({t_arg}), {t_arg} > 0. [T*{heur_val}, {truthval}]")
+
+    with open("heur.lp", "w") as _f:
+        for h in heuristics:
+            _f.write(h + "\n")
 
 def print_stats():
 
@@ -273,6 +303,11 @@ if __name__ == "__main__":
 
     processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = None", default=None, type=int)
     processing.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
+
+    heuristics = parser.add_argument_group("Heuristic options")
+
+    heuristics.add_argument("--top-k", help="Top k atoms to write heuristics for. Default=0", type=int, default=0)
+    heuristics.add_argument("--heur-multiplier", help="multiplier for the heuristics", type=int, default=2)
 
     other = parser.add_argument_group("Other options")
 
@@ -337,9 +372,11 @@ if __name__ == "__main__":
 
     with util.Timer("Process Nogoods"):
         # Process nogoods
-        process_ng_list(ng_list, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
+        process_ng_list(ng_list, nogoods_wanted=args.nogoods_wanted, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
 
     # output file
     write_ng_list_to_file(ng_list, file_name=args.output_file)
+
+    count_literals(ng_list, args.top_k, args.heur_multiplier)
 
     print_stats()
