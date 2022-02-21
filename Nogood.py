@@ -161,6 +161,11 @@ class Nogood:
     def size(self):
         return len(self.literals)
 
+    @property
+    def subsumes_r(self):
+        #useful to not specify reverse sort
+        return -self.subsumes
+
     def process_lbd(self, nogood_str):
         try:
             self.lbd = int(re.search(lbd_re, nogood_str).group(1))
