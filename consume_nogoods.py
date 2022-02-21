@@ -16,7 +16,7 @@ def call_clingo(file_names, time_limit, options):
 
     call = CLINGO + options
 
-    logging.info("calling: " + " ".join(call))
+    logging.debug("calling: " + " ".join(call))
 
     try:
         output = subprocess.check_output(call).decode("utf-8")
