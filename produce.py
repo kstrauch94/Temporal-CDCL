@@ -149,8 +149,8 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
             #print(f"breaking {process_limit} {order}")
             break
 
-        if line.startswith(":-") and "." in line:
-
+        if line.startswith(":-") and "." in line and "__atom" not in line:
+            ## __atom refers to auxiliary atoms, we can not parse those
             try:
                 ng = Nogood(line, order=order)
             except AttributeError:
@@ -250,7 +250,7 @@ def count_literals(ng_list, top_k=5, multiplier=2):
     for atom, score in counts[:top_k]:
         heur_val = int(2*(score/best_score)*100)
         t_arg = atom.t
-        heuristics.append(f"#heuristic {atom.str_no_sign()} : time(T), time({t_arg}), {t_arg} > 0. [T*{heur_val}, factor]")
+        heuristics.append(f"#heuristic {atom.str_no_sign()} : time(T), time({t_arg}), {t_arg} > 0. [T*{heur_val}, init]")
 
         if atom.sign == 1:
             truthval = "true"
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",
-                    "--lemma-out-dom=output",
+                    #"--lemma-out-dom=output",
                     "--quiet=2",
                     "--stats"]
 
@@ -352,6 +352,9 @@ if __name__ == "__main__":
 
     if args.horizon is not None:
         options += [f"-c horizon={args.horizon}"]
+    
+    if args.max_lbd is not None:
+        options += [f"--lemma-out-lbd={args.max_lbd}"]
 
     # generalize using the normal variable or incremental variable
     gen_t = "T"
