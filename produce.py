@@ -86,7 +86,7 @@ def check_subsumed(ng_list, new_ng):
             ng.subsumes += 1
             failed = True
             continue
-        
+
         if failed:
             # only keep going to see if other nogoods subsume the new one also
             continue
@@ -97,7 +97,7 @@ def check_subsumed(ng_list, new_ng):
         else:
             new_ng.subsumes += ng.subsumes
             nogoods_deleted += 1
-    
+
     if failed:
         return None, False, 0
 
@@ -165,7 +165,7 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
                max_lbd is not None and max_lbd < ng.lbd:
                 util.Count.add("skipped")
                 continue
-            
+
 
             ng.generalize(gen_t)
             with util.Timer("subsumption"):
@@ -196,7 +196,7 @@ def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step
     while 1:
         with util.Timer("pipe calls"):
             # after getting all the nogoods, write them into a file and call the solver again with the nogoods
-            call_clingo_pipe(file_names + [ng_file_name], ng_list, time_limit, nogoods_per_step, options=options, 
+            call_clingo_pipe(file_names + [ng_file_name], ng_list, time_limit, nogoods_per_step, options=options,
                             raw_file=raw_file, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd)
 
             with open(ng_file_name, "w") as _f:
@@ -205,7 +205,7 @@ def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step
                     _f.write(ng.to_general_constraint()+"\n")
 
         print(f"Collected nogoods: {len(ng_list)}  ,total {util.Count.counts['Total nogoods']}  ,sub {util.Count.counts['nogoods subsumed']} , skip {util.Count.counts['skipped']} \r", end="")
-        
+
         if util.Timer.timers["pipe calls"] > time_limit:
             break
 
@@ -243,7 +243,7 @@ def count_literals(ng_list, top_k=5, multiplier=2):
             counts[atom] += 1
 
     counts = sorted(counts.items(), key=lambda item: item[1], reverse=True)
-    
+
     heuristics = []
 
     best_score = counts[0][1]
@@ -306,7 +306,7 @@ if __name__ == "__main__":
 
     heuristics = parser.add_argument_group("Heuristic options")
 
-    heuristics.add_argument("--top-k", help="Top k atoms to write heuristics for. Default=0", type=int, default=0)
+    heuristics.add_argument("--top-k", help="Top k atoms to write heuristics for. Default=0", type=int, default=None)
     heuristics.add_argument("--heur-multiplier", help="multiplier for the heuristics", type=int, default=2)
 
     other = parser.add_argument_group("Other options")
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",
-                    #"--lemma-out-dom=output",
+                    "--lemma-out-dom=output",
                     "--quiet=2",
                     "--stats"]
 
@@ -352,7 +352,7 @@ if __name__ == "__main__":
 
     if args.horizon is not None:
         options += [f"-c horizon={args.horizon}"]
-    
+
     if args.max_lbd is not None:
         options += [f"--lemma-out-lbd={args.max_lbd}"]
 
@@ -380,6 +380,7 @@ if __name__ == "__main__":
     # output file
     write_ng_list_to_file(ng_list, file_name=args.output_file)
 
-    count_literals(ng_list, args.top_k, args.heur_multiplier)
+    if args.top_k is not None:
+        count_literals(ng_list, args.top_k, args.heur_multiplier)
 
     print_stats()

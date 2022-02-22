@@ -55,7 +55,7 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
 
     if horizon is not None:
         options += ["-c", "horizon={}".format(horizon)]
-    
+
 
 
     results = {}
@@ -69,7 +69,7 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
         logging.info("base run")
         output = call_clingo(files, time_limit, options)
         results["base"] = output
-        for line in output.split("\n")[7:13]:
+        for line in output.split("\n")[5:13]:
             logging.info(line)
 
     # only add heuristic info after base run
@@ -91,7 +91,7 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
                 write_nogood_partial(nogoods[-1], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
             else:
                 write_nogood_partial(nogoods[nogood_current], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
-        
+
         elif scaling_block and idx > 0:
             prev_scale = scaling[idx-1]
             if nogood_current == -1:
