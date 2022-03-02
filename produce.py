@@ -17,6 +17,8 @@ def check_subsumed(ng_list, new_ng):
     # ng_list is a list of nogoods of which none is a subset of any other
     # new_ng is a nogood object
 
+    #ng_list.append(new_ng)
+    #return ng_list.copy(), True, 0
     # returns: nogood_list, success, nogoods_deleted
     # success is True if new nogood is in the list or not
     if len(ng_list) == 0:
@@ -95,10 +97,12 @@ def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, ra
 
     pipe.kill()
 
+@util.Timer("collect")
 def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
-    for order, line in enumerate(output, start=len(ng_list)):
-        line = line.decode("utf-8")
+    for order, line in enumerate(output):
+        if type(line) != str:
+            line = line.decode("utf-8")
 
         if process_limit is not None and process_limit < order:
             #print(f"breaking {process_limit} {order}")
@@ -320,7 +324,8 @@ if __name__ == "__main__":
     with util.Timer("Collect Nogoods"):
         ng_list = NogoodList()
         if args.use_existing_file:
-            collect_nogoods(args.use_existing_file, ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+            with open(args.use_existing_file, "r") as _f:
+                collect_nogoods(_f.readlines(), ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         elif args.multi_calls_step is None:
             call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         else:
