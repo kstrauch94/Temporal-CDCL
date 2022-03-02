@@ -6,57 +6,12 @@ import argparse
 
 from util import util
 
-from Nogood import Nogood, Nogood_List
+from Nogood import Nogood, NogoodList
 from Validator import Validator
 import config
 
 from collections.abc import MutableSequence
 
-
-class Nogood_List2(MutableSequence):
-    """A container for manipulating lists of hosts"""
-    def __init__(self, data=None):
-        """Initialize the class"""
-        super(Nogood_List, self).__init__()
-        if (data is not None):
-            self._list = list(data)
-        else:
-            self._list = list()
-
-    def replace(self, list):
-        self._list = list
-
-    def sort(self, *args, **kwargs):
-        return self._list.sort(*args, **kwargs)
-
-    def __repr__(self):
-        return "<{0} {1}>".format(self.__class__.__name__, self._list)
-
-    def __len__(self):
-        """List length"""
-        return len(self._list)
-
-    def __getitem__(self, ii):
-        """Get a list item"""
-        return self._list[ii]
-
-    def __delitem__(self, ii):
-        """Delete an item"""
-        del self._list[ii]
-
-    def __setitem__(self, ii, val):
-        # optional: self._acl_check(val)
-        self._list[ii] = val
-
-    def __str__(self):
-        return str(self._list)
-
-    def insert(self, ii, val):
-        # optional: self._acl_check(val)
-        self._list.insert(ii, val)
-
-    def append(self, val):
-        self.insert(len(self._list), val)
 
 def check_subsumed(ng_list, new_ng):
     # ng_list is a list of nogoods of which none is a subset of any other
@@ -142,7 +97,7 @@ def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, ra
 
 def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
 
-    for order, line in enumerate(output):
+    for order, line in enumerate(output, start=len(ng_list)):
         line = line.decode("utf-8")
 
         if process_limit is not None and process_limit < order:
@@ -363,7 +318,7 @@ if __name__ == "__main__":
 
     # grab the nogood list
     with util.Timer("Collect Nogoods"):
-        ng_list = Nogood_List()
+        ng_list = NogoodList()
         if args.use_existing_file:
             collect_nogoods(args.use_existing_file, ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
         elif args.multi_calls_step is None:

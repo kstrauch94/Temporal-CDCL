@@ -295,7 +295,7 @@ class Nogood:
         return len(self.gen_literals)
 
 
-class Nogood_List(MutableSequence):
+class NogoodList(MutableSequence):
     """A more or less complete user-defined wrapper around list objects."""
 
     def __init__(self, initlist=None):
@@ -304,7 +304,7 @@ class Nogood_List(MutableSequence):
             # XXX should this accept an arbitrary sequence?
             if type(initlist) == type(self.data):
                 self.data[:] = initlist
-            elif isinstance(initlist, Nogood_List):
+            elif isinstance(initlist, NogoodList):
                 self.data[:] = initlist.data[:]
             else:
                 self.data = list(initlist)
@@ -331,7 +331,7 @@ class Nogood_List(MutableSequence):
         return self.data >= self.__cast(other)
 
     def __cast(self, other):
-        return other.data if isinstance(other, Nogood_List) else other
+        return other.data if isinstance(other, NogoodList) else other
 
     def __contains__(self, item):
         return item in self.data
@@ -352,21 +352,21 @@ class Nogood_List(MutableSequence):
         del self.data[i]
 
     def __add__(self, other):
-        if isinstance(other, Nogood_List):
+        if isinstance(other, NogoodList):
             return self.__class__(self.data + other.data)
         elif isinstance(other, type(self.data)):
             return self.__class__(self.data + other)
         return self.__class__(self.data + list(other))
 
     def __radd__(self, other):
-        if isinstance(other, Nogood_List):
+        if isinstance(other, NogoodList):
             return self.__class__(other.data + self.data)
         elif isinstance(other, type(self.data)):
             return self.__class__(other + self.data)
         return self.__class__(list(other) + self.data)
 
     def __iadd__(self, other):
-        if isinstance(other, Nogood_List):
+        if isinstance(other, NogoodList):
             self.data += other.data
         elif isinstance(other, type(self.data)):
             self.data += other
@@ -421,7 +421,7 @@ class Nogood_List(MutableSequence):
         self.data.sort(*args, **kwds)
 
     def extend(self, other):
-        if isinstance(other, Nogood_List):
+        if isinstance(other, NogoodList):
             self.data.extend(other.data)
         else:
             self.data.extend(other)
