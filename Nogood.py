@@ -153,6 +153,10 @@ class Nogood:
 
         self.generalized = None
 
+        # this is exclusively for the incremental mode
+        # set this to true if the nogood has been added to the program
+        self.grounded = False
+
     @property
     def score(self):
         return self.lbd + log(self.size, 50) + log(self.degree+1, 5)

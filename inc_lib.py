@@ -1,8 +1,10 @@
-from produce_nogoods import convert_ng_file
+import imp
+from produce import collect_nogoods
+from produce import process_ng_list
+from Nogood import NogoodList
 import clingo
 import os
 import sys
-import inc_config_file
 
 import logging
 
@@ -28,28 +30,25 @@ PREV_RULES = """
 class Handler:
 
     def __init__(self, ng_name="ng_temp.lp",
-               converted_ng_name="conv_ng.lp", 
-               options=inc_config_file.OPTIONS,
-               max_nogoods_to_add=inc_config_file.MAX_NOGOODS_TO_ADD):
+               converted_ng_name="nogoods.lp"):
 
 
         self.ng_name = ng_name
         self.converted_ng_name = converted_ng_name
-        self.config = options
 
         self._last_nogood_amount = 0
 
         # this flag says if we should keep generalizing nogoods
         # basically, if we have reached the max then do nothing
-        self._no_conversion = max_nogoods_to_add <= 0
 
         self.total_nogoods_added = 0
-        self.max_nogoods_to_add = max_nogoods_to_add
 
         self.total_conversion_time = 0
 
         self.logger = logging.getLogger(
             self.__module__ + '.' + self.__class__.__name__)
+
+        self.ng_list = NogoodList()
 
     def prepare(self, prg):
         self.get_assumptions_and_domains(prg)
@@ -157,35 +156,15 @@ class Handler:
 
         self.preprocess_ng_file()
 
-        stats, _, __ = convert_ng_file(self.ng_name, self.converted_ng_name,
-                        **self.config)
+        prev_len = len(self.ng_list)
+        # collect nogoods
+        collect_nogoods(self.ng_name, self.ng_list, process_limit=None, raw_file=None, gen_t="t")
 
-        # stats is only none when no nogoods were logged
-        # or when the nogood file doesn't exist
-        if stats is None:
-            return 0
+        # process nogoods
+        
+        self.postprocess_ng_file()
 
-        # this is the amount of VALID raw nogoods
-        total_raw_nogoods = stats["total_raw_nogoods"].value
-
-        if "repeats" in stats:
-            total_converted_nogoods = stats["total_nogoods_generalized"].value
-            repeats = stats["repeats"].value
-
-            self.logger.info("raw_nogoods in file: {}".format(total_raw_nogoods))
-            self.logger.info("total converted nogoods: {}".format(total_converted_nogoods))
-            self.logger.info("total repeats: {}".format(repeats))
-            self.logger.info("repeats + converted nogoods: {}".format(repeats + total_converted_nogoods))
-            self.logger.info(stats["time_conversion_jobs"].message)
-            self.total_conversion_time += stats["time_conversion_jobs"].value
-        else:
-            total_converted_nogoods = 0
-            repeats = 0
-
-        self.logger.info("total time spent on conversion: {}".format(self.total_conversion_time))
-        self.postprocess_ng_file(total_raw_nogoods)
-
-        return total_converted_nogoods
+        return len(self.ng_list) - prev_len
 
     def preprocess_ng_file(self):
         """
@@ -204,7 +183,7 @@ class Handler:
             f.write(no_null_chars)
 
 
-    def postprocess_ng_file(self, total_raw_nogoods):
+    def postprocess_ng_file(self):
         self.logger.info("POST")
 
         with open(self.ng_name, "r") as f:
@@ -212,9 +191,9 @@ class Handler:
 
         # check if the last line was unfinished. If so, 
         # add it to the ng file
-        if len(lines) == total_raw_nogoods + 1:
-            # if the total lines is 1 less than the amount of "nogoods"
-            # in the file
+        if "lbd = " not in lines[-1]:
+            # if the last line doesnt have the lbd then it is unfinished and  we have
+            # to continue it for later
             lastline = lines[-1]
 
             with open(self.ng_name, "w") as f:
@@ -227,28 +206,27 @@ class Handler:
 
 
     def add_nogoods(self, prg, step):
+        """
+        this function returns the name of the parts that were added to the program that have to be grounded
+        """
+        
         # this is a safety net, if we are in step 1 we have not solved yet
         # so there is no nogood file
-        # we return the name of the parts that were added to the program that have to be grounded
         if step == 1:
             return []
 
         parts = []
 
+        # find a way to know if a nogood has been "grounded" or not
         # here, we read the new converted nogood file
-        with open(self.converted_ng_name, "r") as f:
-            total_nogoods = f.readlines()
 
-            if self.total_nogoods_added + len(total_nogoods) >= self.max_nogoods_to_add:
-                dif = self.max_nogoods_to_add - self.total_nogoods_added
-                nogoods = total_nogoods[:dif]
+        nogoods = []
+        for ng in self.ng_list:
+            if not ng.grounded:
+                ng.grounded = True
 
-                self._no_conversion = True
-            else:
-                nogoods = total_nogoods
-                
-        #for n in nogoods:
-        #    print(n)
+                nogoods.append(ng.to_general_constraint())
+
 
         self.logger.info("noogods to add: {}".format(len(nogoods)))
 
@@ -271,8 +249,6 @@ class Handler:
 
     def add_learned_rules(self, prg, step):
         # if we reached the max amount of nogoods we want
-        if self._no_conversion:
-            return []
         if os.path.isfile(self.ng_name) and self.convert_nogoods() > 0:
             self.logger.info("adding nogoods")
             return self.add_nogoods(prg, step)
