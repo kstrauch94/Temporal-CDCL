@@ -5,6 +5,7 @@ from Nogood import NogoodList
 import clingo
 import os
 import sys
+from util import util
 
 import logging
 
@@ -38,12 +39,7 @@ class Handler:
 
         self._last_nogood_amount = 0
 
-        # this flag says if we should keep generalizing nogoods
-        # basically, if we have reached the max then do nothing
-
-        self.total_nogoods_added = 0
-
-        self.total_conversion_time = 0
+        self.max_nogoods = -1
 
         self.logger = logging.getLogger(
             self.__module__ + '.' + self.__class__.__name__)
@@ -63,7 +59,6 @@ class Handler:
 
         self.init_assumptions = []
         self.goal_assumptions = []
-        self.other_assumptions = []
 
         self.domains = []
         self.domain_names = set()
@@ -82,8 +77,6 @@ class Handler:
                             name = inner_atom.name
                             args = inner_atom.arguments[:]
                             self.goal_assumptions.append([name, args, truth_val])
-                        else:
-                            self.other_assumptions.append([atom.arguments[0], truth_val])
 
                     if atom.name.startswith(DOMAIN_PREFIX):
                         self.parse_domain(atom)
@@ -144,27 +137,32 @@ class Handler:
             atom_func = clingo.Function(name, args+[clingo.Number(step)])
             goal.append([atom_func, truth_val])
 
+        other_assumptions = []
         if step > 0:
-            otime_func = clingo.Function(OPENTIME, [clingo.Number(step)])
-            self.other_assumptions.append([otime_func, True])
+            for i in range(1, step+1):
+                otime_func = clingo.Function(OPENTIME, [clingo.Number(i)])
+                other_assumptions.append([otime_func, True])
 
-        return self.other_assumptions + self.init_assumptions + goal  
+        return other_assumptions + self.init_assumptions + goal  
 
     def convert_nogoods(self):
         # this function sanitizes the raw nogood file by deleting the last nogood logged if its unfinished
         # it also does the actual call to the generalizer and writes the new converted nogoods file
 
+
+        if len(self.ng_list) > self.max_nogoods:
+            return
+
         self.preprocess_ng_file()
 
-        prev_len = len(self.ng_list)
         # collect nogoods
-        collect_nogoods(self.ng_name, self.ng_list, process_limit=None, raw_file=None, gen_t="t")
-
+        with open(self.ng_name, "r") as _f:
+            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=10, max_size=50, max_lbd=None)
+        self.logger.info(f"ng list len {len(self.ng_list)}")
         # process nogoods
         
         self.postprocess_ng_file()
 
-        return len(self.ng_list) - prev_len
 
     def preprocess_ng_file(self):
         """
@@ -174,7 +172,7 @@ class Handler:
         # ----
         # handling the unfisnihed nogood is done in the actual generalizer
         """
-        self.logger.info("POST")
+        self.logger.info("PRE")
 
         with open(self.ng_name, "r") as f:
             no_null_chars = f.read().replace("\0", "")
@@ -189,6 +187,8 @@ class Handler:
         with open(self.ng_name, "r") as f:
             lines = f.readlines()
 
+        if len(lines) == 0:
+            return
         # check if the last line was unfinished. If so, 
         # add it to the ng file
         if "lbd = " not in lines[-1]:
@@ -215,10 +215,7 @@ class Handler:
         if step == 1:
             return []
 
-        parts = []
-
-        # find a way to know if a nogood has been "grounded" or not
-        # here, we read the new converted nogood file
+        self.convert_nogoods()
 
         nogoods = []
         for ng in self.ng_list:
@@ -227,14 +224,19 @@ class Handler:
 
                 nogoods.append(ng.to_general_constraint())
 
+        # if there are no nogoods to ground, then just return
+        if len(nogoods) == 0:
+            return []
 
         self.logger.info("noogods to add: {}".format(len(nogoods)))
+
+        parts = []
 
         # add new nogoods to a program to be grounded to all previous steps
         prog_name = "step-{}".format(step)
         prg.add(prog_name, ["t"], "\n".join(nogoods))
         for s in range(1, step):
-            parts.append((prog_name, [s]))
+            parts.append((prog_name, [clingo.Number(s)]))
 
         # new and old nogoods are added to a program to be grounded 
         # to the current step
@@ -249,9 +251,17 @@ class Handler:
 
     def add_learned_rules(self, prg, step):
         # if we reached the max amount of nogoods we want
-        if os.path.isfile(self.ng_name) and self.convert_nogoods() > 0:
+        if os.path.isfile(self.ng_name):
             self.logger.info("adding nogoods")
-            return self.add_nogoods(prg, step)
+            
+            parts = self.add_nogoods(prg, step)
+
+            self.logger.info(f"Time used for collection {util.Timer.timers['collect']}")
+            self.logger.info(f"Time used for subsumtion {util.Timer.timers['subsumption']}")
+
+
+            return parts
+
 
         # if no nogoods were found
         return []

@@ -23,7 +23,7 @@ def main(prg):
         #parts.append(("check", [step]))
         if step > 0:
             #prg.release_external(clingo.Function("query", [step-1]))
-            parts.append(("step", [step]))
+            parts.append(("step", [clingo.Number(step)]))
             prg.cleanup()
         else:
             parts.append(("base", []))
@@ -31,12 +31,17 @@ def main(prg):
         if step > 0:
             parts += handler.add_learned_rules(prg, step)
 
+        print(parts)
         prg.ground(parts)
         if step == 0:
             handler.prepare(prg)
         print(step)
         #prg.assign_external(clingo.Function("query", [step]), True)
-        ret, step = prg.solve(assumptions=handler.assumptions_for_step(step)), step+1
+        if step % 5 == 0:
+            print("solving for step ", step)
+            ret, step = prg.solve(assumptions=handler.assumptions_for_step(step)), step+1
+        else:
+            step += 1
 #end.
 
 #program check(t).
