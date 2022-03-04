@@ -10,14 +10,14 @@ nextto((X,Y),(DX,DY),(X',Y')) :- direction((DX,DY)), position((X,Y)), position((
 { move(R,D,T) : direction(D) } 1 :- isRobot(R), time(T).
 
 % - move/3 ----------------------------------------------------------------------
-position(R,C,T) :- move(R,D,T), position'(R,C',T),     nextto(C',D,C).
-                :- move(R,D,T), position'(R,C ,T), not nextto(C ,D,_).
+position(R,C,T) :- move(R,D,T), position(R,C',T-1),     nextto(C',D,C).
+                :- move(R,D,T), position(R,C ,T-1), not nextto(C ,D,_).
 
 % - inertia ---------------------------------------------------------------------
-position(R,C,T) :- position'(R,C,T), not move(R,_,T), isRobot(R), time(T).
+position(R,C,T) :- position(R,C,T-1), not move(R,_,T), isRobot(R), time(T).
 
 % - edge collision --------------------------------------------------------------
-moveto(C',C,T) :- nextto(C',D,C), position'(R,C',T), move(R,D,T).
+moveto(C',C,T) :- nextto(C',D,C), position(R,C',T-1), move(R,D,T).
  :- moveto(C',C,T), moveto(C,C',T), C < C'.
 
 % - vertex collision ------------------------------------------------------------
@@ -27,13 +27,13 @@ moveto(C',C,T) :- nextto(C',D,C), position'(R,C',T), move(R,D,T).
  :- { position(R,C,T) } != 1, isRobot(R), time(T).    % REDUNDANT but PERFORMANT?
  
  
-% goal
+
 
 processed(A,R) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0),
                   position(R,C,horizon).
 processed(A)   :- processed(A,R).
 
-%:- ordered(O,A), not processed(A).
+:- ordered(O,A), not processed(A).
 
 
 % --------------------------------------------------------------------------------
@@ -60,27 +60,8 @@ position(           (X,Y))   :- init(object(node,_),           value(at,(X,Y))).
 
 position(station(P),(X,Y))   :- init(object(pickingStation,P), value(at,(X,Y))).
 
-%position(  robot(R),(X,Y),0) :- init(object(robot,R),          value(at,(X,Y))).
+position(  robot(R),(X,Y),0) :- init(object(robot,R),          value(at,(X,Y))).
 position(  shelf(S),(X,Y),0) :- init(object(shelf,S),          value(at,(X,Y))).
 
 highway(            C    )   :- init(object(highway,_),        value(at,C)).
 
-
-domain_position(R,C) :- isRobot(R), position(C).
-{ position'(R,C,T) } :- domain_position(R,C), time(T), T > 0.
-:- position'(R,C,T), not position(R,C,T-1), otime(T).
-:- not position'(R,C,T), position(R,C,T-1), otime(T).
-
-{ otime(T) } :- time(T), T > 0.
-
-%
-% Define assumptions
-%
-
-% initial state
-assumption(position(robot(R),(X,Y),0), true) :-     init(object(robot,R), value(at,(X,Y))).
-assumption(position(robot(R),(X,Y),0),false) :- not init(object(robot,R), value(at,(X,Y))), domain_position(robot(R),(X,Y)).
-% goal
-assumption(position(R,C,T),true) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0), time(T), not time(T+1).
-% otime
-assumption(otime(T),true) :- time(T).
