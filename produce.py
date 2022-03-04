@@ -104,7 +104,7 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
         if type(line) != str:
             line = line.decode("utf-8")
 
-        if process_limit is not None and process_limit < order:
+        if process_limit is not None and process_limit < len(ng_list):
             #print(f"breaking {process_limit} {order}")
             break
 
