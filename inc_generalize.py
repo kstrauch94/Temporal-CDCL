@@ -7,8 +7,8 @@ def get(val, default):
     return val if val != None else default
 
 def main(prg):
-    handler = inc_lib.Handler()
-
+    handler = inc_lib.Handler(options=OPTIONS)
+    print
     imin   = get(prg.get_const("imin"), clingo.Number(0))
     imax   = prg.get_const("imax")
     istop  = get(prg.get_const("istop"), clingo.String("SAT"))
@@ -31,13 +31,12 @@ def main(prg):
         if step > 0:
             parts += handler.add_learned_rules(prg, step)
 
-        print(parts)
         prg.ground(parts)
         if step == 0:
             handler.prepare(prg)
         print(step)
         #prg.assign_external(clingo.Function("query", [step]), True)
-        if step % 5 == 0:
+        if step % 1 == 0:
             print("solving for step ", step)
             ret, step = prg.solve(assumptions=handler.assumptions_for_step(step)), step+1
         else:

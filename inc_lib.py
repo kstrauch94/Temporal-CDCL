@@ -31,20 +31,38 @@ PREV_RULES = """
 class Handler:
 
     def __init__(self, ng_name="ng_temp.lp",
-               converted_ng_name="nogoods.lp"):
-
+               converted_ng_name="nogoods.lp",
+               options=None):
 
         self.ng_name = ng_name
         self.converted_ng_name = converted_ng_name
 
-        self._last_nogood_amount = 0
+        
+        self.max_nogoods = None
+        self.max_size = None
+        self.max_degree = None
+        self.max_lbd = None
 
-        self.max_nogoods = -1
+
+        self.set_option("max_nogoods", options, "max_nogoods", 1000)
+        self.set_option("max_size", options, "max_size", 50)
+        self.set_option("max_degree", options, "max_degree", 8)
+        self.set_option("max_lbd", options, "max_lbd", None)
+
+        print(self.max_degree, self.max_lbd, self.max_nogoods, self.max_size)
+
+        self.total_nogoods_added = 0
 
         self.logger = logging.getLogger(
             self.__module__ + '.' + self.__class__.__name__)
 
         self.ng_list = NogoodList()
+
+    def set_option(self, var, options, name, default):
+        if options is None or name not in options:
+            setattr(self, var, default)
+        else:
+            setattr(self, var, options[name])
 
     def prepare(self, prg):
         self.get_assumptions_and_domains(prg)
@@ -157,7 +175,7 @@ class Handler:
 
         # collect nogoods
         with open(self.ng_name, "r") as _f:
-            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=10, max_size=50, max_lbd=None)
+            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd)
         self.logger.info(f"ng list len {len(self.ng_list)}")
         # process nogoods
         
@@ -257,7 +275,7 @@ class Handler:
             parts = self.add_nogoods(prg, step)
 
             self.logger.info(f"Time used for collection {util.Timer.timers['collect']}")
-            self.logger.info(f"Time used for subsumtion {util.Timer.timers['subsumption']}")
+            self.logger.info(f"Time used for subsumption {util.Timer.timers['subsumption']}")
 
 
             return parts
