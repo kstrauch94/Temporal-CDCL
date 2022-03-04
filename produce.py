@@ -77,7 +77,7 @@ def get_sort_value(object, attributes):
 
     return val
 
-def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
+def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
 
     CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit),
               "-w", "runsolver.cdcl.watcher", "-d", "20",
@@ -91,14 +91,14 @@ def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, ra
 
     if raw_file is not None:
         with open(raw_file, "w") as _f:
-            collect_nogoods(pipe.stdout, ng_list, process_limit, raw_file=_f, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd)
+            collect_nogoods(pipe.stdout, ng_list, process_limit, raw_file=_f, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd, no_subsumption=no_subsumption)
     else:
-        collect_nogoods(pipe.stdout, ng_list, process_limit, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd)
+        collect_nogoods(pipe.stdout, ng_list, process_limit, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd, no_subsumption=no_subsumption)
 
     pipe.kill()
 
 @util.Timer("collect")
-def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
+def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
 
     for order, line in enumerate(output):
         if type(line) != str:
@@ -127,6 +127,9 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
 
 
             ng.generalize(gen_t)
+            if no_subsumption:
+                ng_list.append(ng)
+                continue
             with util.Timer("subsumption"):
                 new_ng_list, success, deleted = check_subsumed(ng_list, ng)
                 if success:
@@ -145,7 +148,7 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
     #print("call has finished\n")
 
 
-def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step, nogoods_wanted, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None):
+def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step, nogoods_wanted, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
 
     ng_file_name = "ng_file.tmp"
     with open(ng_file_name, "w") as _f:
@@ -156,7 +159,7 @@ def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step
         with util.Timer("pipe calls"):
             # after getting all the nogoods, write them into a file and call the solver again with the nogoods
             call_clingo_pipe(file_names + [ng_file_name], ng_list, time_limit, nogoods_per_step, options=options,
-                            raw_file=raw_file, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd)
+                            raw_file=raw_file, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd, no_subsumption=no_subsumption)
 
             with open(ng_file_name, "w") as _f:
                 # write nogoods to file
@@ -248,7 +251,6 @@ if __name__ == "__main__":
     processing.add_argument("--regular-ng-file", help="Name of the file containing the raw nogoods from clingo. Default=None", default=None)
     processing.add_argument("--use-existing-file", help="Process an existing nogood file.", metavar="file", default=None)
 
-    #processing.add_argument("--grab-last", action="store_true", help="Grab the last N nogoods.")
     processing.add_argument("--sort-by", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, order, lbd, random_id]. default: None", default=None)
     processing.add_argument("--sort-reversed", action="store_true", help="Reverse the sort order.")
     processing.add_argument("--inc-t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
@@ -257,6 +259,8 @@ if __name__ == "__main__":
     processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
     processing.add_argument("--max-lbd", help="Processing will ignore nogoods with higher lbd. Default = None.", default=None, type=int)
     processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = None", default=None, type=int)
+
+    processing.add_argument("--no-subsumption", action="store_true", help="Skip subsumption of atom")
 
     processing.add_argument("--multi-calls-step", help="Run clingo multiple times using the cummulated nogoods found in each subsequent call", default=None, type=int)
 
@@ -325,11 +329,13 @@ if __name__ == "__main__":
         ng_list = NogoodList()
         if args.use_existing_file:
             with open(args.use_existing_file, "r") as _f:
-                collect_nogoods(_f.readlines(), ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+                collect_nogoods(_f.readlines(), ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
         elif args.multi_calls_step is None:
-            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file,
+                            gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
         else:
-            clingo_pipe_multiple_calls(encoding+instance, ng_list, args.max_extraction_time, args.multi_calls_step, args.nogoods_wanted, options, raw_file=args.regular_ng_file, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd)
+            clingo_pipe_multiple_calls(encoding+instance, ng_list, args.max_extraction_time, args.multi_calls_step, args.nogoods_wanted, options, raw_file=args.regular_ng_file,
+                                    gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
 
     util.Count.add("Nogoods after filter", len(ng_list))
 
