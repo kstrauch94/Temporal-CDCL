@@ -1,5 +1,6 @@
 #script (python) 
 
+from lib2to3.pgen2.token import OP
 import clingo
 import inc_lib
 
@@ -7,7 +8,11 @@ def get(val, default):
     return val if val != None else default
 
 def main(prg):
-    handler = inc_lib.Handler(options=OPTIONS)
+    print(locals(), globals())
+    if "OPTIONS" not in globals():
+        handler = inc_lib.Handler(options=None)
+    else:
+        handler = inc_lib.Handler(options=OPTIONS)
     print
     imin   = get(prg.get_const("imin"), clingo.Number(0))
     imax   = prg.get_const("imax")

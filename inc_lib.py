@@ -175,7 +175,7 @@ class Handler:
 
         # collect nogoods
         with open(self.ng_name, "r") as _f:
-            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd)
+            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=True)
         self.logger.info(f"ng list len {len(self.ng_list)}")
         # process nogoods
         
