@@ -7,6 +7,8 @@ direction((X,Y)) :- X=-1..1, Y=-1..1, |X+Y|=1.
 nextto((X,Y),(DX,DY),(X',Y')) :- direction((DX,DY)), position((X,Y)), position((X',Y')),
                                  (X,Y)=(X'-DX,Y'-DY), (X',Y')=(X+DX,Y+DY).
 
+{ position(R,C,0) : position(C) } :- isRobot(R).
+
 { move(R,D,T) : direction(D) } 1 :- isRobot(R), time(T).
 
 % - move/3 ----------------------------------------------------------------------
@@ -29,9 +31,9 @@ moveto(C',C,T) :- nextto(C',D,C), position'(R,C',T), move(R,D,T).
  
 % goal
 
-processed(A,R) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0),
+processed(A,R,horizon) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0),
                   position(R,C,horizon).
-processed(A)   :- processed(A,R).
+processed(A,horizon)   :- processed(A,R,horizon).
 
 %:- ordered(O,A), not processed(A).
 
@@ -68,9 +70,9 @@ highway(            C    )   :- init(object(highway,_),        value(at,C)).
 
 domain_position(R,C) :- isRobot(R), position(C).
 { position'(R,C,T) } :- domain_position(R,C), time(T), T > 0.
-:- position'(R,C,T), not position(R,C,T-1), otime(T).
-:- not position'(R,C,T), position(R,C,T-1), otime(T).
-
+:- position'(R,C,T), not position(R,C,T-1), otime(T), isRobot(R).
+:- not position'(R,C,T), position(R,C,T-1), otime(T), isRobot(R).
+%#show position'/3.
 { otime(T) } :- time(T), T > 0.
 
 %
@@ -81,6 +83,9 @@ domain_position(R,C) :- isRobot(R), position(C).
 assumption(position(robot(R),(X,Y),0), true) :-     init(object(robot,R), value(at,(X,Y))).
 assumption(position(robot(R),(X,Y),0),false) :- not init(object(robot,R), value(at,(X,Y))), domain_position(robot(R),(X,Y)).
 % goal
-assumption(position(R,C,T),true) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0), time(T), not time(T+1).
+assumption(processed(A,horizon),true) :- ordered(O,A).
 % otime
 assumption(otime(T),true) :- time(T).
+
+pos(R,C,T) :- position(R,C,T), isRobot(R).
+#show pos/3.
