@@ -131,8 +131,7 @@ def consume(files, nogood_file, scaling_list=None, heuristic=None, scaling_exact
             time_limit=time_limit, horizon=horizon, \
             no_base_run=no_base_run)
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--files", metavar='f', nargs='+', help="Files to run clingo on")
@@ -188,3 +187,6 @@ if __name__ == "__main__":
             out_path = os.path.join(args.save_folder, "-{}".format(str(label)))
             with open(out_path, "w") as f:
                 f.write(out)
+
+if __name__ == "__main__":
+    main()
