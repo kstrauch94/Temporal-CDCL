@@ -232,7 +232,7 @@ def print_stats():
     for name, time_taken in sorted(util.Timer.timers.items()):
         print(f"{name:19}  :   {time_taken:.3f}")
 
-if __name__ == "__main__":
+def main():
 
     parser = argparse.ArgumentParser()
 
@@ -350,3 +350,7 @@ if __name__ == "__main__":
         count_literals(ng_list, args.top_k, args.heur_multiplier)
 
     print_stats()
+
+
+if __name__ == "__main__":
+    main()
