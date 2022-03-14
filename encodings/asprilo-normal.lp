@@ -29,11 +29,11 @@ moveto(C',C,T) :- nextto(C',D,C), position(R,C',T-1), move(R,D,T).
  
 
 
-processed(A,R) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0),
+processed(A,R,horizon) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0),
                   position(R,C,horizon).
-processed(A)   :- processed(A,R).
+processed(A,horizon)   :- processed(A,R,horizon).
 
-:- ordered(O,A), not processed(A).
+:- ordered(O,A), not processed(A,horizon).
 
 
 % --------------------------------------------------------------------------------
@@ -64,4 +64,3 @@ position(  robot(R),(X,Y),0) :- init(object(robot,R),          value(at,(X,Y))).
 position(  shelf(S),(X,Y),0) :- init(object(shelf,S),          value(at,(X,Y))).
 
 highway(            C    )   :- init(object(highway,_),        value(at,C)).
-

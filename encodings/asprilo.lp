@@ -1,5 +1,3 @@
-
-
 %#const horizon=1.
 time(1..horizon).
 
@@ -72,7 +70,7 @@ domain_position(R,C) :- isRobot(R), position(C).
 { position'(R,C,T) } :- domain_position(R,C), time(T), T > 0.
 :- position'(R,C,T), not position(R,C,T-1), otime(T), isRobot(R).
 :- not position'(R,C,T), position(R,C,T-1), otime(T), isRobot(R).
-%#show position'/3.
+
 { otime(T) } :- time(T), T > 0.
 
 %
@@ -86,6 +84,3 @@ assumption(position(robot(R),(X,Y),0),false) :- not init(object(robot,R), value(
 assumption(processed(A,horizon),true) :- ordered(O,A).
 % otime
 assumption(otime(T),true) :- time(T).
-
-pos(R,C,T) :- position(R,C,T), isRobot(R).
-#show pos/3.
