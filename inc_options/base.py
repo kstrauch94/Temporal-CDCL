@@ -1,5 +1,7 @@
 #script (python) 
 
-OPTIONS = {"max_nogoods": -1
+OPTIONS = { "max_size": 50,
+            "max_degree": 8,
+            "base_benchmark_mode": True
             }
 #end.

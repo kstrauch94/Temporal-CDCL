@@ -1,6 +1,5 @@
 import imp
 from produce import collect_nogoods
-from produce import process_ng_list
 from Nogood import NogoodList
 import clingo
 import os
@@ -43,11 +42,17 @@ class Handler:
         self.max_degree = None
         self.max_lbd = None
 
+        self.base_benchmark_mode = None
+        self.no_subsumption = None
 
         self.set_option("max_nogoods", options, "max_nogoods", 1000)
         self.set_option("max_size", options, "max_size", 50)
         self.set_option("max_degree", options, "max_degree", 8)
         self.set_option("max_lbd", options, "max_lbd", None)
+        self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
+        self.set_option("no_subsumption", options, "no_subsumption", True)
+
+
 
         print(self.max_degree, self.max_lbd, self.max_nogoods, self.max_size)
 
@@ -175,7 +180,7 @@ class Handler:
 
         # collect nogoods
         with open(self.ng_name, "r") as _f:
-            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=True)
+            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=self.no_subsumption)
         self.logger.info(f"ng list len {len(self.ng_list)}")
         # process nogoods
         
@@ -228,12 +233,17 @@ class Handler:
         this function returns the name of the parts that were added to the program that have to be grounded
         """
         
-        # this is a safety net, if we are in step 1 we have not solved yet
+        # this is a safety net, if we are in step < 1 we have not solved yet
         # so there is no nogood file
-        if step == 1:
+        if step < 1:
             return []
 
         self.convert_nogoods()
+
+        if self.base_benchmark_mode:
+            # return here after having converted the nogods
+            # so that it doesnt add any new programs or extends the step program
+            return []
 
         nogoods = []
         for ng in self.ng_list:
@@ -268,7 +278,6 @@ class Handler:
         return parts
 
     def add_learned_rules(self, prg, step):
-        # if we reached the max amount of nogoods we want
         if os.path.isfile(self.ng_name):
             self.logger.info("adding nogoods")
             
