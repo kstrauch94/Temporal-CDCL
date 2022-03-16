@@ -8,12 +8,10 @@ def get(val, default):
     return val if val != None else default
 
 def main(prg):
-    print(locals(), globals())
     if "OPTIONS" not in globals():
         handler = inc_lib.Handler(options=None)
     else:
         handler = inc_lib.Handler(options=OPTIONS)
-    print
     imin   = get(prg.get_const("imin"), clingo.Number(0))
     imax   = prg.get_const("imax")
     istop  = get(prg.get_const("istop"), clingo.String("SAT"))
