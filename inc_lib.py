@@ -113,7 +113,7 @@ class Handler:
                                                 atom=domain["atom"],
                                                 opentime=OPENTIME)
 
-            self.logger.info(prev_atom_rules)
+            self.logger.debug(prev_atom_rules)
             prg.add("step", ["t"], prev_atom_rules)
 
         prg.add("step", ["t"], "{ otime(t) }.")
@@ -143,8 +143,8 @@ class Handler:
             # we take out the () because its not important for processing anymore
             domain_atom = domain.name
 
-        self.logger.info(atom_prev)
-        self.logger.info(atom)
+        self.logger.debug(atom_prev)
+        self.logger.debug(atom)
 
         self.domains.append({"domain": domain_atom, 
                 "prev": atom_prev,
@@ -181,7 +181,7 @@ class Handler:
         # collect nogoods
         with open(self.ng_name, "r") as _f:
             collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=self.no_subsumption)
-        self.logger.info(f"ng list len {len(self.ng_list)}")
+        self.logger.info(f"Length of current nogood list: {len(self.ng_list)}")
         # process nogoods
         
         self.postprocess_ng_file()
@@ -195,8 +195,6 @@ class Handler:
         # ----
         # handling the unfisnihed nogood is done in the actual generalizer
         """
-        self.logger.info("PRE")
-
         with open(self.ng_name, "r") as f:
             no_null_chars = f.read().replace("\0", "")
 
@@ -205,8 +203,6 @@ class Handler:
 
 
     def postprocess_ng_file(self):
-        self.logger.info("POST")
-
         with open(self.ng_name, "r") as f:
             lines = f.readlines()
 

@@ -41,7 +41,7 @@ def main(prg):
             handler.prepare(prg)
         print(step)
         #prg.assign_external(clingo.Function("query", [step]), True)
-        if step % 1 == 0:
+        if step % 5 == 0:
             print("solving for step ", step)
             ret, step = prg.solve(assumptions=handler.assumptions_for_step(step)), step+1
         else:
