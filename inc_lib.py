@@ -268,6 +268,7 @@ class Handler:
 
 
         self.total_nogoods_added += len(nogoods)
+        util.Count.add("Nogoods added", len(nogoods))
 
         self.logger.debug("total nogoods added: {}".format(self.total_nogoods_added))
 
@@ -288,3 +289,11 @@ class Handler:
 
         # if no nogoods were found
         return []
+
+    def print_stats(self):
+
+        for name, count in util.Count.counts.items():
+            print(f"{name:24}  :   {count}")
+
+        for name, time_taken in sorted(util.Timer.timers.items()):
+            print(f"{name:19}  :   {time_taken:.3f}")

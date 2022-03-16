@@ -43,6 +43,8 @@ def main(prg):
             ret, step = prg.solve(assumptions=handler.assumptions_for_step(step)), step+1
         else:
             step += 1
+
+    handler.print_stats()
 #end.
 
 #program check(t).
