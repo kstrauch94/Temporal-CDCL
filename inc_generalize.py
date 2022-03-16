@@ -37,7 +37,6 @@ def main(prg):
         prg.ground(parts)
         if step == 0:
             handler.prepare(prg)
-        print(step)
         #prg.assign_external(clingo.Function("query", [step]), True)
         if step % 5 == 0:
             print("solving for step ", step)

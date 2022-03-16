@@ -181,7 +181,7 @@ class Handler:
         # collect nogoods
         with open(self.ng_name, "r") as _f:
             collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=self.no_subsumption)
-        self.logger.info(f"Length of current nogood list: {len(self.ng_list)}")
+        self.logger.debug(f"Length of current nogood list: {len(self.ng_list)}")
         # process nogoods
         
         self.postprocess_ng_file()
@@ -252,7 +252,7 @@ class Handler:
         if len(nogoods) == 0:
             return []
 
-        self.logger.info("noogods to add: {}".format(len(nogoods)))
+        self.logger.debug("noogods to add: {}".format(len(nogoods)))
 
         parts = []
 
@@ -269,18 +269,18 @@ class Handler:
 
         self.total_nogoods_added += len(nogoods)
 
-        self.logger.info("total nogoods added: {}".format(self.total_nogoods_added))
+        self.logger.debug("total nogoods added: {}".format(self.total_nogoods_added))
 
         return parts
 
     def add_learned_rules(self, prg, step):
         if os.path.isfile(self.ng_name):
-            self.logger.info("adding nogoods")
+            self.logger.debug("adding nogoods")
             
             parts = self.add_nogoods(prg, step)
 
-            self.logger.info(f"Time used for collection {util.Timer.timers['collect']}")
-            self.logger.info(f"Time used for subsumption {util.Timer.timers['subsumption']}")
+            self.logger.debug(f"Time used for collection {util.Timer.timers['collect']}")
+            self.logger.debug(f"Time used for subsumption {util.Timer.timers['subsumption']}")
 
 
             return parts
