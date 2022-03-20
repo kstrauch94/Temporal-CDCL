@@ -6,7 +6,7 @@
 % - value '3': both forward chaining and backward regression of effects
 % - otherwise: off
 
-#const _closure = 3.
+#const _closure = 4.
 
 % BASE PROGRAM
 
