@@ -173,7 +173,7 @@ class Handler:
         # it also does the actual call to the generalizer and writes the new converted nogoods file
 
 
-        if len(self.ng_list) > self.max_nogoods:
+        if len(self.ng_list) >= self.max_nogoods:
             return
 
         self.preprocess_ng_file()
@@ -251,6 +251,11 @@ class Handler:
         # if there are no nogoods to ground, then just return
         if len(nogoods) == 0:
             return []
+
+        # add nogoods to the exact max amount
+        if len(nogoods) + self.total_nogoods_added >= self.max_nogoods:
+            add_amount = self.max_nogoods - self.total_nogoods_added
+            nogoods = nogoods[:add_amount]
 
         self.logger.debug("noogods to add: {}".format(len(nogoods)))
 
