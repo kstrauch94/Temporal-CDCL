@@ -60,7 +60,7 @@ active(A) :- possible(A), _closure != 2, _closure != 3.
 % - value '4': "exists" parallel actions like '3' implemented by acyclicity
 % - otherwise: sequential actions
 
-#const _parallel = 1.
+#const _parallel = 5.
 
 % Constant '_shallow' to cheaply approximate mutually disabling parallel actions
 % - value '0': detect incompatible pre/postconditions to reduce parallel actions
@@ -120,52 +120,24 @@ fluent(X)   :- active(A), has_condition(A,X,1), 0 <= _parallel, _parallel < 5, _
 mutex(G,X) :- mutexGroup(G), contains(G,X,V), fluent(X,V).
 mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
-%#const horizon.
-time(1..horizon).
-
-%
-% Define assumptions
-%
-
-domain_holds(X,V) :- fluent(X,V).
-% open holds'
-{ holds'(X,V,T) } :- domain_holds(X,V), time(T).
-% holds' at T is equivalent to holds at T-1 (when otime at T is true)
-:- holds'(X,V,T), not holds(X,V,T-1), otime(T).
-:- not holds'(X,V,T), holds(X,V,T-1), otime(T).
-% open otime
-{ otime(T) } :- time(T).
-
-
-%
-% Define assumptions
-%
-
-% initial state
-assumption(holds(X,V,0), true) :-     initialState(X,V).
-assumption(holds(X,V,0),false) :- not initialState(X,V), contains(X,V).
-% goal
-assumption(holds(X,V,horizon),true) :- goal(X,V).
-% otime
-assumption(otime(T),true) :- time(T).
-
 % Define initial state
 
-
-% Open initial situation
-{ holds(X,V,0) } :- domain_holds(X,V).
+holds(X,V,0) :- initialState(X,V), fluent(X).
 
 :- fluent(X), #count{V : holds(X,V,0)} > 1.
 :- mutex(G), #count{X,V : holds(X,V,0), contains(G,X,V)} > 1.
 
+% STEP PROGRAM
 
 % Generate successor state
+
+time(1..horizon).
 
 1 {holds(X,V,T) : fluent(X,V)} 1 :- fluent(X), time(T).
 
 :- mutex(G), #count{X,V : holds(X,V,T), contains(G,X,V)} > 1, time(T).
 
-change(X,T) :- holds'(X,V,T), not holds(X,V,T), _inertia != 0, time(T).
+change(X,T) :- holds(X,V,T-1), not holds(X,V,T), _inertia != 0, time(T).
 
 % Generate actions
 
@@ -180,7 +152,7 @@ effect(X,T) :- occurs(A,T), postcondition(A,X,V), fluent(X), not precondition(A,
 
 :- change(X,T), not effect(X,T), time(T).
 
-:- _inertia = 0, holds(X,V,T), not holds'(X,V,T),
+:- _inertia = 0, holds(X,V,T), not holds(X,V,T-1),
    not occurs(A,T) : active(A), postcondition(A,X,V), not precondition(A,X,V); time(T).
 
 % Checks w.r.t. parallel mode
@@ -188,7 +160,7 @@ effect(X,T) :- occurs(A,T), postcondition(A,X,V), fluent(X), not precondition(A,
 :- _parallel != 0, _parallel != 1, _parallel != 2, _parallel != 3, _parallel != 4,
    #count{A : occurs(A,T)} > 1, time(T).
 
-:- _parallel != 2, occurs(A,T), precondition(A,X,V), not holds'(X,V,T), time(T).
+:- _parallel != 2, occurs(A,T), precondition(A,X,V), not holds(X,V,T-1), time(T).
 
 :- _parallel = 1, occurs(A,T), precondition(A,X,V), not has_condition(A,X,1), not holds(X,V,T), time(T).
 
@@ -196,7 +168,7 @@ single(X,T) :- occurs(A,T), selfdefeat(A,X), time(T).
 
 :- single(X,T), #count{A : occurs(A,T), postcondition(A,X,V), not precondition(A,X,V)} > 1, time(T).
 
-proceed(X,V,T) :- holds'(X,V,T), scope(X,V), time(T).
+proceed(X,V,T) :- holds(X,V,T-1), scope(X,V), time(T).
 proceed(X,V,T) :- perform(A,T), scope(X,V), postcondition(A,X,V), not precondition(A,X,V),
                   occurs(A,T), time(T).
 
@@ -211,3 +183,7 @@ alright(A,T) :- perform(A,T), time(T).
 
 #edge((A1,T),(A2,T)) : disable(A1,A2), occurs(A1,T), _parallel = 4, not disable, time(T).
 #edge((A1,T),(A2,T)) : disable(A1,A2), occurs(A2,T), disable, time(T).
+
+% Check goal conditions
+
+:- goal(X,V), not holds(X,V,horizon).
