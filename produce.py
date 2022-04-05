@@ -182,7 +182,7 @@ def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=Fa
     if validator is not None:
         ng_list = validator.validate_list(ng_list, nogoods_wanted=nogoods_wanted)
     else:
-        ng_list = ng_list[:nogoods_wanted]
+        ng_list.replace(ng_list[:nogoods_wanted])
 
     return ng_list
 
@@ -194,6 +194,7 @@ def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
                 _f.write(ng.to_general_constraint()+"\n")
             else:
                 _f.write(ng.to_constraint()+"\n")
+            
 
 def count_literals(ng_list, top_k=5, multiplier=2):
 
@@ -223,6 +224,18 @@ def count_literals(ng_list, top_k=5, multiplier=2):
     with open("heur.lp", "w") as _f:
         for h in heuristics:
             _f.write(h + "\n")
+
+def extract_stats(ng_list):
+
+    lbd_sum = 0
+    size_sum = 0
+
+    for ng in ng_list:
+        lbd_sum += ng.lbd
+        size_sum += ng.size
+
+    print(f"avg lbd : {lbd_sum/len(ng_list)}")
+    print(f"avg size: {size_sum/len(ng_list)}")
 
 def print_stats():
 
@@ -342,12 +355,16 @@ def main():
     with util.Timer("Process Nogoods"):
         # Process nogoods
         process_ng_list(ng_list, nogoods_wanted=args.nogoods_wanted, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
-
+    
+    util.Count.add("Nogoods after processing", len(ng_list))
+    
     # output file
     write_ng_list_to_file(ng_list, file_name=args.output_file)
 
     if args.top_k is not None:
         count_literals(ng_list, args.top_k, args.heur_multiplier)
+
+    extract_stats(ng_list)
 
     print_stats()
 
