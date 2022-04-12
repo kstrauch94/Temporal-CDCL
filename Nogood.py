@@ -51,11 +51,11 @@ class Literal:
     def __eq__(self, other: object) -> bool:
         if self.name != other.name:
             return False
-        
+
         for arg, oarg in zip(self.arguments, other.arguments):
             if arg != oarg:
                 return False
-        
+
         if self.time != other.time:
             return False
 
@@ -95,7 +95,7 @@ class GenLiteral:
     def str_no_sign(self):
         if self.sign == -1:
             return str(self)[3:]
-        
+
         return str(self)
 
     def __repr__(self) -> str:
@@ -108,11 +108,11 @@ class GenLiteral:
     def __eq__(self, other: object) -> bool:
         if self.name != other.name:
             return False
-        
+
         for arg, oarg in zip(self.arguments, other.arguments):
             if arg != oarg:
                 return False
-        
+
         if self.t != other.t:
             return False
 
@@ -258,13 +258,8 @@ class Nogood:
         if t == "T":
             self.gen_domain_literals += ["time(T)", f"time(T-{self.degree})"]
 
-        if self.min_time > 0:
-            # minimum timepoint in the rule is 1 but only if
-            # in the original rule the minimum was NOT 0
-            self.gen_domain_literals += ["{}-{} > 0".format(t, self.degree)]
-        else:
-            # we have to make sure that the minimum value is still 0
-            self.gen_domain_literals += ["{}-{} >= 0".format(t, self.degree)]
+        # make sure lowest timepoint possible is 0
+        self.gen_domain_literals += ["{}-{} >= 0".format(t, self.degree)]
 
         self.generalized = t
 
@@ -312,7 +307,7 @@ class NogoodList(MutableSequence):
                 self.data[:] = initlist.data[:]
             else:
                 self.data = list(initlist)
-    
+
     def replace(self, data):
          self.data = data
 
