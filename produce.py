@@ -85,7 +85,7 @@ def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, ra
 
     call = CLINGO + options
 
-    #print("calling: " + " ".join(call))
+    print("calling: " + " ".join(call))
 
     pipe = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -174,17 +174,20 @@ def clingo_pipe_multiple_calls(file_names, ng_list, time_limit, nogoods_per_step
         elif nogoods_wanted is not None and len(ng_list) >= nogoods_wanted:
             break
 
+
 def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=False, validator=None):
 
     if sort_by is not None:
         ng_list.sort(key=lambda nogood : get_sort_value(nogood, sort_by), reverse=sort_reversed)
 
     if validator is not None:
-        ng_list = validator.validate_list(ng_list, nogoods_wanted=nogoods_wanted)
+        validated = validator.validate_list(ng_list, nogoods_wanted=nogoods_wanted)
+        ng_list.replace(validated)
     else:
         ng_list.replace(ng_list[:nogoods_wanted])
 
     return ng_list
+    
 
 def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
 
@@ -194,36 +197,7 @@ def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
                 _f.write(ng.to_general_constraint()+"\n")
             else:
                 _f.write(ng.to_constraint()+"\n")
-            
 
-def count_literals(ng_list, top_k=5, multiplier=2):
-
-    counts = {}
-
-    for ng in ng_list:
-        for atom in ng.gen_literals:
-            counts.setdefault(atom, 0)
-            counts[atom] += 1
-
-    counts = sorted(counts.items(), key=lambda item: item[1], reverse=True)
-
-    heuristics = []
-
-    best_score = counts[0][1]
-    for atom, score in counts[:top_k]:
-        heur_val = int(2*(score/best_score)*100)
-        t_arg = atom.t
-        heuristics.append(f"#heuristic {atom.str_no_sign()} : time(T), time({t_arg}), {t_arg} > 0. [T*{heur_val}, init]")
-
-        if atom.sign == 1:
-            truthval = "true"
-        else:
-            truthval = "false"
-        heuristics.append(f"#heuristic {atom.str_no_sign()} : time(T), time({t_arg}), {t_arg} > 0. [T*{heur_val}, {truthval}]")
-
-    with open("heur.lp", "w") as _f:
-        for h in heuristics:
-            _f.write(h + "\n")
 
 def extract_stats(ng_list):
 
@@ -280,10 +254,7 @@ def main():
     processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = None", default=None, type=int)
     processing.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
 
-    heuristics = parser.add_argument_group("Heuristic options")
-
-    heuristics.add_argument("--top-k", help="Top k atoms to write heuristics for. Default=0", type=int, default=None)
-    heuristics.add_argument("--heur-multiplier", help="multiplier for the heuristics", type=int, default=2)
+    processing.add_argument("--solver-args", help="Add extra clingo arguments to the learning solve call as given here. give arguments inside quotation marks", default=None)
 
     other = parser.add_argument_group("Other options")
 
@@ -332,6 +303,9 @@ def main():
     if args.max_lbd is not None:
         options += [f"--lemma-out-lbd={args.max_lbd}"]
 
+    if args.solver_args is not None:
+        options += args.solver_args.split()
+
     # generalize using the normal variable or incremental variable
     gen_t = "T"
     if args.inc_t:
@@ -355,14 +329,11 @@ def main():
     with util.Timer("Process Nogoods"):
         # Process nogoods
         process_ng_list(ng_list, nogoods_wanted=args.nogoods_wanted, sort_by=args.sort_by, sort_reversed=args.sort_reversed, validator=validator)
-    
+
     util.Count.add("Nogoods after processing", len(ng_list))
-    
+
     # output file
     write_ng_list_to_file(ng_list, file_name=args.output_file)
-
-    if args.top_k is not None:
-        count_literals(ng_list, args.top_k, args.heur_multiplier)
 
     extract_stats(ng_list)
 
