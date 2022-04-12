@@ -46,7 +46,7 @@ def write_nogood_partial(nogoods, filename="nogood.temp", debug=False, fileid=0)
         with open(filename+"debug.{}".format(fileid), "w") as f:
             f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, scaling_block=False, time_limit=0, horizon=None, no_base_run=False):
+def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=False, time_limit=0, horizon=None, solver_args=None, no_base_run=False):
 
     logging.info("Starting nogood consumption...")
 
@@ -56,7 +56,8 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
     if horizon is not None:
         options += ["-c", "horizon={}".format(horizon)]
 
-
+    if solver_args is not None:
+        options += solver_args.split()
 
     results = {}
 
@@ -69,19 +70,18 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
         logging.info("base run")
         output = call_clingo(files, time_limit, options)
         results["base"] = output
-        for line in output.split("\n")[5:13]:
+        for line in output.split("\n")[0:13]:
             logging.info(line)
-
-    # only add heuristic info after base run
-    if heuristic is not None:
-        options += ["--heuristic=Domain"]
-        files.append(heuristic)
+    
+    print("\n\n")
 
     # runs with scaling
     for idx, nogood_current in enumerate(scaling, start=0):
         if nogood_current > 0 and nogood_current > total_nogoods:
-            logging.info("Finishing early. Trying to use {} nogoods but only {} are available.".format(nogood_current, total_nogoods))
-            break
+            #logging.info("Finishing early. Trying to use {} nogoods but only {} are available.".format(nogood_current, total_nogoods))
+            logging.warning("Trying to use {} nogoods but only {} are available. Using all nogoods to run!".format(nogood_current, total_nogoods))
+            
+            nogood_current = -1
 
         logging.info("Current scaling: {}".format(nogood_current))
 
@@ -108,7 +108,7 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
         output = call_clingo(files + [noogood_temp_name], time_limit, options)
         results[nogood_current] = output
 
-        for line in output.split("\n")[7:13]:
+        for line in output.split("\n")[0:13]:
             logging.info(line)
 
     try:
@@ -118,7 +118,7 @@ def run_tests(files, nogood_file, scaling, heuristic=None, scaling_exact=False, 
 
     return results
 
-def consume(files, nogood_file, scaling_list=None, heuristic=None, scaling_exact=False, scaling_block=False, time_limit=0, horizon=None, no_base_run=False):
+def consume(files, nogood_file, scaling_list=None, scaling_exact=False, scaling_block=False, time_limit=0, horizon=None, solver_args=None, no_base_run=False):
 
     if scaling_list is not None:
         if type(scaling_list) == str:
@@ -127,8 +127,8 @@ def consume(files, nogood_file, scaling_list=None, heuristic=None, scaling_exact
             scaling = [int(s) for s in scaling_split]
 
 
-    return run_tests(files, nogood_file, scaling, heuristic, scaling_exact, scaling_block, \
-            time_limit=time_limit, horizon=horizon, \
+    return run_tests(files, nogood_file, scaling, scaling_exact, scaling_block, \
+            time_limit=time_limit, horizon=horizon, solver_args=solver_args, \
             no_base_run=no_base_run)
 
 def main():
@@ -156,7 +156,7 @@ def main():
 
     parser.add_argument("--debug", action="store_true", help="For every scaling amount, write a file with the nogoods used for that particular scaling.")
 
-    parser.add_argument("--heuristic", help="File containing heuristic information", default=None)
+    parser.add_argument("--solver-args", help="Add extra clingo arguments to the learning solve call as given here. give arguments inside quotation marks", default=None)
 
     other = parser.add_argument_group("Other options")
 
@@ -177,8 +177,8 @@ def main():
     if args.scaling_list is None:
         raise(argparse.ArgumentError("--scaling-list", "Scaling list can not be empty"))
 
-    results = consume(args.files, args.nogoods, args.scaling_list, args.heuristic, args.scaling_exact, args.scaling_block,
-                        time_limit=args.time_limit, horizon=args.horizon, no_base_run=args.no_base_run)
+    results = consume(args.files, args.nogoods, args.scaling_list, args.scaling_exact, args.scaling_block,
+                        time_limit=args.time_limit, horizon=args.horizon, solver_args=args.solver_args, no_base_run=args.no_base_run)
 
     if args.save_folder is not None:
         create_folder(args.save_folder)
