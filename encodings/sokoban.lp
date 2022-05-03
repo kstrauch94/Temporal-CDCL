@@ -17,7 +17,8 @@ domain_at(S,L) :- loc(L), stone(S).
 domain_clear(L) :- loc(L).
 domain_at_goal(S) :- stone(S).
 
-{at(PS,L,0) : domain_at(PS,L)}.
+{at(P,L,0) : domain_at(P,L)} = 1 :- player(P).
+{at(S,L,0) : domain_at(S,L)} = 1 :- stone(S).
 
 {clear(L,0) : domain_clear(L)}.
 
@@ -139,6 +140,6 @@ assumption(clear(L,0), true) :-     clear(L).
 assumption(clear(L,0),false) :- not clear(L), domain_clear(L).
 
 % goal
-assumption(atgoal(S,T),true) :- goal(S), last(T).
+assumption(atgoal(S,T),true) :- stone(S), last(T).
 % otime
 assumption(otime(T),true) :- time(T).
