@@ -217,9 +217,7 @@ class Nogood:
         if len(step_times) == 0:
             self.min_time = min(regular_times)
         else:
-            # here, it is important to note that the lowest timepoint MAY contain prime literals. This is why we add the minimum T > 0
-            # to the domain literals later on. We could also, just take the minimum point as the minimum of the transformed literals
-            # but then, the degree and dif_to_min would be different
+            # step_times - 1 since step time represents the higher of the 2 involved timesteps in the constraint
             self.min_time = min(min(step_times)-1, min(regular_times))
 
         self.degree = self.max_time - self.min_time
