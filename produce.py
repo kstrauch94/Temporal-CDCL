@@ -76,7 +76,7 @@ def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, ra
 
     CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit),
               "-o", "runsolver.cdcl.watcher",
-              "config.CLINGO"] + file_names
+              config.CLINGO] + file_names
 
     call = CLINGO + options
 
