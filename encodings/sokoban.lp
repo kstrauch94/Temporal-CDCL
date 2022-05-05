@@ -142,7 +142,7 @@ assumption(clear(L,0), true) :-     clear(L).
 assumption(clear(L,0),false) :- not clear(L), domain_clear(L).
 
 assumption(atgoal(S,0), true) :-     atgoal_init(S).
-assumption(atgoal(S,0),false) :- not atgoal_init(S), domain_at_goal(S)
+assumption(atgoal(S,0),false) :- not atgoal_init(S), domain_at_goal(S).
 
 % goal
 assumption(atgoal(S,T),true) :- stone(S), last(T).
