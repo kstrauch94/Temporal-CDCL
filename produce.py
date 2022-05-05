@@ -1,7 +1,4 @@
-from operator import truediv, truth
 import subprocess
-import re
-import errno
 import argparse
 
 from util import util
@@ -9,8 +6,6 @@ from util import util
 from Nogood import Nogood, NogoodList
 from Validator import Validator
 import config
-
-from collections.abc import MutableSequence
 
 
 def check_subsumed(ng_list, new_ng):
@@ -79,9 +74,9 @@ def get_sort_value(object, attributes):
 
 def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
 
-    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit),
-              "-w", "runsolver.cdcl.watcher", "-d", "20",
-              "clingo"] + file_names
+    CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit),
+              "-o", "runsolver.cdcl.watcher",
+              "config.CLINGO"] + file_names
 
     call = CLINGO + options
 
@@ -136,9 +131,6 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
                     util.Count.add("nogoods subsumed", deleted)
                 else:
                     util.Count.add("nogoods subsumed", 1)
-
-        #else:
-        #    print(line, end="")
 
 
     #for ng in ng_list:
@@ -242,6 +234,7 @@ def main():
     other = parser.add_argument_group("Other options")
 
     other.add_argument("--runsolver", help="Path to the runsolver binary. Default is current directory.", default=None)
+    other.add_argument("--clingo", help="Clingo call to use. Default is \"clingo\".", default=None)
 
     args = parser.parse_args()
 
@@ -253,6 +246,9 @@ def main():
 
     if args.runsolver is not None:
         config.RUNSOLVER_PATH = args.runsolver
+
+    if args.clingo is not None:
+        config.CLINGO = args.clingo
 
     NG_RECORDING_OPTIONS = ["--lemma-out-txt",
                     "--lemma-out=-",

@@ -11,8 +11,8 @@ DEBUG = False
 
 def call_clingo(file_names, time_limit, options):
 
-    CLINGO = [config.RUNSOLVER_PATH, "-W", "{}".format(time_limit), \
-              "-w", "runsolver.consumer.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
+    CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit), \
+              "-o", "runsolver.consumer.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
 
     call = CLINGO + options
 
