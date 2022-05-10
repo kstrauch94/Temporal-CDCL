@@ -5,15 +5,19 @@ import logging
 
 import config
 
-from tools.tools import setup_logging, plasp_translate, plasp2_translate, get_parent_dir, create_folder
+from tools.tools import setup_logging, create_folder
 
 DEBUG = False
 
-def call_clingo(file_names, time_limit, options):
+def call_clingo(file_names, time_limit, memory_limit, options):
 
-    CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit), \
-              "-o", "runsolver.consumer.watcher", "clingo"] + file_names + ["--stats", "--quiet=2"]
+    CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit),
+              "-o", "runsolver.cdcl.watcher"]
 
+    if memory_limit is not None:
+        CLINGO += ["--space-limit={}".format(memory_limit)]
+    
+    CLINGO += [config.CLINGO] + file_names
     call = CLINGO + options
 
     logging.debug("calling: " + " ".join(call))
@@ -46,7 +50,7 @@ def write_nogood_partial(nogoods, filename="nogood.temp", debug=False, fileid=0)
         with open(filename+"debug.{}".format(fileid), "w") as f:
             f.writelines(nogoods)
 
-def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=False, time_limit=0, horizon=None, solver_args=None, no_base_run=False):
+def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=False, time_limit=0, memory_limit=None, horizon=None, solver_args=None, no_base_run=False):
 
     logging.info("Starting nogood consumption...")
 
@@ -68,7 +72,7 @@ def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=Fa
     if not no_base_run:
         # do a base run
         logging.info("base run")
-        output = call_clingo(files, time_limit, options)
+        output = call_clingo(files, time_limit, memory_limit, options)
         results["base"] = output
         for line in output.split("\n")[0:13]:
             logging.info(line)
@@ -105,7 +109,7 @@ def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=Fa
             else:
                 write_nogood_partial(nogoods[:nogood_current], noogood_temp_name, debug=DEBUG, fileid=nogood_current)
 
-        output = call_clingo(files + [noogood_temp_name], time_limit, options)
+        output = call_clingo(files + [noogood_temp_name], time_limit, memory_limit, options)
         results[nogood_current] = output
 
         for line in output.split("\n")[0:13]:
@@ -118,7 +122,7 @@ def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=Fa
 
     return results
 
-def consume(files, nogood_file, scaling_list=None, scaling_exact=False, scaling_block=False, time_limit=0, horizon=None, solver_args=None, no_base_run=False):
+def consume(files, nogood_file, scaling_list=None, scaling_exact=False, scaling_block=False, time_limit=0, memory_limit=None, horizon=None, solver_args=None, no_base_run=False):
 
     if scaling_list is not None:
         if type(scaling_list) == str:
@@ -128,7 +132,7 @@ def consume(files, nogood_file, scaling_list=None, scaling_exact=False, scaling_
 
 
     return run_tests(files, nogood_file, scaling, scaling_exact, scaling_block, \
-            time_limit=time_limit, horizon=horizon, solver_args=solver_args, \
+            time_limit=time_limit, memory_limit=memory_limit, horizon=horizon, solver_args=solver_args, \
             no_base_run=no_base_run)
 
 def main():
@@ -142,6 +146,7 @@ def main():
     parser.add_argument("--scaling-block", action="store_true", help="Run the block of nogoods given by 2 numbers of the scaling list.")
 
     parser.add_argument("--time-limit", help="Time limit for each call. Default=300", default=300)
+    parser.add_argument("--memory-limit", default=None, type=int, help="Memory limit for nogood extraction in MB. Default = None")
 
     parser.add_argument("--no-base-run", action="store_true", help="do not run clingo with 0 added nogoods")
 
@@ -178,7 +183,7 @@ def main():
         raise(argparse.ArgumentError("--scaling-list", "Scaling list can not be empty"))
 
     results = consume(args.files, args.nogoods, args.scaling_list, args.scaling_exact, args.scaling_block,
-                        time_limit=args.time_limit, horizon=args.horizon, solver_args=args.solver_args, no_base_run=args.no_base_run)
+                        time_limit=args.time_limit, memory_limit=args.memory_limit, horizon=args.horizon, solver_args=args.solver_args, no_base_run=args.no_base_run)
 
     if args.save_folder is not None:
         create_folder(args.save_folder)

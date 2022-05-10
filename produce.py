@@ -72,11 +72,17 @@ def get_sort_value(object, attributes):
 
     return val
 
-def call_clingo_pipe(file_names, ng_list, time_limit, process_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
-
+def call_clingo_pipe(file_names, ng_list, time_limit, memory_limit, process_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
+    # TODO
+    # rewrite so that it ONLY returns the pipe!
+    # is it confusing to have the collect inside this aswell
     CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit),
-              "-o", "runsolver.cdcl.watcher",
-              config.CLINGO] + file_names
+              "-o", "runsolver.cdcl.watcher"]
+
+    if memory_limit is not None:
+        CLINGO += ["--space-limit={}".format(memory_limit)]
+    
+    CLINGO += [config.CLINGO] + file_names
 
     call = CLINGO + options
 
@@ -228,6 +234,7 @@ def main():
 
     processing.add_argument("--nogoods-limit", help="Solving will only find up to this amount of nogoods for processing. Default = None", default=None, type=int)
     processing.add_argument("--max-extraction-time", default=20, type=int, help="Time limit for nogood extraction in seconds. Default = 20")
+    processing.add_argument("--memory-limit", default=None, type=int, help="Memory limit for nogood extraction in MB. Default = None")
 
     processing.add_argument("--solver-args", help="Add extra clingo arguments to the learning solve call as given here. give arguments inside quotation marks", default=None)
 
@@ -297,7 +304,7 @@ def main():
             with open(args.use_existing_file, "r") as _f:
                 collect_nogoods(_f.readlines(), ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
         else:
-            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file,
+            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, args.memory_limit, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file,
                             gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
 
 
