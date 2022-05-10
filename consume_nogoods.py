@@ -55,7 +55,7 @@ def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=Fa
     logging.info("Starting nogood consumption...")
 
     noogood_temp_name = "nogood.temp"
-    options = []
+    options = ["--stats", "--quiet=2"]
 
     if horizon is not None:
         options += ["-c", "horizon={}".format(horizon)]
@@ -74,8 +74,7 @@ def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=Fa
         logging.info("base run")
         output = call_clingo(files, time_limit, memory_limit, options)
         results["base"] = output
-        for line in output.split("\n")[0:13]:
-            logging.info(line)
+        logging.info(output)
     
     print("\n\n")
 
@@ -112,8 +111,7 @@ def run_tests(files, nogood_file, scaling, scaling_exact=False, scaling_block=Fa
         output = call_clingo(files + [noogood_temp_name], time_limit, memory_limit, options)
         results[nogood_current] = output
 
-        for line in output.split("\n")[0:13]:
-            logging.info(line)
+        logging.info(output)
 
     try:
         os.remove(noogood_temp_name)
