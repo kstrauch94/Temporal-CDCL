@@ -77,7 +77,7 @@ def call_clingo_pipe(file_names, ng_list, time_limit, memory_limit, process_limi
     # rewrite so that it ONLY returns the pipe!
     # is it confusing to have the collect inside this aswell
     CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit),
-              "-o", "runsolver.cdcl.watcher"]
+              "-o", "runsolver.produce.watcher"]
 
     if memory_limit is not None:
         CLINGO += ["--space-limit={}".format(memory_limit)]

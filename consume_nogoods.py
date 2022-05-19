@@ -12,7 +12,7 @@ DEBUG = False
 def call_clingo(file_names, time_limit, memory_limit, options):
 
     CLINGO = [config.RUNSOLVER_PATH, "--real-time-limit={}".format(time_limit),
-              "-o", "runsolver.cdcl.watcher"]
+              "-o", "runsolver.consume.watcher"]
 
     if memory_limit is not None:
         CLINGO += ["--space-limit={}".format(memory_limit)]
@@ -20,7 +20,7 @@ def call_clingo(file_names, time_limit, memory_limit, options):
     CLINGO += [config.CLINGO] + file_names
     call = CLINGO + options
 
-    logging.debug("calling: " + " ".join(call))
+    logging.info("calling: " + " ".join(call))
 
     try:
         output = subprocess.check_output(call).decode("utf-8")
