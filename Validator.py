@@ -56,9 +56,10 @@ hypothesisConstraint({t}-degree) {constraint}
             f.write(program)
 
         # build call
-        call = [config.RUNSOLVER_PATH, "-w", "runsolver.watcher"]
+        watcher_file = "runsolver.watcher"
+        call = [config.RUNSOLVER_PATH, "-o", watcher_file]
         if self.val_walltime is not None:
-            call += ["-W", "{}".format(self.val_walltime)]
+            call += ["--real-time-limit={}".format(self.val_walltime)]
 
         call += ["clingo", "--quiet=2", "--stats", "--warn=none", temp_validate] + self.validation_files
 
@@ -72,7 +73,7 @@ hypothesisConstraint({t}-degree) {constraint}
         #print(output)
 
         os.remove(temp_validate)
-        os.remove("runsolver.watcher")
+        os.remove(watcher_file)
 
         if UNSAT in output:
             fail_reason = None
