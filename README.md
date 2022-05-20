@@ -65,7 +65,7 @@ RUNSOLVER_PATH should contain the path to some runlim binary/call. Otherwise, th
 
 CLINGO should contain the path to some clingo binary/call. Otherwise, it can be given as an option via `--clingo "path"`
 
-### Incremental Mode
+# Incremental Mode
 
 To run clingo in incremental mode we need an incremental encoding with the correct format, an instance, and the correct clingo parameters that tells it to log the nogoods it learns. 
 
