@@ -1,5 +1,5 @@
 import imp
-from produce import collect_nogoods
+from produce import collect_nogoods, process_ng_list
 from Nogood import NogoodList
 import clingo
 import os
@@ -51,10 +51,9 @@ class Handler:
         self.set_option("max_lbd", options, "max_lbd", None)
         self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
         self.set_option("no_subsumption", options, "no_subsumption", True)
+        self.set_option("sort_by", options, "sort_by", ["size"])
 
-
-
-        print(self.max_degree, self.max_lbd, self.max_nogoods, self.max_size)
+        print(self.max_degree, self.max_lbd, self.max_nogoods, self.max_size, self.sort_by)
 
         self.total_nogoods_added = 0
 
@@ -181,6 +180,9 @@ class Handler:
         # collect nogoods
         with open(self.ng_name, "r") as _f:
             collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=self.no_subsumption)
+
+        process_ng_list(ng_list=self.ng_list, nogoods_wanted=None, sort_by=self.sort_by, sort_reversed=False, validator=None)
+
         self.logger.debug(f"Length of current nogood list: {len(self.ng_list)}")
         # process nogoods
         
