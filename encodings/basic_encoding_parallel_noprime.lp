@@ -166,7 +166,7 @@ change(X,T) :- holds(X,V,T-1), not holds(X,V,T), _inertia != 0, time(T), otime(T
 
 :- planner_on = 0, not occurs(A,T) : active(A); time(T).
 
-:- occurs(A,T), postcondition(A,X,V), fluent(X), not holds(X,V,T), time(T),otime(T).
+:- occurs(A,T), postcondition(A,X,V), fluent(X), not holds(X,V,T), time(T), otime(T).
 
 effect(X,T) :- occurs(A,T), postcondition(A,X,V), fluent(X), not precondition(A,X,V),
                _inertia != 0, time(T).
@@ -189,7 +189,7 @@ single(X,T) :- occurs(A,T), selfdefeat(A,X), time(T).
 
 :- single(X,T), #count{A : occurs(A,T), postcondition(A,X,V), not precondition(A,X,V)} > 1, time(T).
 
-proceed(X,V,T) :- holds(X,V,T), scope(X,V), time(T), otime(T).
+proceed(X,V,T) :- holds(X,V,T-1), scope(X,V), time(T), otime(T).
 proceed(X,V,T) :- perform(A,T), scope(X,V), postcondition(A,X,V), not precondition(A,X,V),
                   occurs(A,T), time(T).
 
