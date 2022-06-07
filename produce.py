@@ -300,7 +300,7 @@ def main():
     if args.inc_t:
         gen_t = "t"
 
-    collect_kwargs = {"gen_t": gen_t, "process_limit": args.process_limit, "max_degree": args.max_degree, "max_size": args.max_size, "max_lbd": args.max_lbd, "no_subsumption": args.no_subsumption, "degreem1": args.degreem1}
+    collect_kwargs = {"gen_t": gen_t, "process_limit": args.nogoods_limit, "max_degree": args.max_degree, "max_size": args.max_size, "max_lbd": args.max_lbd, "no_subsumption": args.no_subsumption, "degreem1": args.degreem1}
 
     # grab the nogood list
     with util.Timer("Collect Nogoods"):
