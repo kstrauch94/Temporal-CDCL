@@ -5,6 +5,8 @@ from util import util
 
 from Nogood import Nogood, NogoodList
 from Validator import Validator
+from Minimizer import minimize
+
 import config
 
 
@@ -41,6 +43,7 @@ def check_subsumed(ng_list, new_ng):
 
         if failed:
             # only keep going to see if other nogoods subsume the new one also
+			# and increment the subsumes value accordingly
             continue
         # if new is not a subset of the nogood in the list()
         # then add the old nogood to the list
@@ -61,8 +64,6 @@ def check_subsumed(ng_list, new_ng):
 
     return new_list, True, nogoods_deleted
 
-def minimize(nogood):
-    pass #TODO
 
 def get_sort_value(object, attributes):
     val = []
@@ -72,7 +73,8 @@ def get_sort_value(object, attributes):
 
     return val
 
-def call_clingo_pipe(file_names, ng_list, time_limit, memory_limit, process_limit, options, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
+
+def call_clingo_pipe(file_names, time_limit, memory_limit, options):
     # TODO
     # rewrite so that it ONLY returns the pipe!
     # is it confusing to have the collect inside this aswell
@@ -81,7 +83,7 @@ def call_clingo_pipe(file_names, ng_list, time_limit, memory_limit, process_limi
 
     if memory_limit is not None:
         CLINGO += ["--space-limit={}".format(memory_limit)]
-    
+
     CLINGO += [config.CLINGO] + file_names
 
     call = CLINGO + options
@@ -90,34 +92,37 @@ def call_clingo_pipe(file_names, ng_list, time_limit, memory_limit, process_limi
 
     pipe = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    if raw_file is not None:
-        with open(raw_file, "w") as _f:
-            collect_nogoods(pipe.stdout, ng_list, process_limit, raw_file=_f, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd, no_subsumption=no_subsumption)
-    else:
-        collect_nogoods(pipe.stdout, ng_list, process_limit, gen_t=gen_t, max_size=max_size, max_degree=max_degree, max_lbd=max_lbd, no_subsumption=no_subsumption)
-
-    pipe.kill()
+    return pipe
 
 @util.Timer("collect")
-def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False):
+def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False, degreem1=False):
+    nomore = False
+
     for order, line in enumerate(output):
         if type(line) != str:
             line = line.decode("utf-8")
 
-        if process_limit is not None and process_limit < len(ng_list):
+        if nomore:
+            if line.startswith(":-"):
+                continue
+            else:
+                print(line, end="")
+                continue
+
+        if process_limit is not None and process_limit < order:
             #print(f"breaking {process_limit} {order}")
-            break
+            nomore = True
+            continue
 
         if line.startswith(":-") and "." in line and "__atom" not in line:
             ## __atom refers to auxiliary atoms, we can not parse those
             try:
-                ng = Nogood(line, order=order)
+                ng = Nogood(line, order=order, degreem1=degreem1)
             except AttributeError:
                 # in this case the line was not written properly in the output_file
-                break
+                nomore = True
+                continue
             util.Count.add("Total nogoods")
-            if raw_file is not None:
-                raw_file.write(line)
 
             if (max_size is not None and max_size < ng.size) or \
                (max_degree is not None and max_degree < ng.degree) or \
@@ -138,7 +143,8 @@ def collect_nogoods(output, ng_list, process_limit=None, raw_file=None, gen_t="T
                 else:
                     util.Count.add("nogoods subsumed", 1)
 
-
+        else:
+            print(line, end="")
     #for ng in ng_list:
     #    print(ng.to_general_constraint())
 
@@ -150,6 +156,8 @@ def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=Fa
     if sort_by is not None:
         ng_list.sort(key=lambda nogood : get_sort_value(nogood, sort_by), reverse=sort_reversed)
 
+    #minimize(ng_list, 0)
+
     if validator is not None:
         validated = validator.validate_list(ng_list, nogoods_wanted=nogoods_wanted)
         ng_list.replace(validated)
@@ -157,7 +165,7 @@ def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=Fa
         ng_list.replace(ng_list[:nogoods_wanted])
 
     return ng_list
-    
+
 
 def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
 
@@ -218,7 +226,6 @@ def main():
     processing = parser.add_argument_group("Processing options")
 
     processing.add_argument("--output-file", help="name of the file that the generalized nogoods will be saved to. Default=nogoods.lp", default="nogoods.lp")
-    processing.add_argument("--regular-ng-file", help="Name of the file containing the raw nogoods from clingo. Default=None", default=None)
     processing.add_argument("--use-existing-file", help="Process an existing nogood file.", metavar="file", default=None)
 
     processing.add_argument("--sort-by", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, order, lbd, random_id]. default: None", default=None)
@@ -229,6 +236,7 @@ def main():
     processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
     processing.add_argument("--max-lbd", help="Processing will ignore nogoods with higher lbd. Default = None.", default=None, type=int)
     processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = None", default=None, type=int)
+    processing.add_argument("--degreem1", action="store_true", help="degree will be calculated using the max - min otime instead of max - min - 1")
 
     processing.add_argument("--no-subsumption", action="store_true", help="Skip subsumption of atom")
 
@@ -263,11 +271,6 @@ def main():
                     "--quiet=2",
                     "--stats"]
 
-    encoding = ["encodings/Hanoi.asp", "encodings/assumption-solver.py"]
-    instance = ["test-instances/hanoitest.asp"]
-
-    validation_files = ["validation-encoding/hanoi-validation.lp", "encodings/assumption-solver.py"] + instance
-
     # deal with encoding and validation files
     encoding = args.files
     instance = args.instance
@@ -297,16 +300,20 @@ def main():
     if args.inc_t:
         gen_t = "t"
 
+    collect_kwargs = {"gen_t": gen_t, "process_limit": args.process_limit, "max_degree": args.max_degree, "max_size": args.max_size, "max_lbd": args.max_lbd, "no_subsumption": args.no_subsumption, "degreem1": args.degreem1}
+
     # grab the nogood list
     with util.Timer("Collect Nogoods"):
         ng_list = NogoodList()
         if args.use_existing_file:
             with open(args.use_existing_file, "r") as _f:
-                collect_nogoods(_f.readlines(), ng_list, gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
+                collect_nogoods(_f.readlines(), ng_list, **collect_kwargs)
         else:
-            call_clingo_pipe(encoding+instance, ng_list, args.max_extraction_time, args.memory_limit, process_limit=args.nogoods_limit, options=options, raw_file=args.regular_ng_file,
-                            gen_t=gen_t, max_degree=args.max_degree, max_size=args.max_size, max_lbd=args.max_lbd, no_subsumption=args.no_subsumption)
+            cpipe = call_clingo_pipe(encoding+instance, args.max_extraction_time, args.memory_limit, options=options)
 
+            collect_nogoods(cpipe.stdout, ng_list, **collect_kwargs)
+
+            cpipe.kill()
 
     util.Count.add("Nogoods after filter", len(ng_list))
 

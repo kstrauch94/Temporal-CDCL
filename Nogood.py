@@ -127,9 +127,10 @@ class GenLiteral:
 
 class Nogood:
 
-    def __init__(self, ng_str, order=None):
+    def __init__(self, ng_str, order=None, degreem1=False):
 
         self.order = order
+        self.degreem1 = degreem1
 
         self.literals = []
         self.domain_literals = []
@@ -217,8 +218,11 @@ class Nogood:
         if len(step_times) == 0:
             self.min_time = min(regular_times)
         else:
-            # step_times - 1 since step time represents the higher of the 2 involved timesteps in the constraint
-            self.min_time = min(min(step_times)-1, min(regular_times))
+            if not self.degreem1:
+                # step_times - 1 since step time represents the higher of the 2 involved timesteps in the constraint
+                self.min_time = min(step_times)-1
+            else:
+                self.min_time = min(step_times)
 
         self.degree = self.max_time - self.min_time
 
@@ -288,12 +292,18 @@ class Nogood:
     def all_literals(self):
         return self.gen_literals + self.gen_domain_literals
 
+    def delete_gen_lit(self, lit):
+        self.gen_literals.remove(lit)
+
     def __len__(self):
         return len(self.gen_literals)
 
 
 class NogoodList(MutableSequence):
     """A more or less complete user-defined wrapper around list objects."""
+
+    # We need this ng_list so that we can replace the list while keeping the pointer
+    # for the list in the arguments intact!
 
     def __init__(self, initlist=None):
         self.data = []
