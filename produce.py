@@ -5,7 +5,7 @@ from util import util
 
 from Nogood import Nogood, NogoodList
 from Validator import Validator
-from Minimizer import minimize
+#from Minimizer import minimize
 
 import config
 
