@@ -120,87 +120,85 @@ fluent(X)   :- active(A), has_condition(A,X,1), 0 <= _parallel, _parallel < 5, _
 mutex(G,X) :- mutexGroup(G), contains(G,X,V), fluent(X,V).
 mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 
-%#const horizon.
-time(1..horizon).
-
-%
-% Define assumptions
-%
-% open otime
-{ otime(T) } :- time(T).
-
-
 %
 % Define assumptions
 %
 
 % initial state
-assumption(holds(X,V,0), true) :-     initialState(X,V).
-assumption(holds(X,V,0),false) :- not initialState(X,V), contains(X,V).
+assumption_init(holds(X,V,0), true) :-     initialState(X,V).
+assumption_init(holds(X,V,0),false) :- not initialState(X,V), contains(X,V).
+
 % goal
-assumption(holds(X,V,horizon),true) :- goal(X,V).
-% otime
-assumption(otime(T),true) :- time(T).
+assumption_goal(holds(X,V),true) :- goal(X,V).
 
 % Define initial state
-domain_holds(X,V) :- contains(X,V).
+
+% if there is no domain_holds predicate then holds' will not be generated
+%domain_holds(X,V) :- fluent(X,V).
 
 % Open initial situation
-{ holds(X,V,0) } :- domain_holds(X,V).
+1 { holds(X,V,0) : fluent(X,V)} 1 :- fluent(X).
 
 :- fluent(X), #count{V : holds(X,V,0)} > 1.
 :- mutex(G), #count{X,V : holds(X,V,0), contains(G,X,V)} > 1.
 
+% STEP PROGRAM
+
+#program step(t).
 
 % Generate successor state
 
-1 {holds(X,V,T) : fluent(X,V)} 1 :- fluent(X), time(T).
+1 {holds(X,V,t) : fluent(X,V)} 1 :- fluent(X).
 
-:- mutex(G), #count{X,V : holds(X,V,T), contains(G,X,V)} > 1, time(T), otime(T).
+:- mutex(G), #count{X,V : holds(X,V,t), contains(G,X,V)} > 1.
 
-change(X,T) :- holds(X,V,T-1), not holds(X,V,T), _inertia != 0, time(T), otime(T).
+% this rule doesnt matter since we use _inertia = 0
+change(X,t) :- holds(X,V,t-1), not holds(X,V,t), _inertia != 0.
 
 % Generate actions
 
-{occurs(A,T)} :- active(A), time(T).
+{occurs(A,t)} :- active(A).
 
-:- planner_on = 0, not occurs(A,T) : active(A); time(T).
+:- planner_on = 0, not occurs(A,t) : active(A).
 
-:- occurs(A,T), postcondition(A,X,V), fluent(X), not holds(X,V,T), time(T), otime(T).
+:- occurs(A,t), postcondition(A,X,V), fluent(X), not holds(X,V,t).
 
-effect(X,T) :- occurs(A,T), postcondition(A,X,V), fluent(X), not precondition(A,X,V),
-               _inertia != 0, time(T).
+effect(X,t) :- occurs(A,t), postcondition(A,X,V), fluent(X), not precondition(A,X,V),
+               _inertia != 0.
 
-:- change(X,T), not effect(X,T), time(T).
+:- change(X,t), not effect(X,t).
 
-:- _inertia = 0, holds(X,V,T), not holds(X,V,T-1),
-   not occurs(A,T) : active(A), postcondition(A,X,V), not precondition(A,X,V); time(T), otime(T).
+:- _inertia = 0, holds(X,V,t), not holds(X,V,t-1),
+   not occurs(A,t) : active(A), postcondition(A,X,V), not precondition(A,X,V); otime(t).
 
 % Checks w.r.t. parallel mode
 
 :- _parallel != 0, _parallel != 1, _parallel != 2, _parallel != 3, _parallel != 4,
-   #count{A : occurs(A,T)} > 1, time(T).
+   #count{A : occurs(A,t)} > 1.
 
-:- _parallel != 2, occurs(A,T), precondition(A,X,V), not holds(X,V,T-1), time(T), otime(T).
+:- _parallel != 2, occurs(A,t), precondition(A,X,V), not holds(X,V,t-1), otime(t).
 
-:- _parallel = 1, occurs(A,T), precondition(A,X,V), not has_condition(A,X,1), not holds(X,V,T), time(T), otime(T).
+:- _parallel = 1, occurs(A,t), precondition(A,X,V), not has_condition(A,X,1), not holds(X,V,t).
 
-single(X,T) :- occurs(A,T), selfdefeat(A,X), time(T).
+single(X,t) :- occurs(A,t), selfdefeat(A,X).
 
-:- single(X,T), #count{A : occurs(A,T), postcondition(A,X,V), not precondition(A,X,V)} > 1, time(T).
+:- single(X,t), #count{A : occurs(A,t), postcondition(A,X,V), not precondition(A,X,V)} > 1.
 
-proceed(X,V,T) :- holds(X,V,T-1), scope(X,V), time(T), otime(T).
-proceed(X,V,T) :- perform(A,T), scope(X,V), postcondition(A,X,V), not precondition(A,X,V),
-                  occurs(A,T), time(T).
+proceed(X,V,t) :- holds(X,V,t-1), scope(X,V), otime(t).
+proceed(X,V,t) :- perform(A,t), scope(X,V), postcondition(A,X,V), not precondition(A,X,V),
+                  occurs(A,t).
 
-perform(A,T) :- active(A), 1 < _parallel, _parallel < 4,
-                proceed(X,V,T) : precondition(A,X,V), _parallel = 2;
-                alright(A1,T) : disable(A,A1); time(T).
+perform(A,t) :- active(A), 1 < _parallel, _parallel < 4,
+                proceed(X,V,t) : precondition(A,X,V), _parallel = 2;
+                alright(A1,t) : disable(A,A1).
 
-alright(A,T) :- active(A), 1 < _parallel, _parallel < 4, not occurs(A,T), time(T).
-alright(A,T) :- perform(A,T), time(T).
+alright(A,t) :- active(A), 1 < _parallel, _parallel < 4, not occurs(A,t).
+alright(A,t) :- perform(A,t).
 
-:- 1 < _parallel, _parallel < 4, active(A), not alright(A,T), time(T).
+:- 1 < _parallel, _parallel < 4, active(A), not alright(A,t).
 
-#edge((A1,T),(A2,T)) : disable(A1,A2), occurs(A1,T), _parallel = 4, not disable, time(T).
-#edge((A1,T),(A2,T)) : disable(A1,A2), occurs(A2,T), disable, time(T).
+#edge((A1,t),(A2,t)) : disable(A1,A2), occurs(A1,t), _parallel = 4, not disable.
+#edge((A1,t),(A2,t)) : disable(A1,A2), occurs(A2,t), disable.
+
+
+%#show occurs/2.
