@@ -53,6 +53,10 @@ class Handler:
         self.set_option("no_subsumption", options, "no_subsumption", True)
         self.set_option("sort_by", options, "sort_by", ["size"])
 
+        self.degreem1 = False
+
+        self.supress_collection_output = True
+
         print(self.max_degree, self.max_lbd, self.max_nogoods, self.max_size, self.sort_by)
 
         self.total_nogoods_added = 0
@@ -179,7 +183,10 @@ class Handler:
 
         # collect nogoods
         with open(self.ng_name, "r") as _f:
-            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, raw_file=None, gen_t="t", max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, no_subsumption=self.no_subsumption)
+            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, gen_t="t", 
+                            max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, 
+                            no_subsumption=self.no_subsumption, degreem1=self.degreem1, 
+                            supress_output=self.supress_collection_output)
 
         process_ng_list(ng_list=self.ng_list, nogoods_wanted=None, sort_by=self.sort_by, sort_reversed=False, validator=None)
 

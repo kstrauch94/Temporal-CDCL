@@ -95,7 +95,7 @@ def call_clingo_pipe(file_names, time_limit, memory_limit, options):
     return pipe
 
 @util.Timer("collect")
-def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False, degreem1=False):
+def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, no_subsumption=False, degreem1=False, supress_output=False):
     nomore = False
 
     for order, line in enumerate(output):
@@ -106,6 +106,8 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
             if line.startswith(":-"):
                 continue
             else:
+                if supress_output:
+                    continue
                 print(line, end="")
                 continue
 
@@ -144,6 +146,8 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
                     util.Count.add("nogoods subsumed", 1)
 
         else:
+            if supress_output:
+                continue
             print(line, end="")
     #for ng in ng_list:
     #    print(ng.to_general_constraint())
@@ -245,6 +249,8 @@ def main():
     processing.add_argument("--memory-limit", default=None, type=int, help="Memory limit for nogood extraction in MB. Default = None")
 
     processing.add_argument("--solver-args", help="Add extra clingo arguments to the learning solve call as given here. give arguments inside quotation marks", default=None)
+    processing.add_argument("--supress-output", help="supress the output of the clingo call", action="store_true")
+
 
     other = parser.add_argument_group("Other options")
 
@@ -300,7 +306,14 @@ def main():
     if args.inc_t:
         gen_t = "t"
 
-    collect_kwargs = {"gen_t": gen_t, "process_limit": args.nogoods_limit, "max_degree": args.max_degree, "max_size": args.max_size, "max_lbd": args.max_lbd, "no_subsumption": args.no_subsumption, "degreem1": args.degreem1}
+    collect_kwargs = {"gen_t": gen_t, 
+                    "process_limit": args.nogoods_limit, 
+                    "max_degree": args.max_degree, 
+                    "max_size": args.max_size, 
+                    "max_lbd": args.max_lbd, 
+                    "no_subsumption": args.no_subsumption, 
+                    "degreem1": args.degreem1, 
+                    "supress_output": args.supress_output}
 
     # grab the nogood list
     with util.Timer("Collect Nogoods"):
