@@ -261,7 +261,7 @@ class Nogood:
             self.gen_domain_literals += ["time(T)", f"time(T-{self.degree})"]
 
         # make sure lowest timepoint possible is 0
-        self.gen_domain_literals += ["{}-{} >= 0".format(t, self.degree)]
+        self.gen_domain_literals += ["{}-{} > 0".format(t, self.degree)]
 
         self.generalized = t
 
