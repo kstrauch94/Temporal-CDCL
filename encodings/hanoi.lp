@@ -42,10 +42,10 @@ domain_move(N) :- disk(N).
 :- move(N,T), N < 5.
 
 % only top disk can be moved
-:- on'(N,N1,T), move(N,T).
+:- on(N,N1,T-1), move(N,T), otime(T).
 
 % a disk can be placed on top only.
-:- on'(N,N1,T), where(N,T).
+:- on(N,N1,T-1), where(N,T), otime(T).
 
 % no disk is moved in two consecutive moves
 :- move(N,T), move'(N,T).
