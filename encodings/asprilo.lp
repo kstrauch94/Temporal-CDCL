@@ -1,86 +1,41 @@
-%#const horizon=1.
+at(R,P,0) :- start(R,P).
+
 time(1..horizon).
 
-direction((X,Y)) :- X=-1..1, Y=-1..1, |X+Y|=1.
-nextto((X,Y),(DX,DY),(X',Y')) :- direction((DX,DY)), position((X,Y)), position((X',Y')),
-                                 (X,Y)=(X'-DX,Y'-DY), (X',Y')=(X+DX,Y+DY).
+{ move(R,U,V,T) : edge(U,V)} 1 :- agent(R), time(T).
 
-{ position(R,C,0) : position(C) } :- isRobot(R).
+% - move ------------------------------------------------------------------
+at(R,V,T) :- move(R,_,V,T).
+          :- move(R,U,_,T), not at(R,U,T-1).
 
-{ move(R,D,T) : direction(D) } 1 :- isRobot(R), time(T).
+% - inertia ---------------------------------------------------------------
+at(R,V,T) :- at'(R,V,T), not move(R,V,_,T), time(T).
 
-% - move/3 ----------------------------------------------------------------------
-position(R,C,T) :- move(R,D,T), position'(R,C',T),     nextto(C',D,C).
-                :- move(R,D,T), position'(R,C ,T), not nextto(C ,D,_).
+:- { at(R,V,T) : agent(R) }  > 1, vertex(V), time(T).
 
-% - inertia ---------------------------------------------------------------------
-position(R,C,T) :- position'(R,C,T), not move(R,_,T), isRobot(R), time(T).
+:- move(_,U,V,T), move(_,V,U,T), U < V.
 
-% - edge collision --------------------------------------------------------------
-moveto(C',C,T) :- nextto(C',D,C), position'(R,C',T), move(R,D,T).
- :- moveto(C',C,T), moveto(C,C',T), C < C'.
+:- { at(R,V,T) } != 1, agent(R), time(T).
 
-% - vertex collision ------------------------------------------------------------
- :- { position(R,C,T) : isRobot(R) }  > 1, position(C), time(T).
-
-% - auxiliaries -----------------------------------------------------------------
- :- { position(R,C,T) } != 1, isRobot(R), time(T).    % REDUNDANT but PERFORMANT?
- 
- 
-% goal
-
-processed(A,R,horizon) :- ordered(O,A), shelved(S,A), isRobot(R), position(S,C,0),
-                  position(R,C,horizon).
-processed(A,horizon)   :- processed(A,R,horizon).
-
-%:- ordered(O,A), not processed(A).
+:- goal(R,V), not at(R,V,horizon).
 
 
-% --------------------------------------------------------------------------------
-% REPRESENTATION
-
-robot(R)                     :- init(object(robot,R),          _).
-shelf(S)                     :- init(object(shelf,S),          _).
-station(P)                   :- init(object(pickingStation,P), _).
-product(A)                   :- init(object(product,A),        _).
-
-    isRobot(robot(R)) :- robot(R).
-    isShelf(shelf(S)) :- shelf(S).
-isStation(station(T)) :- station(T).
-isProduct(product(A)) :- product(A).
-    isOrder(order(O)) :- order(O).
-
-  order(      O            ) :- init(object(order,O),          _).
-ordered(order(O),product(A)) :- init(object(order,O),          value(line,(A,_))).      % IGNORING QUANTITIES
- target(order(O),station(P)) :- init(object(order,O),          value(pickingStation,P)).
-
-shelved(shelf(S),product(A)) :- init(object(product,A),        value(on,(S,_))).        % IGNORING QUANTITIES
-
-position(           (X,Y))   :- init(object(node,_),           value(at,(X,Y))).
-
-position(station(P),(X,Y))   :- init(object(pickingStation,P), value(at,(X,Y))).
-
-%position(  robot(R),(X,Y),0) :- init(object(robot,R),          value(at,(X,Y))).
-position(  shelf(S),(X,Y),0) :- init(object(shelf,S),          value(at,(X,Y))).
-
-highway(            C    )   :- init(object(highway,_),        value(at,C)).
+domain_at(R,V) :- agent(R), vertex(V).
+{ at'(R,V,T) } :- domain_at(R,V), time(T), T>0.
+:- at'(R,V,T), not at(R,V,T-1), otime(T).
+:- not at'(R,V,T), at(R,V,T-1), otime(T).
 
 
-domain_position(R,C) :- isRobot(R), position(C).
-{ position'(R,C,T) } :- domain_position(R,C), time(T), T > 0.
-:- position'(R,C,T), not position(R,C,T-1), otime(T), isRobot(R).
-:- not position'(R,C,T), position(R,C,T-1), otime(T), isRobot(R).
-
-{ otime(T) } :- time(T), T > 0.
+{ otime(T) } :- time(T).
 
 %
 % Define assumptions
 %
 
 % initial state
-assumption(position(robot(R),(X,Y),0), true) :-     init(object(robot,R), value(at,(X,Y))).
-assumption(position(robot(R),(X,Y),0),false) :- not init(object(robot,R), value(at,(X,Y))), domain_position(robot(R),(X,Y)).
+assumption(at(R,V,0), true) :-     start(R,V).
+assumption(at(R,V,0),false) :- not start(R,V), agent(R), vertex(V).
 % goal
-assumption(processed(A,horizon),true) :- ordered(O,A).
+assumption(at(R,V,horizon),true) :- goal(R,V).
 % otime
 assumption(otime(T),true) :- time(T).
