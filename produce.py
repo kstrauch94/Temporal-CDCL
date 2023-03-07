@@ -112,7 +112,8 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
                 continue
 
         if process_limit is not None and process_limit < order:
-            #print(f"breaking {process_limit} {order}")
+            print(f"breaking {process_limit} {order}")
+            return
             nomore = True
             continue
 
@@ -327,6 +328,9 @@ def main():
             collect_nogoods(cpipe.stdout, ng_list, **collect_kwargs)
 
             cpipe.kill()
+
+            stdout, stderr = cpipe.communicate()
+            print(stdout)
 
     util.Count.add("Nogoods after filter", len(ng_list))
 
