@@ -28,7 +28,7 @@ hypothesisConstraint({t}-degree) {constraint}
         for i, ng in enumerate(ng_list):
             fail_reason = self.validate(ng)
             if fail_reason is not None:
-                util.Count.add(f"Validation failed {fail_reason}")
+                util.Count.add(f"Validations failed {fail_reason}")
                 continue
             if i == len(ng_list):
                 print(f"{i} validations performed")
@@ -37,7 +37,7 @@ hypothesisConstraint({t}-degree) {constraint}
                 # we have to add end="" so that it doesnt go to a new line
                 print(f"validations performed: {i}    \r", end="")
 
-            util.Count.add("Validation Successful")
+            util.Count.add("Validations Successful")
             validated.append(ng)
 
             if len(validated) == nogoods_wanted:
@@ -81,7 +81,7 @@ hypothesisConstraint({t}-degree) {constraint}
         else:
             self.validated = False
 
-            print("not validated: {}".format(nogood.to_general_constraint()))
+            print("not validated: {}".format(program))
             print("number: {}".format(nogood.order))
             if TIMEOUT in output:
                 print("validation timed out!")
