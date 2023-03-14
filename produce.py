@@ -326,9 +326,10 @@ def main():
             cpipe = call_clingo_pipe(encoding+instance, args.max_extraction_time, args.memory_limit, options=options)
 
             collect_nogoods(cpipe.stdout, ng_list, **collect_kwargs)
-
-            cpipe.kill()
-
+            print("killing process...")
+            #cpipe.kill()
+            cpipe.terminate()
+            print("killed")
             stdout, stderr = cpipe.communicate()
             print(stdout)
 
