@@ -14,6 +14,8 @@ class Literal:
 
     def __init__(self, atom, sign):
         self.name = atom.name
+        if atom.negative:
+            self.name = f"-{self.name}"
 
         self.arguments = [str(arg) for arg in atom.arguments[:-1]]
 
@@ -25,7 +27,6 @@ class Literal:
         self.sign = sign
 
         self.process_prime()
-
     def process_prime(self):
 
         if self.name.endswith("'"):
