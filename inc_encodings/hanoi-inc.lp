@@ -20,7 +20,7 @@ realdisk(N) :- disk(N), not peg(N).
 % M is on N
 
 domain_on(N,M) :- disk(N), realdisk(M), N < M.
-domain_move(N) :- disk(N).
+%domain_move(N) :- disk(N).
 
 {on(N,M,0) : domain_on(N,M)} :- realdisk(M).
 
@@ -54,15 +54,14 @@ assumption_goal(on(N1,N),true) :- ongoal(N,N1).
 :- move(N,t), N < 5.
 
 % only top disk can be moved
-:- on'(N,N1,t), move(N,t).
+:- on(N,N1,t-1), move(N,t), otime(t).
 
 % a disk can be placed on top only.
-:- on'(N,N1,t), where(N,t).
+:- on(N,N1,t-1), where(N,t), otime(t).
 
 % no disk is moved in two consecutive moves
-:- move(N,t), move'(N,t).
+:- move(N,t), move(N,t-1), otime(t).
 
 % Specify effects of a move
 on(N1,N,t) :- move(N,t), where(N1,t).
 on(N,N1,t) :- on'(N,N1,t), not move(N1,t).
-

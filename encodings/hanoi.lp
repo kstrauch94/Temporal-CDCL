@@ -20,9 +20,9 @@ peg(1..4).
 realdisk(N) :- disk(N), not peg(N).
 % M is on N
 domain_on(N,M) :- disk(N), realdisk(M), N < M.
-domain_move(N) :- disk(N).
+%domain_move(N) :- disk(N).
 
-{on(N,M,0) : domain_on(N,M)} :- realdisk(M).
+{on(N,M,0) : domain_on(N,M)} =1:- realdisk(M).
 
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
@@ -48,20 +48,16 @@ domain_move(N) :- disk(N).
 :- on(N,N1,T-1), where(N,T), otime(T).
 
 % no disk is moved in two consecutive moves
-:- move(N,T), move'(N,T).
+:- move(N,T), move(N,T-1), otime(T).
 
 % Specify effects of a move
 on(N1,N,T) :- move(N,T), where(N1,T).
 on(N,N1,T) :- T > 0,
-              on'(N,N1,T), not move(N1,T).
+              on'(N,N1,T), not move(N1,T), time(T).
 
 { on'(N,M,T) } :- domain_on(N,M), time(T), T>0.
 :- on'(N,M,T), not on(N,M,T-1), otime(T).
 :- not on'(N,M,T), on(N,M,T-1), otime(T).
-
-{ move'(N,T) } :- domain_move(N), time(T), T>0.
-:- move'(N,T), not move(N,T-1), otime(T).
-:- not move'(N,T), move(N,T-1), otime(T).
 
 { otime(T) } :- time(T).
 
