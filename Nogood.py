@@ -18,7 +18,11 @@ class Literal:
             self.name = f"-{self.name}"
 
         self.arguments = [str(arg) for arg in atom.arguments[:-1]]
-
+        
+        # -we add this variable to keep record of the unprocessed time
+        # (the time changes when the literal is primed)
+        # we may use this time in the calculation of the minimum time of the nogood
+        self.non_processed_time = atom.arguments[-1].number
         self.time = atom.arguments[-1].number
 
         if sign not in [1,-1]:
@@ -27,6 +31,7 @@ class Literal:
         self.sign = sign
 
         self.process_prime()
+
     def process_prime(self):
 
         if self.name.endswith("'"):
@@ -45,6 +50,9 @@ class Literal:
             return s
         elif self.sign == -1:
             return f"not {s}"
+        
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __hash__(self) -> int:
         return hash(str(self))
@@ -129,7 +137,8 @@ class GenLiteral:
 class Nogood:
 
     def __init__(self, ng_str, order=None, degreem1=False):
-
+        
+        self.original_str = ng_str
         self.order = order
         self.degreem1 = degreem1
 
@@ -145,6 +154,9 @@ class Nogood:
         self.max_time = None
         self.min_time = None
 
+        self.min_step_time = None
+        self.max_step_time = None
+
         self.subsumes = 0
 
         self.process_lbd(ng_str)
@@ -158,6 +170,8 @@ class Nogood:
         # this is exclusively for the incremental mode
         # set this to true if the nogood has been added to the program
         self.grounded = False
+
+
 
     @property
     def score(self):
@@ -204,26 +218,33 @@ class Nogood:
 
         # matches with regular literals(prime literals still present)
         regular_times = []
+        processed_times = []
         for lit in self.literals:
-            regular_times.append(lit.time)
+            regular_times.append(lit.non_processed_time)
+            processed_times.append(lit.time)
 
         step_times = []
         for lit in self.domain_literals:
-            step_times.append(lit.time)
+            step_times.append(lit.non_processed_time)
 
         self.max_time = max(regular_times + step_times)
 
         # minimum between the lowest point in the step atom -1 (since step atom only covers the higher timepoint of the transition)
         # and the lowest timepoint if the literals when no prime literals are present
 
+        # full min is the actual minimum timepoint, not the minimum time of the rule(e.g min of on'(5), otime(6) = 5 but full min = 4 (due to on'(5) = on(4) ) )
+
         if len(step_times) == 0:
             self.min_time = min(regular_times)
+            self.full_min = min(processed_times)
         else:
-            if not self.degreem1:
-                # step_times - 1 since step time represents the higher of the 2 involved timesteps in the constraint
-                self.min_time = min(step_times)-1
-            else:
-                self.min_time = min(step_times)
+            # these 2 are just for information when printing the nogood
+            self.min_step_time = min(step_times)
+            self.max_step_time = max(step_times)
+
+
+            self.min_time = min(min(regular_times), min(step_times)-1)
+            self.full_min = min(min(processed_times), min(step_times)-1)
 
         self.degree = self.max_time - self.min_time
 
@@ -239,7 +260,6 @@ class Nogood:
             time = lit.time
 
             new_lit = GenLiteral(lit.name, lit.arguments, t=f"{t}-{self.max_time - time}", sign=lit.sign)
-            #re.sub(r"{t}(\)*){end}".format(t=time, end=END_STR), r"{t}-{dif}\1{end}".format(t=self.t, dif=self.max_time - time, end=END_STR), lit + END_STR)
 
             gen_literals.append(new_lit)
 
@@ -261,13 +281,22 @@ class Nogood:
         if t == "T":
             self.gen_domain_literals += ["time(T)", f"time(T-{self.degree})"]
 
+        if t == "t":
+            for timepoint in range(0, self.degree+1):
+                self.gen_domain_literals += [f"{OPENTIME}({t}-{timepoint})"]
+
         # make sure lowest timepoint possible is 0
-        self.gen_domain_literals += ["{}-{} > 0".format(t, self.degree)]
+        if self.degreem1:
+            self.gen_domain_literals += [f"{t}-{self.degree} >= 0"]
+        else:
+            self.gen_domain_literals += [f"{t}-{self.degree} > 0"]
+
+        self.gen_domain_literals += [f"{t}-{self.full_min} >= 0"]
 
         self.generalized = t
 
     def properties_str(self):
-        return f"% lbd = {self.lbd} , order = {self.order} , max,min = {self.max_time},{self.min_time}  , score = {self.score}  , subsumes = {self.subsumes}"
+        return f"% lbd = {self.lbd} , order = {self.order} , max,min = {self.max_time},{self.min_time}  , score = {self.score}  , subsumes = {self.subsumes}, min,max steps = {self.min_step_time},{self.max_step_time}"
 
     def to_constraint(self):
 
@@ -299,6 +328,11 @@ class Nogood:
     def __len__(self):
         return len(self.gen_literals)
 
+    def __str__(self) -> str:
+        if self.generalized is not None:
+            return self.to_general_constraint()
+
+        return self.to_constraint()
 
 class NogoodList(MutableSequence):
     """A more or less complete user-defined wrapper around list objects."""
