@@ -190,7 +190,7 @@ class Handler:
 
         process_ng_list(ng_list=self.ng_list, nogoods_wanted=None, sort_by=self.sort_by, sort_reversed=False, validator=None)
 
-        self.logger.debug(f"Length of current nogood list: {len(self.ng_list)}")
+        self.logger.debug("Length of current nogood list: %i", len(self.ng_list))
         # process nogoods
         
         self.postprocess_ng_file()
