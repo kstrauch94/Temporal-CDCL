@@ -13,16 +13,16 @@ loc(L) :- isnongoal(L).
 domain_at(P,L) :- loc(L), player(P).
 domain_at(S,L) :- loc(L), stone(S).
 domain_clear(L) :- loc(L).
-domain_at_goal(S) :- stone(S).
+domain_atgoal(S) :- stone(S).
 
 {at(P,L,0) : domain_at(P,L)} = 1 :- player(P).
 {at(S,L,0) : domain_at(S,L)} = 1 :- stone(S).
 
 {clear(L,0) : domain_clear(L)}.
 
-atgoal_init(S,0) :- isgoal(L), stone(S), at(S,L).
+atgoal_init(S) :- isgoal(L), stone(S), at(S,L).
 
-{atgoal(S,0) : domain_at_goal(S)}. 
+{atgoal(S,0) : domain_atgoal(S)}. 
 
 % initial state
 assumption_init(at(PS,L,0), true) :-     at(PS,L).
@@ -32,7 +32,7 @@ assumption_init(clear(L,0), true) :-     clear(L).
 assumption_init(clear(L,0),false) :- not clear(L), domain_clear(L).
 
 assumption_init(atgoal(S,0), true) :-     atgoal_init(S).
-assumption_init(atgoal(S,0),false) :- not atgoal_init(S), domain_at_goal(S).
+assumption_init(atgoal(S,0),false) :- not atgoal_init(S), domain_atgoal(S).
 
 % goal
 assumption_goal(atgoal(S),true) :- stone(S).
