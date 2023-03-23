@@ -81,8 +81,10 @@ hypothesisConstraint({t}-degree) {constraint}
         else:
             self.validated = False
 
-            print("not validated: {}".format(program))
-            print("number: {}".format(nogood.order))
+            print(f"not validated: {program}")
+            print(f"original: {nogood.original_str}")
+            print(f"dom lit: {nogood.domain_literals}")
+            print(f"number: {nogood.order}")
             if TIMEOUT in output:
                 print("validation timed out!")
 
