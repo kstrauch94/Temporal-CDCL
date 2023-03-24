@@ -137,7 +137,7 @@ assumption_goal(holds(X,V),true) :- goal(X,V).
 %domain_holds(X,V) :- fluent(X,V).
 
 % Open initial situation
-1 { holds(X,V,0) : fluent(X,V)} 1 :- fluent(X).
+{ holds(X,V,0) : fluent(X,V)} :- fluent(X).
 
 :- fluent(X), #count{V : holds(X,V,0)} > 1.
 :- mutex(G), #count{X,V : holds(X,V,0), contains(G,X,V)} > 1.

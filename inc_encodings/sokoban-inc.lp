@@ -15,8 +15,8 @@ domain_at(S,L) :- loc(L), stone(S).
 domain_clear(L) :- loc(L).
 domain_atgoal(S) :- stone(S).
 
-{at(P,L,0) : domain_at(P,L)} = 1 :- player(P).
-{at(S,L,0) : domain_at(S,L)} = 1 :- stone(S).
+{at(P,L,0) : domain_at(P,L)} :- player(P).
+{at(S,L,0) : domain_at(S,L)} :- stone(S).
 
 {clear(L,0) : domain_clear(L)}.
 

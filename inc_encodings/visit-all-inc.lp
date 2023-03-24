@@ -12,7 +12,7 @@ loc(X) :- loc(XX), connected(X,XX).
 domain_atrobot(X) :- loc(X).
 domain_visited(X) :- loc(X).
 
-{atrobot(X,0)} :- domain_atrobot(X).
+{atrobot(X,0) :  domain_atrobot(X)}.
 
 #program step(t).
 
@@ -29,3 +29,4 @@ done(t)     :- move(C,N,t).
 
 visited(X,t) :- visited'(X,t).
 visited(X,t) :- atrobot(X,t).
+#show atrobot/2.

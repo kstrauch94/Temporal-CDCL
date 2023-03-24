@@ -8,7 +8,7 @@ loc(X) :- connected(XX,X).
 loc(X) :- connected(X,XX).
 
 % generate all possible initial states
-{atrobot(X,0) : loc(X)} = 1.
+{atrobot(X,0) : loc(X)}.
 
 
 { occurs(some_action,T) } :- time(T).

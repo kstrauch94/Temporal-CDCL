@@ -18,7 +18,7 @@ time(1..horizon).
 
 location(L) :- loc(L).
 
-1{on(B,L,0) : location(L)}1 :- block(B).
+{on(B,L,0) : location(L)} :- block(B).
 
 % GENERATE
 {move(B,L,T) : block(B), location(L)} grippers :- time(T).

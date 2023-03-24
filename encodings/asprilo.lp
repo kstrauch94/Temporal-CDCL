@@ -1,4 +1,4 @@
-at(R,P,0) :- start(R,P).
+{at(R,P,0)} :- domain_at(R,P).
 
 time(1..horizon).
 

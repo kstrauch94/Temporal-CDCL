@@ -26,33 +26,16 @@ domain_on(N,M) :- disk(N), realdisk(M), N < M.
 :- move(N,T), N < 5.
 
 % only top disk can be moved
-:- on'(N,N1,T), move(N,T).
+:- on(N,N1,T-1), move(N,T).
 
 % a disk can be placed on top only.
-:- on'(N,N1,T), where(N,T).
+:- on(N,N1,T-1), where(N,T).
 
 % no disk is moved in two consecutive moves
-:- move(N,T), move'(N,T).
+:- move(N,T), move(N,T-1).
 
 % Specify effects of a move
 on(N1,N,T) :- move(N,T), where(N1,T).
 on(N,N1,T) :- T > 0,
-              on'(N,N1,T), not move(N1,T).
+              on(N,N1,T-1), not move(N1,T), time(T).
 
-{ on'(N,M,T) } :- domain_on(N,M), time(T), T>0.
-:- on'(N,M,T), not on(N,M,T-1), otime(T).
-:- not on'(N,M,T), on(N,M,T-1), otime(T).
-
-{ move'(N,T) } :- disk(N), time(T), T>0.
-:- move'(N,T), not move(N,T-1), otime(T).
-:- not move'(N,T), move(N,T-1), otime(T).
-
-{ otime(T) } :- time(T).
-
-
-%
-% Define assumptions
-%
-
-%otime
-assumption(otime(T),true) :- time(T).

@@ -7,7 +7,7 @@ loc(X) :- at(X).
 loc(X) :- connected(XX,X).
 loc(X) :- connected(X,XX).
 
-{atrobot(X,0) : loc(X)} = 1.
+{atrobot(X,0) : loc(X)}.
 
 %%%%%%%%%%%%%%%
 %%%

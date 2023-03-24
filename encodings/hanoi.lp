@@ -22,7 +22,7 @@ realdisk(N) :- disk(N), not peg(N).
 domain_on(N,M) :- disk(N), realdisk(M), N < M.
 %domain_move(N) :- disk(N).
 
-{on(N,M,0) : domain_on(N,M)} =1:- realdisk(M).
+{on(N,M,0) : domain_on(N,M)} :- realdisk(M).
 
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
