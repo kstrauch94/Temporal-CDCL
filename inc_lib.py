@@ -44,6 +44,9 @@ class Handler:
 
         self.base_benchmark_mode = None
         self.no_subsumption = None
+        self.sort_by = None
+        # nogoods wanted per step!
+        self.nogoods_wanted = None
 
         self.set_option("max_nogoods", options, "max_nogoods", 1000)
         self.set_option("max_size", options, "max_size", 50)
@@ -52,6 +55,7 @@ class Handler:
         self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
         self.set_option("no_subsumption", options, "no_subsumption", True)
         self.set_option("sort_by", options, "sort_by", ["size"])
+        self.set_option("nogoods_wanted", options, "nogoods_wanted", None)
 
         self.degreem1 = False
 
@@ -90,22 +94,22 @@ class Handler:
         self.domain_names = set()
 
         for x in prg.symbolic_atoms:
-                if x.is_fact:
-                    atom = x.symbol
-                    if "assumption" in atom.name:
-                        truth_val = truth_dict[atom.arguments[1].name]
-                    
-                        if atom.name == "assumption_init":
-                            self.init_assumptions.append([atom.arguments[0], truth_val])
-            
-                        elif atom.name == "assumption_goal":
-                            inner_atom = atom.arguments[0]
-                            name = inner_atom.name
-                            args = inner_atom.arguments[:]
-                            self.goal_assumptions.append([name, args, truth_val])
+            if x.is_fact:
+                atom = x.symbol
+                if "assumption" in atom.name:
+                    truth_val = truth_dict[atom.arguments[1].name]
+                
+                    if atom.name == "assumption_init":
+                        self.init_assumptions.append([atom.arguments[0], truth_val])
+        
+                    elif atom.name == "assumption_goal":
+                        inner_atom = atom.arguments[0]
+                        name = inner_atom.name
+                        args = inner_atom.arguments[:]
+                        self.goal_assumptions.append([name, args, truth_val])
 
-                    if atom.name.startswith(DOMAIN_PREFIX):
-                        self.parse_domain(atom)
+                if atom.name.startswith(DOMAIN_PREFIX):
+                    self.parse_domain(atom)
                         
 
     def add_domains(self, prg):
@@ -237,7 +241,6 @@ class Handler:
         """
         this function returns the name of the parts that were added to the program that have to be grounded
         """
-        
         # this is a safety net, if we are in step < 1 we have not solved yet
         # so there is no nogood file
         if step < 1:
@@ -248,8 +251,10 @@ class Handler:
         if self.base_benchmark_mode:
             # return here after having converted the nogods
             # so that it doesnt add any new programs or extends the step program
+            self.logger.info("noogods to add: 0")
+            self.logger.info("total nogoods added: {}".format(self.total_nogoods_added))
             return []
-
+        #print(self.ng_list)
         nogoods = []
         for ng in self.ng_list:
             if not ng.grounded:
@@ -259,14 +264,14 @@ class Handler:
 
         # if there are no nogoods to ground, then just return
         if len(nogoods) == 0:
+            self.logger.info("noogods to add: 0")
+            self.logger.info("total nogoods added: {}".format(self.total_nogoods_added))
             return []
 
         # add nogoods to the exact max amount
         if len(nogoods) + self.total_nogoods_added >= self.max_nogoods:
             add_amount = self.max_nogoods - self.total_nogoods_added
             nogoods = nogoods[:add_amount]
-
-        self.logger.debug("noogods to add: {}".format(len(nogoods)))
 
         parts = []
 
@@ -284,7 +289,8 @@ class Handler:
         self.total_nogoods_added += len(nogoods)
         util.Count.add("Nogoods added", len(nogoods))
 
-        self.logger.debug("total nogoods added: {}".format(self.total_nogoods_added))
+        self.logger.info("noogods to add: {}".format(len(nogoods)))
+        self.logger.info("total nogoods added: {}".format(self.total_nogoods_added))
 
         return parts
 
