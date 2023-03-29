@@ -29,4 +29,3 @@ done(t)     :- move(C,N,t).
 
 visited(X,t) :- visited'(X,t).
 visited(X,t) :- atrobot(X,t).
-#show atrobot/2.
