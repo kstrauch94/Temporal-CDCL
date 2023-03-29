@@ -55,7 +55,7 @@ class Handler:
         self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
         self.set_option("no_subsumption", options, "no_subsumption", True)
         self.set_option("sort_by", options, "sort_by", ["size"])
-        self.set_option("nogoods_wanted", options, "nogoods_wanted", None)
+        self.set_option("nogoods_wanted", options, "nogoods_wanted", 100)
 
         self.degreem1 = False
 
@@ -256,10 +256,14 @@ class Handler:
             return []
         #print(self.ng_list)
         nogoods = []
+        added = 0
         for ng in self.ng_list:
+            if self.nogoods_wanted is not None and added >= self.nogoods_wanted:
+                break
+
             if not ng.grounded:
                 ng.grounded = True
-
+                added += 1
                 nogoods.append(ng.to_general_constraint())
 
         # if there are no nogoods to ground, then just return
