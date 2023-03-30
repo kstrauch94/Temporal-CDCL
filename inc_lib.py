@@ -55,7 +55,7 @@ class Handler:
         self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
         self.set_option("no_subsumption", options, "no_subsumption", True)
         self.set_option("sort_by", options, "sort_by", ["size"])
-        self.set_option("nogoods_wanted", options, "nogoods_wanted", 100)
+        self.set_option("nogoods_wanted", options, "nogoods_wanted", None)
 
         self.degreem1 = False
 
