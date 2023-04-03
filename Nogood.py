@@ -157,6 +157,9 @@ class Nogood:
         self.min_step_time = None
         self.max_step_time = None
 
+        self.horn_pos = 0
+        self.horn_neg = 0
+
         self.subsumes = 0
 
         self.process_lbd(ng_str)
@@ -164,6 +167,8 @@ class Nogood:
         self.process_literals(ng_str)
 
         self.process_time()
+
+        self.is_horn_clause()
 
         self.generalized = None
 
@@ -178,6 +183,22 @@ class Nogood:
         return self.lbd + log(self.size, 50) + log(self.degree+1, 5)
 
     @property
+    def horn_any(self):
+        return int(self.horn_pos or self.horn_neg)
+
+    @property
+    def r_horn_pos(self):
+        return -self.horn_pos
+
+    @property
+    def r_horn_neg(self):
+        return -self.horn_neg
+
+    @property
+    def r_horn_any(self):
+        return -self.horn_any
+
+    @property
     def size(self):
         return len(self.literals)
 
@@ -186,12 +207,28 @@ class Nogood:
         #useful to not specify reverse sort
         return -self.subsumes
 
+    def is_horn_clause(self):
+        pos = 0
+        neg = 0
+
+        for val in self.literals:
+            if val.sign == 1:
+                pos += 1
+            elif val.sign == -1:
+                neg += 1
+        
+        self.horn_pos = int(pos == 1)
+        self.horn_neg = int(neg == 1)
+
+            
+
+
     def process_lbd(self, nogood_str):
         try:
             self.lbd = int(re.search(lbd_re, nogood_str).group(1))
-        except AttributeError as e:
-            print("ERROR IN LBD: {}".format(nogood_str))
-            raise AttributeError
+        except AttributeError as _:
+            print(f"ERROR IN LBD: {nogood_str}")
+            raise AttributeError from _
 
 
     def process_literals(self, nogood_str):
