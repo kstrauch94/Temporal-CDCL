@@ -52,6 +52,7 @@ class Handler:
         self.set_option("max_size", options, "max_size", 50)
         self.set_option("max_degree", options, "max_degree", 8)
         self.set_option("max_lbd", options, "max_lbd", None)
+        self.set_option("is_horn", options, "is_horn", False)
         self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
         self.set_option("no_subsumption", options, "no_subsumption", True)
         self.set_option("sort_by", options, "sort_by", ["size"])
@@ -188,7 +189,7 @@ class Handler:
         # collect nogoods
         with open(self.ng_name, "r") as _f:
             collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, gen_t="t", 
-                            max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, 
+                            max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, is_horn=self.is_horn,
                             no_subsumption=self.no_subsumption, degreem1=self.degreem1, 
                             supress_output=self.supress_collection_output)
 
