@@ -29,7 +29,7 @@ class Application:
         See clingo.clingo_main().
         """
 
-        group = "Untimed Options"
+        group = "Generalization Options"
 
         options.add(group, "max-size", """Max nogood size""", lambda val: self.__parse_int_option("max_size", val))
         options.add(group, "max-degree", """Max degree """, lambda val: self.__parse_int_option("max_degree", val))
