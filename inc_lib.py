@@ -1,4 +1,3 @@
-import imp
 from produce import collect_nogoods, process_ng_list
 from Nogood import NogoodList
 import clingo
@@ -31,38 +30,28 @@ class Handler:
 
     def __init__(self, ng_name="ng_temp.lp",
                converted_ng_name="nogoods.lp",
-               options=None):
+               collect_options=None,
+               base_bechmark_mode = None,
+               no_subsumption = True,
+               sort_by = ["size"],
+               max_nogoods = None,
+               nogoods_per_step = None,
+               degreem1 = False):
 
         self.ng_name = ng_name
         self.converted_ng_name = converted_ng_name
 
-        
-        self.max_nogoods = None
-        self.max_size = None
-        self.max_degree = None
-        self.max_lbd = None
-
-        self.base_benchmark_mode = None
-        self.no_subsumption = None
-        self.sort_by = None
+        self.collect_options = collect_options
+        self.base_benchmark_mode = base_bechmark_mode
+        self.no_subsumption = no_subsumption
+        self.sort_by = sort_by
         # nogoods wanted per step!
-        self.nogoods_wanted = None
+        self.max_nogoods = max_nogoods
+        self.nogoods_per_step = nogoods_per_step
 
-        self.set_option("max_nogoods", options, "max_nogoods", 1000)
-        self.set_option("max_size", options, "max_size", 50)
-        self.set_option("max_degree", options, "max_degree", 8)
-        self.set_option("max_lbd", options, "max_lbd", None)
-        self.set_option("is_horn", options, "is_horn", False)
-        self.set_option("base_benchmark_mode", options, "base_benchmark_mode", False)
-        self.set_option("no_subsumption", options, "no_subsumption", True)
-        self.set_option("sort_by", options, "sort_by", ["size"])
-        self.set_option("nogoods_wanted", options, "nogoods_wanted", None)
-
-        self.degreem1 = False
+        self.degreem1 = degreem1
 
         self.supress_collection_output = True
-
-        print(self.max_degree, self.max_lbd, self.max_nogoods, self.max_size, self.sort_by)
 
         self.total_nogoods_added = 0
 
@@ -70,6 +59,8 @@ class Handler:
             self.__module__ + '.' + self.__class__.__name__)
 
         self.ng_list = NogoodList()
+
+        print(collect_options)
 
     def set_option(self, var, options, name, default):
         if options is None or name not in options:
@@ -177,21 +168,18 @@ class Handler:
         return other_assumptions + self.init_assumptions + goal  
 
     def convert_nogoods(self):
-        # this function sanitizes the raw nogood file by deleting the last nogood logged if its unfinished
-        # it also does the actual call to the generalizer and writes the new converted nogoods file
+        """calls the generalizer"""
 
-
-        if len(self.ng_list) >= self.max_nogoods:
+        if self.max_nogoods is not None and len(self.ng_list) >= self.max_nogoods:
             return
 
         self.preprocess_ng_file()
 
         # collect nogoods
         with open(self.ng_name, "r") as _f:
-            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, gen_t="t", 
-                            max_degree=self.max_degree, max_size=self.max_size, max_lbd=self.max_lbd, is_horn=self.is_horn,
-                            no_subsumption=self.no_subsumption, degreem1=self.degreem1, 
-                            supress_output=self.supress_collection_output)
+            collect_nogoods(_f.readlines(), self.ng_list, process_limit=None, gen_t="t",
+                            supress_output=self.supress_collection_output,
+                            **self.collect_options)
 
         process_ng_list(ng_list=self.ng_list, nogoods_wanted=None, sort_by=self.sort_by, sort_reversed=False, validator=None)
 
@@ -259,7 +247,7 @@ class Handler:
         nogoods = []
         added = 0
         for ng in self.ng_list:
-            if self.nogoods_wanted is not None and added >= self.nogoods_wanted:
+            if self.nogoods_per_step is not None and added >= self.nogoods_per_step:
                 break
 
             if not ng.grounded:
