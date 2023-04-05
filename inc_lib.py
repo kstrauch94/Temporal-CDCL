@@ -32,7 +32,6 @@ class Handler:
                converted_ng_name="nogoods.lp",
                collect_options=None,
                base_bechmark_mode = None,
-               no_subsumption = True,
                sort_by = ["size"],
                max_nogoods = None,
                nogoods_per_step = None,
@@ -43,7 +42,6 @@ class Handler:
 
         self.collect_options = collect_options
         self.base_benchmark_mode = base_bechmark_mode
-        self.no_subsumption = no_subsumption
         self.sort_by = sort_by
         # nogoods wanted per step!
         self.max_nogoods = max_nogoods
@@ -262,7 +260,7 @@ class Handler:
             return []
 
         # add nogoods to the exact max amount
-        if len(nogoods) + self.total_nogoods_added >= self.max_nogoods:
+        if self.max_nogoods is not None and len(nogoods) + self.total_nogoods_added >= self.max_nogoods:
             add_amount = self.max_nogoods - self.total_nogoods_added
             nogoods = nogoods[:add_amount]
 
