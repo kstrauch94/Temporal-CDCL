@@ -95,27 +95,14 @@ def call_clingo_pipe(file_names, time_limit, memory_limit, options):
     return pipe
 
 @util.Timer("collect")
-def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, is_horn=False, no_subsumption=False, degreem1=False, supress_output=False):
-    nomore = False
-
+def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, horn_filter=None, no_subsumption=False, degreem1=False, supress_output=False):
     for order, line in enumerate(output):
         if type(line) != str:
             line = line.decode("utf-8")
 
-        if nomore:
-            if line.startswith(":-"):
-                continue
-            else:
-                if supress_output:
-                    continue
-                print(line, end="")
-                continue
-
         if process_limit is not None and process_limit < order:
             print(f"breaking {process_limit} {order}")
             return
-            nomore = True
-            continue
 
         if line.startswith(":-") and "." in line and "__atom" not in line:
             ## __atom refers to auxiliary atoms, we can not parse those
@@ -123,14 +110,14 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
                 ng = Nogood(line, order=order, degreem1=degreem1)
             except AttributeError:
                 # in this case the line was not written properly in the output_file
-                nomore = True
                 continue
+            
             util.Count.add("Total nogoods")
 
             if (max_size is not None and max_size < ng.size) or \
                (max_degree is not None and max_degree < ng.degree) or \
                (max_lbd is not None and max_lbd < ng.lbd) or \
-                (ng.horn_any == 0 and is_horn):
+                (horn_filter is not None and ((horn_filter=="pos" and ng.horn_pos) or (horn_filter=="neg" and ng.horn_neg) or (horn_filter=="any" and ng.horn_any)) ):
                 util.Count.add("skipped")
                 continue
 
@@ -241,7 +228,7 @@ def main():
     processing.add_argument("--max-degree", help="Processing will ignore nogoods with higher degree. Default = None", default=None, type=int)
     processing.add_argument("--max-size", help="Processing will ignore nogoods with higher literal count. Default = None.", default=None, type=int)
     processing.add_argument("--max-lbd", help="Processing will ignore nogoods with higher lbd. Default = None.", default=None, type=int)
-    processing.add_argument("--is-horn", help="Processing will ignore nogoods that are not horn clauses", action="store_true")
+    processing.add_argument("--horn-filter", help="Processing will ignore nogoods that are not horn clauses", choices=["pos","neg","any"], default=None)
 
     processing.add_argument("--nogoods-wanted", help="Nogoods processed will stop after this amount. Default = None", default=None, type=int)
     processing.add_argument("--degreem1", action="store_true", help="degree will be calculated using the max - min otime instead of max - min - 1")
@@ -315,7 +302,7 @@ def main():
                     "max_degree": args.max_degree, 
                     "max_size": args.max_size, 
                     "max_lbd": args.max_lbd,
-                    "is_horn": args.is_horn,
+                    "horn_filter": args.horn_filter,
                     "no_subsumption": args.no_subsumption, 
                     "degreem1": args.degreem1, 
                     "supress_output": args.supress_output}
