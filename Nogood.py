@@ -151,6 +151,7 @@ class Nogood:
         self.lbd = None
 
         self.degree = None
+        self.full_degree = None
         self.max_time = None
         self.min_time = None
 
@@ -284,7 +285,7 @@ class Nogood:
             self.full_min = min(min(processed_times), min(step_times)-1)
 
         self.degree = self.max_time - self.min_time
-
+        self.full_degree = self.max_time - self.full_min
 
     def _generalize(self, literals, t):
 
@@ -328,7 +329,7 @@ class Nogood:
         else:
             self.gen_domain_literals += [f"{t}-{self.degree} > 0"]
 
-        self.gen_domain_literals += [f"{t}-{self.full_min} >= 0"]
+        self.gen_domain_literals += [f"{t}-{self.full_degree} >= 0"]
 
         self.generalized = t
 
