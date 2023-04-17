@@ -1,7 +1,5 @@
 time(T) :- step(T).
-max(T) :- time(T), not time(T+1).
-
-last(T) :- max(T).
+last(T) :- time(T), not time(T+1).
 
 loc(X) :- at(X).
 loc(X) :- connected(XX,X).
@@ -42,9 +40,6 @@ assumption(atrobot(X,0),false) :- not at(X), loc(X).
 
 % goal
 assumption(visited(X,T), true) :- visit(X), last(T).
-
-%:- visit(X), not visited(X,T), step(T), not step(T+1).
-
 
 % otime
 assumption(otime(T),true) :- time(T).
