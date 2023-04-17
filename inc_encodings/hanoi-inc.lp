@@ -33,6 +33,7 @@ assumption_init(on(N1,N,0), true) :-     on0(N,N1).
 assumption_init(on(N1,N,0),false) :- not on0(N,N1), domain_on(N1,N).
 % goal
 assumption_goal(on(N1,N),true) :- ongoal(N,N1).
+:- on(N1,N,0), N1>=N.
 
 #program step(t).
 
