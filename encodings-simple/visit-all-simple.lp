@@ -21,8 +21,6 @@ done(T)     :- move(C,N,T), step(T).
 visited(X,T) :- visited(X,T-1), step(T).
 visited(X,T) :- atrobot(X,T), step(T).
 
-:- visit(X), not visited(X,T), step(T), not step(T+1).
-
 % initial state
 assumption(atrobot(X,0), true) :-     at(X).
 assumption(atrobot(X,0),false) :- not at(X), loc(X).
