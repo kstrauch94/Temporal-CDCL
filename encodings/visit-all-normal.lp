@@ -15,4 +15,3 @@ visited(X,T) :- atrobot(X,T), step(T).
 
 :- visit(X), not visited(X,T), step(T), not step(T+1).
 
-#show atrobot/2.

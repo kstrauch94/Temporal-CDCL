@@ -12,6 +12,10 @@ goal(X,Y,0)   :- goal_on(X,Y).
 reach(X,Y,0)  :- init_on(X,Y).
 conn(X,Y,D,0) :- connect(X,Y,D).
 
+% to have a complete initial state!
+shift( X, Y,X,Y,0) :- field(X,Y).
+% all other fluents(rrpush and so on) are always false since no action occurs
+
 step(S) :- max_steps(S),     0 < S.
 step(T) :- step(S), T = S-1, 1 < S.
 

@@ -22,9 +22,13 @@ domain_fuel(T,F-D) :- domain_fuel(T,F), fuelcost(D,_,_), F>=D.
 domain_at(O,L) :- truck(O), location(L).
 domain_at(O,L) :- package(O), location(L).
 
-{at(O,L,0) : domain_at(O,L)}.
+domain_in(P,T) :- package(P), truck(T).
 
+
+{at(O,L,0) : domain_at(O,L)}.
+{in(P,T,0) : domain_in(P,T)}.
 {fuel(T,F,0) : domain_fuel(T,F)}.
+{done(0)}.
 
 truck(T) :- fuel(T,_).
 package(P) :- at(P,L), not truck(P).
@@ -102,7 +106,6 @@ preconditions_d( T,L1,L2,S ) :- time(S), at'( T,L1,S ), fuel'( T, Fuelpre, S), f
 :- at'(O,L,S), not at(O,L,S-1), otime(S).
 :- not at'(O,L,S), at(O,L,S-1), otime(S).
 
-domain_in(P,T) :- package(P), truck(T).
 {in'(P,T,S)} :- domain_in(P,T), time(S),  S > 0.
 :- in'(P,T,S), not in(P,T,S-1), otime(S).
 :- not in'(P,T,S), in(P,T,S-1), otime(S).
@@ -113,9 +116,15 @@ domain_in(P,T) :- package(P), truck(T).
 assumption(at(O,L,0), true) :-     at(O,L).
 assumption(at(O,L,0),false) :- not at(O,L), domain_at(O,L).
 
+assumption(in(P,L,0),false) :- domain_in(P,L).
+
 assumption(fuel(T,F,0), true) :-     fuel(T,F).
 assumption(fuel(T,F,0),false) :- not fuel(T,F), domain_fuel(T,F).
+
+assumption(done(0),false).
 % goal
 assumption(at(P,L,S),true) :- goal(P,L), last(S).
+
+
 % otime
 assumption(otime(S),true) :- time(S).

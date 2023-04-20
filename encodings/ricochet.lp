@@ -30,6 +30,7 @@ pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
 go_domain(R,D,O) :- robot(R), dir(D,O).
 
 {pos(R,O,IJ,0) : pos_domain(R,O,IJ)}.  
+{go(R,D,O,0) : go_domain(R,D,O)}.
 
 barrier(I+1,J,west ) :- barrier(I,J,east ), dim(I), dim(J), dim(I+1).
 barrier(I,J+1,north) :- barrier(I,J,south), dim(I), dim(J), dim(J+1).
@@ -86,6 +87,8 @@ assumption(pos(R,1,I,0),false) :- not pos(R,I,_), pos_domain(R,1,I).
 
 assumption(pos(R,-1,J,0), true) :-     pos(R,_,J).
 assumption(pos(R,-1,J,0),false) :- not pos(R,_,J), pos_domain(R,-1,J).
+
+assumption(go(R,D,O,0),false) :- go_domain(R,D,O).
 
 % goal
 assumption(pos(R,1,I,T), true) :- target(R,I,_), last(T).

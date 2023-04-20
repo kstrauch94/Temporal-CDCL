@@ -20,6 +20,17 @@ locatable(O) :- at(O,L).
 at(O,L,0) :- at(O,L).
 fuel(T,F,0) :- fuel(T,F).
 %
+% make sure these exist to fullfill condition that init state must be complete
+% assuming "previous" state is the same state as init state
+preconditions_u( P,T,L,0 ) :- at( T,L,0 ), in( P,T,0 ), package( P ), truck( T ).
+
+% load/4, preconditions
+preconditions_l( P,T,L,0 ) :- at( T,L,0 ), at( P,L,0 ).
+
+% drive/5, preconditions
+preconditions_d( T,L1,L2,0 ) :- at( T,L1,0 ), fuel( T, Fuelpre, 0), fuelcost(Fueldelta,L1,L2), Fuelpre >= Fueldelta.
+
+
 
 action(unload(P,T,L))  :- package( P ), truck( T ), location( L ).
 action(load(P,T,L))    :- package( P ), truck( T ), location( L ).
@@ -94,4 +105,4 @@ preconditions_d( T,L1,L2,S ) :- step(S), at( T,L1,S-1 ), fuel( T, Fuelpre, S-1),
 %#show drive/4.
 %#show at/2.
 %#show at/3.
-#show occurs/2.
+%#show occurs/2.
