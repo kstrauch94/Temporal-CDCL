@@ -11,9 +11,8 @@ num_cols(Y) :- col(Y), not col(YY), YY = Y+1.
 
 step(S) :- max_steps(S),     0 < S.
 step(T) :- step(S), T = S-1, 1 < S.
-last(T) :- time(T), not time(T+1).
+last(T) :- step(T), not step(T+1).
 
-time(T) :- step(T).
 
 %%  Direct neighbors
 
@@ -38,13 +37,10 @@ domain_reach(X,Y) :- field(X,Y).
 {goal(X,Y,0) : domain_goal(X,Y)}.
 
 reach_init(X,Y,0) :- init_on(X,Y).
-reach_init(X,Y,0) :- reach_init(XX,YY,0), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,0), conn(X,Y,E,0), inverse(D,E).
+reach_init(X,Y,0) :- reach_init(XX,YY,0), dneighbor(D,XX,YY,X,Y), connect(XX,YY,D), connect(X,Y,E), inverse(D,E).
 {reach(X,Y,0): domain_reach(X,Y)}.
 
 {conn(X,Y,D,0) : domain_conn(X,Y,D)}.
-
-%fullfull condition that initial state is complete
-shift( X, Y,X,Y,0) :- field(X,Y).
 
 %%  Select a row or column to push
 
@@ -99,4 +95,3 @@ assumption(conn(X,Y,D,0),false) :- not connect(X,Y,D), domain_conn(X,Y,D).
 
 % goal
 assumption(neg_goal(T),false) :- last(T).
-#show push/3.

@@ -20,10 +20,13 @@ peg(1..4).
 realdisk(N) :- disk(N), not peg(N).
 % M is on N
 
-domain_on(N,M) :- disk(N), realdisk(M), N < M.
+domain_on(N,M) :- disk(N), disk(M).%, N < M.
 
-{on(N,M,0) : domain_on(N,M)} :- realdisk(M).
+{on(N,M,0) : domain_on(N,M)} :- disk(M).
 
+% from this choice, there are automatically choices at 0 for move and where (from lines 39 and 42)
+%{ occurs(some_action,0) }.
+{ move(N,0) : disk(N) }.
 % Specify valid arrangements of disks
 % Basic condition. Smaller disks are on larger ones
 
@@ -55,7 +58,6 @@ on(N1,N,T) :- move(N,T), where(N1,T).
 on(N,N1,T) :- T > 0,
               on(N,N1,T-1), not move(N1,T), time(T).
 
-
 %
 % Define assumptions
 %
@@ -63,5 +65,7 @@ on(N,N1,T) :- T > 0,
 % initial state
 assumption(on(N1,N,0), true) :-     on0(N,N1).
 assumption(on(N1,N,0),false) :- not on0(N,N1), domain_on(N1,N).
+assumption(move(N,0),false) :- disk(N). 
+
 % goal
 assumption(on(N1,N,T),true) :- ongoal(N,N1), last(T).

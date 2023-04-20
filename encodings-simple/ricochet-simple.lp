@@ -25,6 +25,7 @@ pos_domain(R,O,IJ) :- robot(R), domO(O), dim(IJ).
 go_domain(R,D,O) :- robot(R), dir(D,O).
 
 {pos(R,O,IJ,0) : pos_domain(R,O,IJ)}.  
+{go(R,D,O,0) : go_domain(R,D,O)}.
 
 barrier(I+1,J,west ) :- barrier(I,J,east ), dim(I), dim(J), dim(I+1).
 barrier(I,J+1,north) :- barrier(I,J,south), dim(I), dim(J), dim(J+1).
@@ -34,11 +35,9 @@ barrier(I,J-1,south) :- barrier(I,J,north), dim(I), dim(J), dim(I-1).
 conn(D,I,J) :- dir(D,-1), dir(D,_,DJ), not barrier(I,J,D), dim(I), dim(J), dim(J+DJ). %conn(D,I,J) :- dir(D,col), dir(D,_,DJ), not barrier(I,J,D), dim(I), dim(J), dim(J+DJ).
 conn(D,J,I) :- dir(D,1), dir(D,DI,_), not barrier(I,J,D), dim(I), dim(J), dim(I+DI).  %conn(D,J,I) :- dir(D,row), dir(D,DI,_), not barrier(I,J,D), dim(I), dim(J), dim(I+DI).
 
-time(T) :- step(T).
-last(T) :- time(T), not time(T+1).
-%step(1..X) :- length(X).
-step(1).
-step(X+1) :- step(X), length(L), X < L.
+last(T) :- step(T), not step(T+1).
+step(X) :- length(X).
+step(X-1) :- step(X), X > 1.
 
 { occurs(some_action,T) } :- step(T).
 1 <= { selectRobot(R,T) : robot(R) } <= 1 :- step(T), occurs(some_action,T).
@@ -70,6 +69,8 @@ assumption(pos(R,1,I,0),false) :- not pos(R,I,_), pos_domain(R,1,I).
 
 assumption(pos(R,-1,J,0), true) :-     pos(R,_,J).
 assumption(pos(R,-1,J,0),false) :- not pos(R,_,J), pos_domain(R,-1,J).
+
+assumption(go(R,D,O,0),false) :- go_domain(R,D,O).
 
 % goal
 assumption(pos(R,1,I,T), true) :- target(R,I,_), last(T).

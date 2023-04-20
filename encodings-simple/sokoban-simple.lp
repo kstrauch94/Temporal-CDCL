@@ -49,15 +49,6 @@ domain_at_goal(S) :- stone(S).
 atgoal_init(S) :- isgoal(L), stone(S), at(S,L).
 
 {atgoal(S,0) : domain_at_goal(S)}. 
- 
-% to comply with initial state being complete
-preconditions_png( P,S,Ppos,From,To,Dir,0 ) :- at( P,Ppos,0), at( S,From,0 ), clear( To,0 ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isnongoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To.
-
-% move/4, preconditions
-preconditions_m( P,From,To,Dir,0 ) :- at( P,From,0), clear( To,0 ), movedir( From,To,Dir ), movedir( From,To,Dir ), player( P ), From != To.
-
-% push-to-goal/6, preconditions
-preconditions_pg( P,S,Ppos,From,To,Dir,0 ) :- at( P,Ppos,0 ), at( S,From,0 ), clear( To,0 ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), movedir( Ppos,From,Dir ), movedir( From,To,Dir ), isgoal( To ), player( P ), stone( S ), Ppos != To, Ppos != From, From != To.
 
 % EFFECTS APPLY  >>>>>
 
