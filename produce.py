@@ -221,7 +221,7 @@ def main():
     processing.add_argument("--output-file", help="name of the file that the generalized nogoods will be saved to. Default=nogoods.lp", default="nogoods.lp")
     processing.add_argument("--use-existing-file", help="Process an existing nogood file.", metavar="file", default=None)
 
-    processing.add_argument("--sort-by", nargs='+', help="attributes that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, order, lbd, random_id]. default: None", default=None)
+    processing.add_argument("--sort-by", help="Attributes(comma separated) that will sort the nogood list. The order of the attributes is the sorting order. Choose from [degree, literal_count, order, lbd, random_id, horn_pos, r_horn_pos, horn_neg, r_horn_neg]. default: None", default=None)
     processing.add_argument("--sort-reversed", action="store_true", help="Reverse the sort order.")
     processing.add_argument("--inc-t", action="store_true", help="use the incremental 't' instead of the normal 'T'")
 
@@ -291,6 +291,9 @@ def main():
 
     if args.solver_args is not None:
         options += args.solver_args.split()
+    
+    if args.sort_by is not None:
+        args.sort_by = args.sort_by.split(",")
 
     # generalize using the normal variable or incremental variable
     gen_t = "T"
