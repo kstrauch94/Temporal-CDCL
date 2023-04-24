@@ -126,7 +126,7 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 assumption(holds(X,V,0), true) :-     initialState(X,V).
 assumption(holds(X,V,0),false) :- not initialState(X,V), contains(X,V).
 % goal
-%assumption(holds(X,V,horizon),true) :- goal(X,V).
+assumption(holds(X,V,horizon),true) :- goal(X,V).
 
 
 % Define initial state
