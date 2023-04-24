@@ -150,7 +150,6 @@ class Handler:
         return 1
 
     def assumptions_for_step(self, step):
-
         goal = []
 
         for name, args, truth_val in self.goal_assumptions:
@@ -158,7 +157,7 @@ class Handler:
             goal.append([atom_func, truth_val])
 
         other_assumptions = []
-        if step > 0:
+        if len(self.domain_names) > 0 and step > 0:
             for i in range(1, step+1):
                 otime_func = clingo.Function(OPENTIME, [clingo.Number(i)])
                 other_assumptions.append([otime_func, True])

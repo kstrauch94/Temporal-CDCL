@@ -47,8 +47,6 @@ class Application:
 
         options.add_flag(group, "degreem1", """Use nogoods on step 1 if possible""", self.__degreem1)
         
-        # add options to parse max size, max lbd, max degree, horn filter and nogoods wanted
-
     def __parse_int_option(self, name, value):
         self.options[name] = int(value)
 
