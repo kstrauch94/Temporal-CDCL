@@ -78,7 +78,7 @@ active(A) :- possible(A), _closure != 2, _closure != 3.
 % - value '0': no compatibility to ASP-based planner (no idle steps permitted)
 % - otherwise: compatibility to ASP-based planner (idle steps permitted)
 
-#const planner_on = 0.
+#const planner_on = 1.
 
 % BASE PROGRAM
 
@@ -184,7 +184,7 @@ single(X,t) :- occurs(A,t), selfdefeat(A,X).
 
 :- single(X,t), #count{A : occurs(A,t), postcondition(A,X,V), not precondition(A,X,V)} > 1.
 
-proceed(X,V,t) :- holds(X,V,t-1), scope(X,V), otime(t).
+proceed(X,V,t) :- holds(X,V,t-1), scope(X,V).
 proceed(X,V,t) :- perform(A,t), scope(X,V), postcondition(A,X,V), not precondition(A,X,V),
                   occurs(A,t).
 

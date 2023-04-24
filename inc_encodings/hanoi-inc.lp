@@ -19,10 +19,10 @@ peg(1..4).
 realdisk(N) :- disk(N), not peg(N).
 % M is on N
 
-domain_on(N,M) :- disk(N), realdisk(M), N < M.
+domain_on(N,M) :- disk(N), disk(M), N < M.
 %domain_move(N) :- disk(N).
 
-{on(N,M,0) : domain_on(N,M)} :- realdisk(M).
+{on(N,M,0) : domain_on(N,M)} :- disk(M).
 
 %
 % Define assumptions

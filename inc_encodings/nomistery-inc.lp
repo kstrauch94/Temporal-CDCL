@@ -25,8 +25,9 @@ domain_in(P,T) :- package(P), truck(T).
 domain_done.
 
 {at(O,L,0) : domain_at(O,L)}.
-
+{in(P,T,0) : domain_in(P,T)}.
 {fuel(T,F,0) : domain_fuel(T,F)}.
+{done(0)}.
 
 truck(T) :- fuel(T,_).
 package(P) :- at(P,L), not truck(P).
@@ -42,10 +43,25 @@ action(drive(T,L1,L2)) :- fuelcost( Fueldelta,L1,L2 ) , truck( T ).
 assumption_init(at(O,L,0), true) :-     at(O,L).
 assumption_init(at(O,L,0),false) :- not at(O,L), domain_at(O,L).
 
+assumption_init(in(P,L,0),false) :- dom_in(P,L).
+
 assumption_init(fuel(T,F,0), true) :-     fuel(T,F).
 assumption_init(fuel(T,F,0),false) :- not fuel(T,F), domain_fuel(T,F).
+
+assumption_init(done(0),false).
 % goal
 assumption_goal(at(P,L),true) :- goal(P,L).
+
+% make sure these exist to fullfill condition that init state must be complete
+% assuming "previous" state is the same state as init state
+preconditions_u( P,T,L,0 ) :- at( T,L,0 ), in( P,T,0 ), package( P ), truck( T ).
+
+% load/4, preconditions
+preconditions_l( P,T,L,0 ) :- at( T,L,0 ), at( P,L,0 ).
+
+% drive/5, preconditions
+preconditions_d( T,L1,L2,0 ) :- at( T,L1,0 ), fuel( T, Fuelpre, 0), fuelcost(Fueldelta,L1,L2), Fuelpre >= Fueldelta.
+
 
 #program step(t).
 %
