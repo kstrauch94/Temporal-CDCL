@@ -30,4 +30,4 @@ assumption(atrobot(X,0),false) :- not at(X), loc(X).
 assumption(visited(X,0),false) :- loc(X).
 
 % goal
-%assumption(visited(X,T), true) :- visit(X), last(T).
+assumption(visited(X,T), true) :- visit(X), last(T).
