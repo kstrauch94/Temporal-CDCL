@@ -78,7 +78,7 @@ active(A) :- possible(A), _closure != 2, _closure != 3.
 % - value '0': no compatibility to ASP-based planner (no idle steps permitted)
 % - otherwise: compatibility to ASP-based planner (idle steps permitted)
 
-#const planner_on = 0.
+#const planner_on = 1.
 
 % BASE PROGRAM
 
@@ -125,19 +125,17 @@ mutex(G)   :- mutexGroup(G), #count{X : mutex(G,X)} > 1.
 %
 
 % initial state
-%assumption_init(holds(X,V,0), true) :-     initialState(X,V).
-assumption_init(holds(X,V,0),false) :- not initialState(X,V), fluent(X,V).
+assumption_init(holds(X,V,0), true) :-     initialState(X,V), fluent(X).
+assumption_init(holds(X,V,0),false) :- not initialState(X,V), contains(X,V), fluent(X).
 
 % goal
 assumption_goal(holds(X,V),true) :- goal(X,V).
 
 % Define initial state
 
-% if there is no domain_holds predicate then holds' will not be generated
-%domain_holds(X,V) :- fluent(X,V).
-
 % Open initial situation
-{ holds(X,V,0) : fluent(X,V)} :- fluent(X).
+%all_fluents(X) :- contains(X,V).
+{ holds(X,V,0) : contains(X,V)} :- fluent(X).
 
 :- fluent(X), #count{V : holds(X,V,0)} > 1.
 :- mutex(G), #count{X,V : holds(X,V,0), contains(G,X,V)} > 1.
