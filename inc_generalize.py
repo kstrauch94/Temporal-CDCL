@@ -92,7 +92,7 @@ class Application:
         imin   = get(prg.get_const("imin"), clingo.Number(0))
         imax   = prg.get_const("imax")
         istop  = get(prg.get_const("istop"), clingo.String("SAT"))
-        imax = clingo.Number(150)
+        #imax = clingo.Number(150)
         step, ret = 0, None
         while ((imax is None or step < imax.number) and
             (step == 0 or step < imin.number or (
