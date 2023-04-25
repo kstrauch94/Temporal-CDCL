@@ -88,7 +88,6 @@ class Handler:
                 atom = x.symbol
                 if "assumption" in atom.name:
                     truth_val = truth_dict[atom.arguments[1].name]
-                
                     if atom.name == "assumption_init":
                         self.init_assumptions.append([atom.arguments[0], truth_val])
         
@@ -157,7 +156,7 @@ class Handler:
             goal.append([atom_func, truth_val])
 
         other_assumptions = []
-        if len(self.domain_names) > 0 and step > 0:
+        if step > 0:
             for i in range(1, step+1):
                 otime_func = clingo.Function(OPENTIME, [clingo.Number(i)])
                 other_assumptions.append([otime_func, True])
