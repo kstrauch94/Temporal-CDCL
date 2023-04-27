@@ -114,7 +114,8 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
             except RuntimeError:
                 # in this case, somehow a bad line for into the nogood and the parse term gave an error, probably
                 print("bad line: " + line, file=sys.stderr)
-            
+                continue
+
             util.Count.add("Total nogoods")
 
             if (max_size is not None and max_size < ng.size) or \
