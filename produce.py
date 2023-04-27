@@ -1,6 +1,6 @@
 import subprocess
 import argparse
-from import sys
+import sys
 from util import util
 
 from Nogood import Nogood, NogoodList
