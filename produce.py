@@ -1,6 +1,6 @@
 import subprocess
 import argparse
-
+from import sys
 from util import util
 
 from Nogood import Nogood, NogoodList
@@ -111,6 +111,9 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
             except AttributeError:
                 # in this case the line was not written properly in the output_file
                 continue
+            except RuntimeError:
+                # in this case, somehow a bad line for into the nogood and the parse term gave an error, probably
+                print("bad line: " + line, file=sys.stderr)
             
             util.Count.add("Total nogoods")
 
