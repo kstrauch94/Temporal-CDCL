@@ -72,14 +72,10 @@ To run clingo in incremental mode we need an incremental encoding with the corre
 An example command is as follows:
 
 ```
-clingo inc_generalize.py inc_encodings/hanoi-inc.lp test-instances/hanoitest.lp --lemma-out-txt --lemma-out=ng_temp.lp --lemma-out-dom=output --quiet=2 --stats --lemma-out-max=1000
+python inc_generalize.py inc_encodings/hanoi-inc.lp test-instances/hanoitest.lp --lemma-out-txt --lemma-out=ng_temp.lp --lemma-out-dom=output --quiet=2 --stats --lemma-out-max=1000
 ```
-It is crucial that the value for the `--lemma-out` option is __ng_temp__.
+It is crucial that the value for the `--lemma-out` option is __ng_temp.lp__.
 
 The parameter `--lemma-out-max=<n>` is used to define how many nogoods to log. Note that the number n means it will log that amount of nogoods **per solving step**.
 
-To further customize the generalization process we can tweak the values inside the configuration file. Some example files are given in the __inc_options__ folder. It includes a file where no nogoods will be added, called base.py. To use these configurations simply add them to the call as any other file.
-
-```
-clingo inc_generalize.py inc_encodings/hanoi-inc.lp test-instances/hanoitest.lp inc_options/size50-deg10.py --lemma-out-txt --lemma-out=ng_temp.lp --lemma-out-dom=output --quiet=2 --stats --lemma-out-max=1000
-```
+For more options, such as maximum size of nogoods to add, use the help otpion `-h`
