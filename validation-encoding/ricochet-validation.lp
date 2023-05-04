@@ -46,18 +46,18 @@ go(R,D,O,T) :- selectRobot(R,T), selectDir(D,O,T), time(T).
 go_(R,O,T)   :- go(R,_,O,T), time(T).
 go(R,D,T) :- go(R,D,_,T), time(T).
 
-sameLine(R,D,O,RR,T)  :- go(R,D,O,T), pos'(R,-O,L,T), pos'(RR,-O,L,T), R != RR, time(T).
-blocked(R,D,O,I+DI,T) :- go(R,D,O,T), pos'(R,-O,L,T), not conn(D,L,I), dl(D,DI), dim(I), dim(I+DI), time(T).
-blocked(R,D,O,L,T)    :- sameLine(R,D,O,RR,T), pos'(RR,O,L,T), time(T).
+sameLine(R,D,O,RR,T)  :- go(R,D,O,T), pos(R,-O,L,T-1), pos(RR,-O,L,T-1), R != RR, time(T).
+blocked(R,D,O,I+DI,T) :- go(R,D,O,T), pos(R,-O,L,T-1), not conn(D,L,I), dl(D,DI), dim(I), dim(I+DI), time(T).
+blocked(R,D,O,L,T)    :- sameLine(R,D,O,RR,T), pos(RR,O,L,T-1), time(T).
 
-reachable(R,D,O,I,   T) :- go(R,D,O,T), pos'(R,O,I,T), time(T).
+reachable(R,D,O,I,   T) :- go(R,D,O,T), pos(R,O,I,T-1), time(T).
 reachable(R,D,O,I+DI,T) :- reachable(R,D,O,I,T), not blocked(R,D,O,I+DI,T), dl(D,DI), dim(I+DI), time(T).
 
-:- go(R,D,O,T), pos'(R,O,I,T), blocked(R,D,O,I+DI,T), dl(D,DI), time(T).
-:- go(R,D,O,T), go'(R,DD,O,T), time(T).
+:- go(R,D,O,T), pos(R,O,I,T-1), blocked(R,D,O,I+DI,T), dl(D,DI), time(T).
+:- go(R,D,O,T), go(R,DD,O,T-1), time(T).
 
 pos(R,O,I,T) :- reachable(R,D,O,I,T), not reachable(R,D,O,I+DI,T), dl(D,DI), time(T).
-pos(R,O,I,T) :- pos'(R,O,I,T), not go_(R,O,T), time(T).
+pos(R,O,I,T) :- pos(R,O,I,T-1), not go_(R,O,T), time(T).
 
 selectDir(O,T) :- selectDir(D,O,T), time(T).
 
@@ -66,17 +66,3 @@ selectDir(O,T) :- selectDir(D,O,T), time(T).
 
 %:- target(R,I,_), not pos(R,1,I,s(X)), time(s(X)), not time(s(X+1)).
 %:- target(R,_,J), not pos(R,-1,J,s(X)), time(s(X)), not time(s(X+1)).
-
-
-{ pos'(R,O,IJ,T) } :- pos_domain(R,O,IJ), time(T), T > 0.
-:- pos'(R,O,IJ,T), not pos(R,O,IJ,T-1), otime(T).
-:- not pos'(R,O,IJ,T), pos(R,O,IJ,T-1), otime(T).
-
-{ go'(R,D,O,T) } :- go_domain(R,D,O), time(T), T > 0.
-:- go'(R,D,O,T), not go(R,D,O,T-1), otime(T).
-:- not go'(R,D,O,T), go(R,D,O,T-1), otime(T).
-
-{ otime(T) } :- time(T).
-
-% otime
-assumption(otime(T),true) :- time(T).
