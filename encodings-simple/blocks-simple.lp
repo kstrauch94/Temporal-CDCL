@@ -16,7 +16,8 @@ time(0..horizon).
 
 action(move(B,L)) :- block(B), loc(L), B != L.
 
-{ on(B,L,0) } :- domain_on(B,L).
+domain_on(B,L) :- block(B), loc(L), B!=L.
+{ on(B,L,0) : loc(L) } :- block(B).
 
 {do(A,T) : action(A)} 1 :- time(T), T>0.
 
@@ -24,14 +25,14 @@ clear(B,T) :- not on(B2,B,T) : block(B2), B2 != B; block(B), time(T).
 clear(table,T) :- time(T).
 
 %precondition
-:- do(move(B,L),T), not clear'(L,T).
-:- do(move(B,L),T), not clear'(B,T).
+:- do(move(B,L),T), not clear(L,T-1).
+:- do(move(B,L),T), not clear(B,T-1).
 
 %postcodition
 on(B,L,T) :- do(move(B,L),T).
 
 %inertia
-on(B,L,T) :- on'(B,L,T), not do(move(B,L2),T) : loc(L2), L2 != L ; block(B), time(T), T>0.
+on(B,L,T) :- on(B,L,T-1), not do(move(B,L2),T) : loc(L2), L2 != L ; block(B), time(T), T>0.
 
 % cant have 2 blocks on 1 block
 :- on(B1,B,T), on(B2,B,T), B1 < B2, block(B).
@@ -45,19 +46,6 @@ on(B,L,T) :- on'(B,L,T), not do(move(B,L2),T) : loc(L2), L2 != L ; block(B), tim
 % block can't be on itself
 :- on(B,B,T), time(T).
 
-
-domain_on(B,L) :- block(B), loc(L), L != B.
-{ on'(B,L,T) } :- domain_on(B,L), time(T), T>0.
-:- on'(B,L,T), not on(B,L,T-1), otime(T).
-:- not on'(B,L,T), on(B,L,T-1), otime(T).
-
-domain_clear(L) :- loc(L).
-{ clear'(L,T) } :- domain_clear(L), time(T), T>0.
-:- clear'(L,T), not clear(L,T-1), otime(T).
-:- not clear'(L,T), clear(L,T-1), otime(T).
-
-{ otime(T) } :- time(T).
-
 %
 % Define assumptions
 %
@@ -67,5 +55,3 @@ assumption(on(B,L,0), true) :-     init(on(B,L)).
 assumption(on(B,L,0),false) :- not init(on(B,L)), domain_on(B,L).
 % goal
 assumption(on(B,L,horizon),true) :- goal(on(B,L)).
-% otime
-assumption(otime(T),true) :- time(T).
