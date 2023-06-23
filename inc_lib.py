@@ -33,7 +33,8 @@ class Handler:
                collect_options=None,
                base_bechmark_mode = None,
                sort_by = ["size"],
-               max_nogoods = None,
+               max_nogoods_to_keep = None,
+               max_nogoods_to_add = None,
                nogoods_per_step = None,
                degreem1 = False):
 
@@ -44,7 +45,8 @@ class Handler:
         self.base_benchmark_mode = base_bechmark_mode
         self.sort_by = sort_by
         # nogoods wanted per step!
-        self.max_nogoods = max_nogoods
+        self.max_nogoods_to_keep = max_nogoods_to_keep
+        self.max_nogoods_to_add = max_nogoods_to_add
         self.nogoods_per_step = nogoods_per_step
 
         self.degreem1 = degreem1
@@ -166,7 +168,10 @@ class Handler:
     def convert_nogoods(self):
         """calls the generalizer"""
 
-        if self.max_nogoods is not None and len(self.ng_list) >= self.max_nogoods:
+        if self.max_nogoods_to_keep is not None and len(self.ng_list) >= self.max_nogoods_to_keep:
+            return
+        
+        if self.total_nogoods_added >= self.max_nogoods_to_add:
             return
 
         self.preprocess_ng_file()
@@ -179,7 +184,9 @@ class Handler:
 
         process_ng_list(ng_list=self.ng_list, nogoods_wanted=None, sort_by=self.sort_by, sort_reversed=False, validator=None)
 
-        self.logger.debug("Length of current nogood list: %i", len(self.ng_list))
+        self.ng_list = self.ng_list[:self.max_nogoods_to_keep]
+
+        self.logger.info("Length of current nogood list: %i", len(self.ng_list))
         # process nogoods
         
         self.postprocess_ng_file()
@@ -222,13 +229,17 @@ class Handler:
             open(self.ng_name, "w").close()
 
 
-    def add_nogoods(self, prg, step):
+    def add_nogoods(self, prg, step, extra_name="N"):
         """
         this function returns the name of the parts that were added to the program that have to be grounded
         """
         # this is a safety net, if we are in step < 1 we have not solved yet
         # so there is no nogood file
         if step < 1:
+            return []
+
+        # if we have already added the maximum amount just return
+        if self.total_nogoods_added >= self.max_nogoods_to_add:
             return []
 
         self.convert_nogoods()
@@ -258,14 +269,14 @@ class Handler:
             return []
 
         # add nogoods to the exact max amount
-        if self.max_nogoods is not None and len(nogoods) + self.total_nogoods_added >= self.max_nogoods:
-            add_amount = self.max_nogoods - self.total_nogoods_added
+        if self.max_nogoods_to_add is not None and len(nogoods) + self.total_nogoods_added >= self.max_nogoods_to_add:
+            add_amount = self.max_nogoods_to_add - self.total_nogoods_added
             nogoods = nogoods[:add_amount]
 
         parts = []
 
         # add new nogoods to a program to be grounded to all previous steps
-        prog_name = "step-{}".format(step)
+        prog_name = f"step-{step}-{extra_name}"
         prg.add(prog_name, ["t"], "\n".join(nogoods))
         for s in range(1, step):
             parts.append((prog_name, [clingo.Number(s)]))
@@ -283,11 +294,11 @@ class Handler:
 
         return parts
 
-    def add_learned_rules(self, prg, step):
+    def add_learned_rules(self, prg, step, extra_name=""):
         if os.path.isfile(self.ng_name):
             self.logger.debug("adding nogoods")
             
-            parts = self.add_nogoods(prg, step)
+            parts = self.add_nogoods(prg, step, extra_name)
 
             self.logger.debug(f"Time used for collection {util.Timer.timers['collect']}")
             self.logger.debug(f"Time used for subsumption {util.Timer.timers['subsumption']}")
