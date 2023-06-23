@@ -20,7 +20,8 @@ class Application:
         self.__base_benchmark_mode = clingo.Flag(False)
         self.__no_subsumption = clingo.Flag(False)
         self.__sort_by = None
-        self.__max_nogoods = None
+        self.__max_nogoods_to_add = None
+        self.__max_nogoods_to_keep = None
         self.__degreem1 = clingo.Flag(False)
         self.__nogoods_per_step = None
         self.__conflicts_per_solve = None
@@ -103,6 +104,7 @@ class Application:
         return int(max(self.__conflicts_per_solve, 2*sum(conflict_list)))
 
     def main(self, prg, files):
+        print(self.__max_nogoods_to_add, self.__max_nogoods_to_keep, self.__nogoods_per_step, self.__degreem1, self.__sort_by, self.__conflicts_per_solve)
         calls = 0
 
         for name in files:
