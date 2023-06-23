@@ -96,6 +96,8 @@ def call_clingo_pipe(file_names, time_limit, memory_limit, options):
 
 @util.Timer("collect")
 def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=None, max_degree=None, max_lbd=None, horn_filter=None, no_subsumption=False, degreem1=False, supress_output=False):
+    import re
+    split_atom_re = r",\s+(?=[^()]*(?:\(|$))"
     for order, line in enumerate(output):
         if type(line) != str:
             line = line.decode("utf-8")
@@ -107,6 +109,11 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
         if line.startswith(":-") and "." in line and "__atom" not in line:
             ## __atom refers to auxiliary atoms, we can not parse those
             try:
+                if max_size is not None:
+                    pre_lits = Nogood.split_raw_constraint(line)
+                    if len(pre_lits) > max_size:
+                        continue
+
                 ng = Nogood(line, order=order, degreem1=degreem1)
             except AttributeError:
                 # in this case the line was not written properly in the output_file
@@ -118,13 +125,11 @@ def collect_nogoods(output, ng_list, process_limit=None, gen_t="T", max_size=Non
 
             util.Count.add("Total nogoods")
 
-            if (max_size is not None and max_size < ng.size) or \
-               (max_degree is not None and max_degree < ng.degree) or \
+            if (max_degree is not None and max_degree < ng.degree) or \
                (max_lbd is not None and max_lbd < ng.lbd) or \
                 (horn_filter is not None and ((horn_filter=="pos" and ng.horn_pos) or (horn_filter=="neg" and ng.horn_neg) or (horn_filter=="any" and ng.horn_any)) ):
                 util.Count.add("skipped")
                 continue
-
 
             ng.generalize(gen_t)
             if no_subsumption:
@@ -163,6 +168,42 @@ def process_ng_list(ng_list, nogoods_wanted=None, sort_by=None, sort_reversed=Fa
 
     return ng_list
 
+def find_persistence(ng_list):
+    print("Trying to find persistence...")
+    for ng in ng_list:
+        if ng.size == 2:
+            util.Count.add("size 2", 1)
+            if ng.is_horn_clause():
+                util.Count.add("horn of size 2!", 1)
+                if ng.gen_literals[0].same_without_time_and_sign(ng.gen_literals[1]):
+                    util.Count.add("persistent?", 1)
+                    print(f"persistent?:\n{ng.to_general_constraint()}")
+    print("finished with persistence!")
+
+
+def find_persistence_gen(ng_list):
+    print("Trying to find persistence gen...")
+    for ng in ng_list:
+        if ng.size not in range(3, 4+1):
+            continue
+        util.Count.add("size 3 or 4", 1)
+        if not ng.is_horn_clause():
+            continue
+
+        if ng.horn_pos:
+            atoms = ng.pos_atoms
+            rev_atom = ng.neg_atoms[0]
+        else:
+            atoms = ng.neg_atoms
+            rev_atom = ng.pos_atoms[0]
+        util.Count.add("tested", 1)
+        for test in range(len(atoms)):
+            if ng.gen_literals[test].same_without_time_and_sign(rev_atom):
+                util.Count.add("persistent?", 1)
+                print(f"persistent?:\n{ng.to_general_constraint()}")
+                break
+
+    print("finished with persistence!")
 
 def write_ng_list_to_file(ng_list, generalized=True, file_name="nogoods.lp"):
 
@@ -332,6 +373,10 @@ def main():
             print(stdout)
 
     util.Count.add("Nogoods after filter", len(ng_list))
+
+    # find persistence
+    find_persistence(ng_list)
+    find_persistence_gen(ng_list)
 
     with util.Timer("Process Nogoods"):
         # Process nogoods

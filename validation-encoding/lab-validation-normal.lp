@@ -40,9 +40,12 @@ reach_init(X,Y,0) :- reach_init(XX,YY,0), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,0
 
 {conn(X,Y,D,0) : domain_conn(X,Y,D)}.
 
-%%  Select a row or column to push
+%fullfull condition that initial state is complete
+shift( X, Y,X,Y,0) :- field(X,Y).
 
 neg_goal(T) :- goal(X,Y,T), not reach(X,Y,T).
+
+%%  Select a row or column to push
 
 { occurs(some_action,T) } :- time(T).
 rrpush(T)   :- neg_goal(T-1), not ccpush(T), occurs(some_action,T).

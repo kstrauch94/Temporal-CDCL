@@ -16,7 +16,6 @@ time(0..horizon).
 
 action(move(B,L)) :- block(B), loc(L), B != L.
 
-
 { on(B,L,0) } :- domain_on(B,L).
 
 {do(A,T) : action(A)} 1 :- time(T), T>0.

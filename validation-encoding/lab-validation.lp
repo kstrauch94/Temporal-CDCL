@@ -36,9 +36,12 @@ reach_init(X,Y,0) :- reach_init(XX,YY,0), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,0
 
 {conn(X,Y,D,0) : domain_conn(X,Y,D)}.
 
-%%  Select a row or column to push
+%fullfull condition that initial state is complete
+shift( X, Y,X,Y,0) :- field(X,Y).
 
 neg_goal(T) :- goal(X,Y,T), not reach(X,Y,T).
+
+%%  Select a row or column to push
 
 { occurs(some_action,T) } :- time(T).
 rrpush(T)   :- neg_goal'(T), not ccpush(T), occurs(some_action,T).
@@ -65,38 +68,13 @@ shift( X, Y,X,Y,T) :- time(T), field(X,Y), not push(X,e,T), not push(X,w,T), not
 
 %%  Move connections around
 
-conn(X,Y,D,T) :- conn'(XX,YY,D,T), dir(D), shift(XX,YY,X,Y,T).
+conn(X,Y,D,T) :- conn(XX,YY,D,T-1), dir(D), shift(XX,YY,X,Y,T).
 
 %%  Location of goal after pushing
 
-goal(X,Y,T) :- goal'(XX,YY,T), shift(XX,YY,X,Y,T).
+goal(X,Y,T) :- goal(XX,YY,T-1), shift(XX,YY,X,Y,T).
 
 %%  Locations reachable from new position
 
-reach(X,Y,T) :- reach'(XX,YY,T), shift(XX,YY,X,Y,T).
+reach(X,Y,T) :- reach(XX,YY,T-1), shift(XX,YY,X,Y,T).
 reach(X,Y,T) :- reach(XX,YY,T), dneighbor(D,XX,YY,X,Y), conn(XX,YY,D,T), conn(X,Y,E,T), inverse(D,E).
-
-
-{ neg_goal'(T) } :- time(T), T>0.
-:- neg_goal'(T), not neg_goal(T-1), otime(T).
-:- not neg_goal'(T), neg_goal(T-1), otime(T).
-
-domain_conn(X,Y,D) :- field(X,Y), dir(D).
-{ conn'(X,Y,D,T) } :- domain_conn(X,Y,D), time(T), T>0.
-:- conn'(X,Y,D,T), not conn(X,Y,D,T-1), otime(T).
-:- not conn'(X,Y,D,T), conn(X,Y,D,T-1), otime(T).
-
-domain_goal(X,Y) :- field(X,Y).
-{ goal'(X,Y,T) } :- field(X,Y), time(T), T>0.
-:- goal'(X,Y,T), not goal(X,Y,T-1), otime(T).
-:- not goal'(X,Y,T), goal(X,Y,T-1), otime(T).
-
-domain_reach(X,Y) :- field(X,Y).
-{ reach'(X,Y,T) } :- field(X,Y), time(T), T>0.
-:- reach'(X,Y,T), not reach(X,Y,T-1), otime(T).
-:- not reach'(X,Y,T), reach(X,Y,T-1), otime(T).
-
-{ otime(T) } :- time(T).
-
-% otime
-assumption(otime(T),true) :- time(T).

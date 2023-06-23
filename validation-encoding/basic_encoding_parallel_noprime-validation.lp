@@ -78,7 +78,7 @@ active(A) :- possible(A), _closure != 2, _closure != 3.
 % - value '0': no compatibility to ASP-based planner (no idle steps permitted)
 % - otherwise: compatibility to ASP-based planner (idle steps permitted)
 
-#const planner_on = 0.
+#const planner_on = 1.
 
 % BASE PROGRAM
 

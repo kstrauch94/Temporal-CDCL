@@ -130,6 +130,29 @@ class GenLiteral:
 
         return True
 
+    def same_without_time(self, other):
+        if self.name != other.name:
+            return False
+
+        for arg, oarg in zip(self.arguments, other.arguments):
+            if arg != oarg:
+                return False
+
+        if self.sign != other.sign:
+            return False
+
+        return True
+
+    def same_without_time_and_sign(self, other):
+        if self.name != other.name:
+            return False
+
+        for arg, oarg in zip(self.arguments, other.arguments):
+            if arg != oarg:
+                return False
+
+        return True
+
     def __ne__(self, other: object) -> bool:
         return not self == other
 
@@ -169,7 +192,7 @@ class Nogood:
 
         self.process_time()
 
-        self.is_horn_clause()
+        self.calc_horn_clause()
 
         self.generalized = None
 
@@ -178,6 +201,11 @@ class Nogood:
         self.grounded = False
 
 
+    @staticmethod
+    def split_raw_constraint(constraint):
+        pre_literals = constraint.split(".")[0].replace(":-", "").strip()
+
+        return re.split(split_atom_re, pre_literals)
 
     @property
     def score(self):
@@ -208,21 +236,40 @@ class Nogood:
         #useful to not specify reverse sort
         return -self.subsumes
 
-    def is_horn_clause(self):
-        pos = 0
-        neg = 0
+    def count_pos_neg(self):
+        self.pos = 0
+        self.neg = 0
 
         for val in self.literals:
             if val.sign == 1:
-                pos += 1
+                self.pos += 1
             elif val.sign == -1:
-                neg += 1
-        
-        self.horn_pos = int(pos == 1)
-        self.horn_neg = int(neg == 1)
+                self.neg += 1
 
-            
+    @property
+    def only_pos(self):
+        return int(self.pos == self.size)
+    
+    @property
+    def only_neg(self):
+        return int(self.neg == self.size)
 
+    def calc_horn_clause(self):
+        self.count_pos_neg()
+        self.horn_pos = int(self.pos == 1)
+        self.horn_neg = int(self.neg == 1)
+
+    def is_horn_clause(self):
+        return self.horn_pos or self.horn_neg
+
+    def get_sign_atoms(self, sign):
+        return [lit for lit in self.literals if lit.sign == sign]
+
+    def pos_atoms(self):
+        return self.get_sign_atoms(1)
+    
+    def neg_atoms(self):
+        return self.get_sign_atoms(-1)
 
     def process_lbd(self, nogood_str):
         try:
@@ -235,9 +282,7 @@ class Nogood:
     def process_literals(self, nogood_str):
         # this takes the raw nogood string and splits the atoms
         # into singular ones
-        pre_literals = nogood_str.split(".")[0].replace(":-", "").strip()
-
-        pre_literals = re.split(split_atom_re, pre_literals)
+        pre_literals = Nogood.split_raw_constraint(nogood_str)
 
         for lit in pre_literals:
             if "not " in lit:
