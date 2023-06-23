@@ -23,6 +23,9 @@ class Application:
         self.__max_nogoods = None
         self.__degreem1 = clingo.Flag(False)
         self.__nogoods_per_step = None
+        self.__conflicts_per_solve = None
+
+        self.__conflict_list = []
 
     def register_options(self, options):
         """
@@ -34,7 +37,9 @@ class Application:
         options.add(group, "max-size", """Max nogood size""", lambda val: self.__parse_int_option("max_size", val))
         options.add(group, "max-degree", """Max degree """, lambda val: self.__parse_int_option("max_degree", val))
         options.add(group, "max-lbd", """Max lbd""", lambda val: self.__parse_int_option("max_lbd", val))
-        options.add(group, "max-nogoods", """Max nogoods to use""", self.__parse_max_nogoods)
+        options.add(group, "max-nogoods-to-add", """Max nogoods to use""", self.__parse_max_nogoods_to_add)
+        options.add(group, "max-nogoods-to-keep", """Max nogoods to use""", self.__parse_max_nogoods_to_keep)
+
         options.add(group, "nogoods-per-step", """Max Noogods per step""", self.__parse_nogoods_per_step)
 
         options.add(group, "horn-filter", """Filter nogoods by horn clause type""", self.__parse_horn_filter)
@@ -46,14 +51,28 @@ class Application:
         options.add(group, "sort-by", """Sort nogoods by a given criterion""", self.__parse_sort_by)
 
         options.add_flag(group, "degreem1", """Use nogoods on step 1 if possible""", self.__degreem1)
-        
+
+        options.add(group, "conflicts-per-solve", """Minimum conflicts per solve call""", self.__parse_cps)
+
+        return True 
+
+    def __parse_cps(self, value):
+        self.__conflicts_per_solve = int(value)
+
+        return True    
+    
     def __parse_int_option(self, name, value):
         self.options[name] = int(value)
 
         return True
 
-    def __parse_max_nogoods(self, value):
-        self.__max_nogoods = int(value)
+    def __parse_max_nogoods_to_add(self, value):
+        self.__max_nogoods_to_add = int(value)
+
+        return True
+
+    def __parse_max_nogoods_to_keep(self, value):
+        self.__max_nogoods_to_keep = int(value)
 
         return True
     
@@ -77,22 +96,35 @@ class Application:
 
         return True
 
+    def limit_conflicts(self, conflict_list):
+        if self.__conflicts_per_solve is None:
+            return "umax"
+
+        return int(max(self.__conflicts_per_solve, 2*sum(conflict_list)))
+
     def main(self, prg, files):
+        calls = 0
+
         for name in files:
             prg.load(name)
+
+        if self.__conflicts_per_solve is not None:
+            prg.configuration.solve.solve_limit = f"{self.__conflicts_per_solve},umax"
 
         self.options["no_subsumption"] = self.__no_subsumption.flag
         handler = inc_lib.Handler(collect_options=self.options,
                                   base_bechmark_mode=self.__base_benchmark_mode.flag,
                                   sort_by=self.__sort_by,
-                                  max_nogoods=self.__max_nogoods,
+                                  max_nogoods_to_add=self.__max_nogoods_to_add,
+                                  max_nogoods_to_keep=self.__max_nogoods_to_keep,
                                   nogoods_per_step=self.__nogoods_per_step,
                                   degreem1=self.__degreem1)
 
         imin   = get(prg.get_const("imin"), clingo.Number(0))
         imax   = prg.get_const("imax")
         istop  = get(prg.get_const("istop"), clingo.String("SAT"))
-        #imax = clingo.Number(150)
+        #imax = clingo.Number(40)
+
         step, ret = 0, None
         while ((imax is None or step < imax.number) and
             (step == 0 or step < imin.number or (
@@ -108,18 +140,42 @@ class Application:
             else:
                 parts.append(("base", []))
 
-            if step > 0 and step % 5 == 0:
-                parts += handler.add_learned_rules(prg, step)
+            #if step > 0 and step % 5 == 0:
+            #    parts += handler.add_learned_rules(prg, step)
 
             prg.ground(parts)
             if step == 0:
                 handler.prepare(prg)
             #prg.assign_external(clingo.Function("query", [step]), True)
             if step % 5 == 0:
-                print("solving for step ", step)
-                ret, step = prg.solve(assumptions=handler.assumptions_for_step(step)), step+1
+                ret = None
+                while ret is None or ret.unknown:
+                    print("solving for step ", step)
+                    calls += 1
+                    ret = prg.solve(assumptions=handler.assumptions_for_step(step))
+                    self.__conflict_list.append(int(prg.statistics["solving"]["solvers"]["conflicts"]))
+
+                    # set the new config limit?
+                    if self.__conflicts_per_solve is not None and ret.unknown:
+                        new_limit = self.limit_conflicts(self.__conflict_list)
+
+                        print(f"new conflict limit {new_limit}")
+
+                        prg.configuration.solve.solve_limit = f"{new_limit},umax"
+
+                    if ret.unknown:
+                        parts = handler.add_learned_rules(prg, step, str(calls))
+                        prg.ground(parts)
+
+                    else:
+                        handler.convert_nogoods()
+
+                step += 1
             else:
                 step += 1
+
+        handler.print_stats()
+        print(f"Conflict list: {' '.join([str(i) for i in self.__conflict_list])}")
 
 
 def main():
