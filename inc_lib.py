@@ -171,7 +171,7 @@ class Handler:
         if self.max_nogoods_to_keep is not None and len(self.ng_list) >= self.max_nogoods_to_keep:
             return
         
-        if self.total_nogoods_added >= self.max_nogoods_to_add:
+        if self.max_nogoods_to_add is not None and self.total_nogoods_added >= self.max_nogoods_to_add:
             return
 
         self.preprocess_ng_file()
