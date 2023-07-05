@@ -375,8 +375,8 @@ def main():
     util.Count.add("Nogoods after filter", len(ng_list))
 
     # find persistence
-    find_persistence(ng_list)
-    find_persistence_gen(ng_list)
+    #find_persistence(ng_list)
+    #find_persistence_gen(ng_list)
 
     with util.Timer("Process Nogoods"):
         # Process nogoods
