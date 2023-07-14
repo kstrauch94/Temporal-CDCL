@@ -106,6 +106,7 @@ class Application:
     def main(self, prg, files):
         print(self.__max_nogoods_to_add, self.__max_nogoods_to_keep, self.__nogoods_per_step, self.__degreem1, self.__sort_by, self.__conflicts_per_solve)
         calls = 0
+        times_ng_added = 0
 
         for name in files:
             prg.load(name)
@@ -157,15 +158,18 @@ class Application:
                     ret = prg.solve(assumptions=handler.assumptions_for_step(step))
                     self.__conflict_list.append(int(prg.statistics["solving"]["solvers"]["conflicts"]))
 
-                    # set the new config limit?
-                    if self.__conflicts_per_solve is not None and ret.unknown:
+                    # set the new config limit
+                    if self.__conflicts_per_solve is not None:
                         new_limit = self.limit_conflicts(self.__conflict_list)
 
                         print(f"new conflict limit {new_limit}")
 
                         prg.configuration.solve.solve_limit = f"{new_limit},umax"
 
+                    # is unknown then conflict limit was reached
+                    # add generalized stuff
                     if ret.unknown:
+                        times_ng_added += 1
                         parts = handler.add_learned_rules(prg, step, str(calls))
                         prg.ground(parts)
 
@@ -179,6 +183,7 @@ class Application:
         handler.print_stats()
         print(f"Conflict list: {' '.join([str(i) for i in self.__conflict_list])}")
 
+        print(f"Times nogoods were added: {times_ng_added}")
 
 def main():
 	sys.exit(int(clingo.clingo_main(Application(), sys.argv[1:])))
