@@ -239,7 +239,7 @@ class Handler:
             return []
 
         # if we have already added the maximum amount just return
-        if self.total_nogoods_added >= self.max_nogoods_to_add:
+        if self.max_nogoods_to_add is not None and self.total_nogoods_added >= self.max_nogoods_to_add:
             return []
 
         self.convert_nogoods()
