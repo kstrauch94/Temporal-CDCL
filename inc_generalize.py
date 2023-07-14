@@ -169,6 +169,7 @@ class Application:
                     # is unknown then conflict limit was reached
                     # add generalized stuff
                     if ret.unknown:
+                        print(f"Conflict limit reached. Adding nogoods...")
                         times_ng_added += 1
                         parts = handler.add_learned_rules(prg, step, str(calls))
                         prg.ground(parts)
